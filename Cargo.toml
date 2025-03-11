@@ -1,5 +1,5 @@
 [package]
-name = "rsml-rust"
+name = "rbx-rsml"
 version = "0.0.0"
 edition = "2021"
 description = "A lexer and parser for the RSML language."
