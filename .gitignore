@@ -1,0 +1,9 @@
+/target
+
+/src/main.rs
+
+*.rsml
+
+# MacOS file system clutter.
+._*
+.DS_STORE

@@ -1,0 +1,17 @@
+[package]
+name = "rsml-rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+phf = "0.11.3"
+phf_macros = "0.11.3"
+rbx_types = "1.10.0"
+logos = "0.15.0"
+regex = "1.11.1"
+num-traits = "0.2.19"
+
+[build-dependencies]
+serde_json = "1.0.139"
+phf = "0.11.3"
+phf_codegen = "0.11.3"
