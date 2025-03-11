@@ -1,7 +1,10 @@
 [package]
 name = "rsml-rust"
-version = "0.1.0"
+version = "0.0.0"
 edition = "2021"
+description="A lexer and parser for the RSML language."
+homepage="https://www.rsml.style"
+repository="https://github.com/rbx-rsml/rsml-rust.git"
 
 [dependencies]
 phf = "0.11.3"
