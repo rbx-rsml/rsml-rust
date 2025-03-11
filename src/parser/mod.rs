@@ -1,10 +1,7 @@
-use crate::{collection, string_clip::StringClip};
+use crate::string_clip::StringClip;
 use crate::lexer::Token;
-use std::collections::HashMap;
 use std::{ops::Deref, sync::LazyLock};
 use num_traits::Num;
-use phf::Map;
-use phf_macros::phf_map;
 use rbx_types::{UDim, Variant};
 use regex::Regex;
 use crate::guarded_unwrap;

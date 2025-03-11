@@ -49,16 +49,3 @@ macro_rules! guarded_unwrap {
         guarded_unwrap!(@inner $expr, { continue; })
     };
 }
-
-#[macro_export]
-macro_rules! collection {
-    // map-like
-    ($($k:expr => $v:expr),* $(,)?) => {{
-        core::convert::From::from([$(($k, $v),)*])
-    }};
-
-    // set-like
-    ($($v:expr),* $(,)?) => {{
-        core::convert::From::from([$($v,)*])
-    }};
-}
