@@ -6,7 +6,7 @@ description = "A lexer and parser for the RSML language."
 homepage = "https://www.rsml.style"
 repository = "https://github.com/rbx-rsml/rsml-rust.git"
 readme = "README.md"
-license = "LICENSE.md"
+license = "MIT"
 
 [dependencies]
 phf = "0.11.3"
