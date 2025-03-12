@@ -2,7 +2,7 @@ mod lexer;
 pub use lexer::lex_rsml;
 
 mod parser;
-pub use parser::parse_rsml;
+pub use parser::{parse_rsml, TreeNode};
 
 mod string_clip {
     pub trait StringClip {

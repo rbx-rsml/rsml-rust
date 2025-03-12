@@ -13,7 +13,7 @@ mod tuple;
 use tuple::Tuple;
 
 mod tree_node;
-use tree_node::TreeNode;
+pub use tree_node::TreeNode;
 
 mod selector;
 use selector::Selector;
