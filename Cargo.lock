@@ -288,12 +288,9 @@ dependencies = [
  "phf",
  "phf_codegen",
  "phf_macros",
- "proc-macro2",
- "quote",
  "rbx_types",
  "regex",
  "serde_json",
- "syn",
 ]
 
 [[package]]

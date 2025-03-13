@@ -1,6 +1,6 @@
 use crate::string_clip::StringClip;
 use crate::lexer::Token;
-use std::{ops::Deref, sync::LazyLock};
+use std::{ops::Deref, ptr, sync::LazyLock};
 use num_traits::Num;
 use rbx_types::{UDim, Variant};
 use regex::Regex;
@@ -35,9 +35,13 @@ type TokenWithResult<'a, R> = (Option<Token<'a>>, R);
 
 struct Parser<'a> {
     lexer: &'a mut logos::Lexer<'a, Token<'a>>,
+
     tree_nodes: Vec<TreeNode>,
     current_tree_node: usize,
-    tuples: Vec<Tuple>
+
+    tuples: Vec<Tuple>,
+
+    did_advance: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -48,7 +52,9 @@ impl<'a> Parser<'a> {
             tree_nodes: vec![],
             current_tree_node: 0,
 
-            tuples: vec![]
+            tuples: vec![],
+
+            did_advance: false,
         }
     }
 
@@ -56,6 +62,8 @@ impl<'a> Parser<'a> {
     // `parse_comment_multi`, `parse_comment_single`, `parse_string_multi_end`.
     // So this core method serves to strip all of it away.
     fn core_advance(&mut self) -> Option<Token<'a>> {
+        self.did_advance = true;
+
         loop {
             match self.lexer.next() {
                 Some(Ok(token)) => break Some(token),
@@ -66,13 +74,7 @@ impl<'a> Parser<'a> {
     }
 
     fn advance(self: &mut Parser<'a>) -> Option<Token<'a>> {
-        let token = loop {
-            match self.lexer.next() {
-                Some(Ok(token)) => break token,
-                None => return None,
-                _ => ()
-            }
-        };
+        let token = guarded_unwrap!(self.core_advance(), return None);
 
         let token = parse_comment_multi(self, token).unwrap_or(token);
 
@@ -960,7 +962,7 @@ fn parse_derive_declaration<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> Op
     }
 
     let token = guarded_unwrap!(token, return None);
-    return parse_delimiters(parser, token)
+    parse_delimiters(parser, token)
 }
 
 pub fn parse_rsml<'a>(lexer: &'a mut logos::Lexer<'a, Token<'a>>) -> Vec<TreeNode> {
@@ -972,7 +974,7 @@ pub fn parse_rsml<'a>(lexer: &'a mut logos::Lexer<'a, Token<'a>>) -> Vec<TreeNod
     let mut token = guarded_unwrap!(parser.advance(), return parser.tree_nodes);
 
     loop {
-        let saved_token = token;
+        parser.did_advance = false;
 
         token = guarded_unwrap!(parse_property(&mut parser, token), break);
         token = guarded_unwrap!(parse_attribute(&mut parser, token), break);
@@ -985,7 +987,7 @@ pub fn parse_rsml<'a>(lexer: &'a mut logos::Lexer<'a, Token<'a>>) -> Vec<TreeNod
 
         // Ensures the parser is advanced at least one time per iteration.
         // This prevents infinite loops.
-        if token == saved_token {
+        if !parser.did_advance {
             token = guarded_unwrap!(parser.advance(), break)
         }
     }
