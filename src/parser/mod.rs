@@ -924,12 +924,14 @@ fn parse_priority_declaration<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> 
 
     let token = parser.advance()?;
 
-    if let Token::Number(num_str) = token {
+    let (token, datatype) = parse_datatype_group(parser, token, None, None, None);
+
+    if let Some(Datatype::Variant(Variant::Float32(float32))) = datatype {
         let current_tree_node = &mut parser.tree_nodes[parser.current_tree_node];
-        current_tree_node.priority = Some(num_str.parse::<usize>().unwrap());
+        current_tree_node.priority = Some(float32 as i32);
     }
 
-    let token = guarded_unwrap!(parser.advance(), return None);
+    let token = guarded_unwrap!(token, return None);
     return parse_delimiters(parser, token)
 }
 
@@ -954,11 +956,26 @@ fn parse_derive_declaration<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> Op
 
     let token = parser.advance()?;
 
-    let (token, to_derive) = parse_string_datatype(parser, token);
+    let (token, datatype) = parse_datatype_group(parser, token, None, None, None);
 
-    if let Some(Datatype::Variant(Variant::String(to_derive))) = to_derive {
-        let current_tree_node = &mut parser.tree_nodes[parser.current_tree_node];
-        current_tree_node.derives.push(to_derive);
+    match datatype {
+        Some(Datatype::Variant(Variant::String(string))) => {
+            let current_tree_node = &mut parser.tree_nodes[parser.current_tree_node];
+            current_tree_node.derives.insert(string);
+        },
+
+        Some(Datatype::TupleData(tuple_data)) => {
+            let current_tree_node = &mut parser.tree_nodes[parser.current_tree_node];
+            let derives = &mut current_tree_node.derives;
+
+            for datatype in tuple_data {
+                if let Datatype::Variant(Variant::String(string)) = datatype {
+                    derives.insert(string);
+                }
+            }
+        },
+
+        _ => ()
     }
 
     let token = guarded_unwrap!(token, return None);
