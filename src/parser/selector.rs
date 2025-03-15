@@ -6,9 +6,9 @@ pub struct Selector<'a> {
 }
 
 impl<'a> Selector<'a> {
-    pub fn new(slice: &str, token: Token<'a>) -> Self {
+    pub fn new(content: &str, token: Token<'a>) -> Self {
         Self {
-            content: slice.to_string(),
+            content: content.to_string(),
             current_token: token
         }
     }
@@ -20,7 +20,10 @@ impl<'a> Selector<'a> {
 
         self.current_token = token;
 
-        if should_add_space { self.content += " " }
-        self.content += slice
+        if should_add_space {
+            self.content += &format!(" {}", slice)
+        } else {
+            self.content += slice
+        }
     }
 }

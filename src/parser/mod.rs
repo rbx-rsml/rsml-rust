@@ -1,6 +1,6 @@
 use crate::string_clip::StringClip;
 use crate::lexer::Token;
-use std::{ops::Deref, ptr, sync::LazyLock};
+use std::{ops::Deref, sync::LazyLock};
 use num_traits::Num;
 use rbx_types::{UDim, Variant};
 use regex::Regex;
@@ -101,7 +101,9 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn parse_comment_multi_end<'a>(parser: &mut Parser<'a>, start_equals_amount: usize) -> Option<Token<'a>> {
+fn parse_comment_multi_end<'a>(
+    parser: &mut Parser<'a>, start_equals_amount: usize
+) -> Option<Token<'a>> {
     // We keep advancing tokens until we find a closing multiline string
     // token with the same amount of equals signs as the start token.
     loop {
@@ -164,24 +166,23 @@ fn parse_scope_delimiter<'a>(
 }
 
 fn parse_scope_selector_start<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> Option<Token<'a>> {
-    // The `Token::Text(_)` case is handled in `parse_property` and `parse_attribute`.
+    // The `Token::Text(_)` case is handled in `parse_property`.
     if !matches!(token, 
         Token::NameIdentifier | Token::PsuedoIdentifier | Token::StateOrEnumIdentifier |
         Token::TagOrEnumIdentifier | Token::ScopeToDescendants | Token::ScopeToChildren
     ) { return Some(token) }
 
-    let selector = parser.lexer.slice();
-    let selector_token = token;
+    let selector = Selector::new(parser.lexer.slice(), token);
 
     let token = parser.advance()?;
-    return parse_scope_selector(parser, token, Selector::new(selector, selector_token));
+    return parse_scope_selector(parser, token, selector);
 }
 
 fn parse_scope_selector<'a>(
     parser: &mut Parser<'a>, mut token: Token<'a>, mut selector: Selector<'a>
 ) -> Option<Token<'a>> {
     loop {
-        // advances the parser until no delimiter token is found.
+        // Advances the parser until no delimiter token is found.
         let parsed_delimiter = parse_scope_delimiter(parser, token, None);
         token = guarded_unwrap!(parsed_delimiter.0, return None);
 
@@ -238,7 +239,7 @@ fn parse_string_multi_end<'a>(
                token_history.push(parser.lexer.slice())
             },
 
-            None => ()
+            None => return None
         };
     }
 }
@@ -331,6 +332,7 @@ fn parse_number_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> Token
     (Some(token), None)
 }
 
+// TODO: optimise this using hashtable lookups.
 fn parse_operator_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> TokenWithResult<'a, Option<Datatype>> {
     match token {
         Token::OpPow => {
@@ -357,15 +359,15 @@ fn parse_operator_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> Tok
 
 fn parse_enum_tokens<'a>(token_history: &mut Vec<Token<'a>>) -> Option<Datatype> {
     let token_history_len = token_history.len();
-
     let mut full_enum = "Enum".to_string();
-
     let mut first_stop_idx = 0;
+
     for idx in 0..=token_history_len {
         let token = &token_history[idx];
 
         if let Token::Text(text)  = token {
             full_enum += &format!(".{}", text);
+            
             first_stop_idx = idx;
             break
         }
@@ -582,20 +584,54 @@ fn pow_i32(a: i32, b: i32) -> i32 { a.pow(b as u32) }
 
 fn mod_<T: Num>(a: T, b: T) -> T { a % b }
 
+static ADD_SUB_OPERATORS: [(Operator, fn(f32, f32) -> f32, fn(i32, i32) -> i32); 2] = [
+    (Operator::Add, add::<f32>, add::<i32>),
+    (Operator::Sub, sub::<f32>, sub::<i32>),
+];
+
 static ORDERED_OPERATORS: &[&[(Operator, fn(f32, f32) -> f32, fn(i32, i32) -> i32)]] = &[
     &[(Operator::Pow, pow_f32, pow_i32)],
+
     &[
         (Operator::Div, div::<f32>, div::<i32>),
         (Operator::Mod, mod_::<f32>, mod_::<i32>),
         (Operator::Mult, mult::<f32>, mult::<i32>),
     ],
-    &[
-        (Operator::Add, add::<f32>, add::<i32>),
-        (Operator::Sub, sub::<f32>, sub::<i32>),
-    ],
+
+    &ADD_SUB_OPERATORS,
 ];
 
 fn solve_datatype_group(mut datatypes: Vec<Datatype>) -> Datatype {
+    // Merges Add and Sub operators with the datatype to the right if
+    // the datatype to  the left isn't an operator.
+    let occurrences = find_operators_in_datatypes(&datatypes, &ADD_SUB_OPERATORS);
+    let mut occurrence_idx_offset = 0;
+    for (
+        mut occurrence_idx, operator, operation_fn_f32, operation_fn_i32
+    ) in occurrences {
+        occurrence_idx -= occurrence_idx_offset;
+
+        let right_idx = occurrence_idx + 1;
+        if right_idx >= datatypes.len() { continue; }
+
+        let can_merge;
+        if occurrence_idx == 0 { can_merge = true }
+        else {
+            let left = &datatypes[occurrence_idx - 1];
+            can_merge = if matches!(left, Datatype::Operator(_)) { true } else { false }
+        }
+
+        if can_merge {
+            let right = datatypes.remove(right_idx);
+            occurrence_idx_offset += 1;
+
+            let solved_datatype = datatype_operation(
+                &Datatype::Variant(Variant::Float32(0.0)), &right, operator, &operation_fn_f32, &operation_fn_i32
+            );
+            datatypes[occurrence_idx] = solved_datatype.unwrap_or(right);
+        }
+    }
+
     for operator_group in ORDERED_OPERATORS {
         let occurrences = find_operators_in_datatypes(&datatypes, operator_group);
         let mut occurrence_idx_offset = 0;
@@ -606,23 +642,24 @@ fn solve_datatype_group(mut datatypes: Vec<Datatype>) -> Datatype {
             occurrence_idx -= occurrence_idx_offset;
 
             let right_idx = occurrence_idx + 1;
-            if right_idx > datatypes.len() { continue; }
+            if right_idx >= datatypes.len() { continue; }
 
             let right = datatypes.remove(right_idx);
             occurrence_idx_offset += 1;
 
-            let (left, left_is_none) = {
+            let (left, left_idx) = {
                 if occurrence_idx == 0 {
-                    (Datatype::Variant(Variant::Float32(0.0)), true)
+                    (Datatype::Variant(Variant::Float32(0.0)), 0)
 
                 } else {
                     let left_idx = occurrence_idx - 1;
                     occurrence_idx_offset += 1;
                     let left = datatypes.remove(left_idx);
+
                     if matches!(left, Datatype::Empty) {
-                        (Datatype::Variant(Variant::Float32(0.0)), false)
+                        (Datatype::Variant(Variant::Float32(0.0)), left_idx)
                     } else {
-                        (left, false)
+                        (left, left_idx)
                     }
                 }
             };
@@ -630,7 +667,7 @@ fn solve_datatype_group(mut datatypes: Vec<Datatype>) -> Datatype {
             let solved_datatype = datatype_operation(
                 &left, &right, operator, &operation_fn_f32, &operation_fn_i32
             );
-            datatypes[if left_is_none { occurrence_idx } else { occurrence_idx - 1 }] = solved_datatype.unwrap_or(left);
+            datatypes[left_idx] = solved_datatype.unwrap_or(left);
         }
     };
 
@@ -693,8 +730,14 @@ fn parse_datatype_group<'a>(
                 if let Datatype::Operator(operator) = datatype {
                     // Since our datatype was an operator we need to mark it as pending,
                     // atomising with the existing pending operator if it exists.
+
                     if let Some(some_pending_operator) = pending_operator {
-                        pending_operator = Some(some_pending_operator.combine_with(&operator))
+                        if some_pending_operator.can_merge_with(&operator) {
+                            pending_operator = Some(some_pending_operator.merge_with(&operator))
+                        } else {
+                            datatypes = Some(datatypes_ensure_exists_then_insert(datatypes, Datatype::Operator(some_pending_operator)));
+                            pending_operator = Some(operator)
+                        }
                     } else {
                         pending_operator = Some(operator)
                     }
@@ -726,18 +769,18 @@ fn parse_tuple_close<'a>(
         let datatype = current_tuple.coerce_to_datatype();
         parser.get_tuple_mut(some_parent_tuple_idx).unwrap().data.push(datatype);
 
-        if let Some(token) = token {
-            let parsed = parse_tuple_delimiter(parser, token, some_parent_tuple_idx, root_tuple_idx);
-            if parsed.is_some() { return parsed }
+        let token = guarded_unwrap!(token, return None);
+        
+        let parsed = parse_tuple_delimiter(parser, token, some_parent_tuple_idx, root_tuple_idx);
+        if parsed.is_some() { return parsed }
 
-            let parsed = parse_tuple_close(parser, token, some_parent_tuple_idx, root_tuple_idx);
-            if parsed.is_some() { return parsed }
+        let parsed = parse_tuple_close(parser, token, some_parent_tuple_idx, root_tuple_idx);
+        if parsed.is_some() { return parsed }
 
-            let parsed = parse_tuple_name(
-                parser, token, parent_tuple_idx, Some(root_tuple_idx)
-            );
-            if parsed.1.is_some() { return parsed.0 }
-        }
+        let parsed = parse_tuple_name(
+            parser, token, parent_tuple_idx, Some(root_tuple_idx)
+        );
+        if parsed.1.is_some() { return parsed.0 }
     };
 
     token
@@ -890,15 +933,9 @@ fn parse_attribute<'a>(parser: &mut Parser<'a>, mut token: Token<'a>) -> Option<
     token = guarded_unwrap!(parser.advance(), return Some(token));
 
     if let Token::Text(attribute_name) = token {
-        let selector = parser.lexer.slice();
-        let selector_token = token;
-        
         let next_token = guarded_unwrap!(parser.advance(), return Some(token));
         
-        if !matches!(next_token, Token::Equals) {
-            return parse_scope_selector(parser, next_token, Selector::new(selector, selector_token))
-        }
-        
+        if !matches!(next_token, Token::Equals) { return Some(token) }
 
         token = guarded_unwrap!(parser.advance(), return Some(next_token));
 
@@ -940,9 +977,11 @@ fn parse_name_declaration<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> Opti
 
     let token = parser.advance()?;
 
-    let (token, name) = parse_string_datatype(parser, token);
+    let (token, datatype) = parse_datatype_group(
+        parser, token, None, None, None
+    );
 
-    if let Some(Datatype::Variant(Variant::String(name))) = name {
+    if let Some(Datatype::Variant(Variant::String(name))) = datatype {
         let current_tree_node = &mut parser.tree_nodes[parser.current_tree_node];
         current_tree_node.name = Some(name);
     }
@@ -993,8 +1032,8 @@ pub fn parse_rsml<'a>(lexer: &'a mut logos::Lexer<'a, Token<'a>>) -> Vec<TreeNod
     loop {
         parser.did_advance = false;
 
-        token = guarded_unwrap!(parse_property(&mut parser, token), break);
         token = guarded_unwrap!(parse_attribute(&mut parser, token), break);
+        token = guarded_unwrap!(parse_property(&mut parser, token), break);
         token = guarded_unwrap!(parse_scope_selector_start(&mut parser, token), break);
         token = guarded_unwrap!(parse_scope_open(&mut parser, token, None), break);
         token = guarded_unwrap!(parse_scope_close(&mut parser, token), break);
