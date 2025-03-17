@@ -122,11 +122,15 @@ pub enum Token<'a> {
     StringSingle(&'a str),
 
     #[regex(r"rbxassetid://\d")]
+    #[regex(r"(rbxasset|rbxthumb|rbxgameasset|rbxhttp|rbxtemp|https?)://[^) ]*")]
     RobloxAsset(&'a str),
+
+    #[regex(r"contentid://\d", priority = 999)]
+    RobloxContent(&'a str),
 
     // TODO: update the text string pattern in the luau lexer,
     // also update the textmate grammer to reflect this regex :).
-    #[regex(r"[-_]*[a-zA-Z]+[^\n\t;,\(\)\{.\}\[\] ]*", priority = 0)]
+    #[regex(r"[-_]*[a-zA-Z]+[^\n\t;,\(\)\{.\}\[\] \/]*", priority = 0)]
     Text(&'a str)
 }
 

@@ -1,5 +1,12 @@
+// Words can not describe the pain this file fills me with. Eventually
+// I will need to find a better solution for adding different datatypes 
+// together. But this works fine for now i guess.
+
+// TODO: Allow for tuples to have a number datatype
+// specified to reduce the amount of casting.
+
 use crate::parser::{Datatype, Operator};
-use rbx_types::{Color3, Rect, UDim, UDim2, Variant, Vector2, Vector3};
+use rbx_types::{CFrame, Color3, Matrix3, Rect, UDim, UDim2, Variant, Vector2, Vector2int16, Vector3, Vector3int16};
 
 type OperationFn<N> = fn(N, N) -> N;
 
@@ -7,7 +14,7 @@ fn operation_number_with_number(
     left: f32, right: f32,
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
-    return Datatype::Variant(Variant::Float32(
+    Datatype::Variant(Variant::Float32(
         operation_fn_f32(left, right)
     ))
 }
@@ -45,7 +52,7 @@ fn operation_number_with_udim2(
         else { unreachable!() }
     };
 
-    return Datatype::Variant(Variant::UDim2(
+    Datatype::Variant(Variant::UDim2(
         UDim2::new(solved_right_x, solved_right_y)
     ))
 }
@@ -54,7 +61,7 @@ fn operation_number_with_vector3(
     left: f32, right: Vector3,
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
-    return Datatype::Variant(Variant::Vector3(
+    Datatype::Variant(Variant::Vector3(
         Vector3::new(
             operation_fn_f32(left, right.x),
             operation_fn_f32(left, right.y),
@@ -63,14 +70,39 @@ fn operation_number_with_vector3(
     ))
 }
 
+fn operation_number_with_vector3int16(
+    left: f32, right: Vector3int16,
+    operation_fn_f32: &OperationFn<f32>
+) -> Datatype {
+    Datatype::Variant(Variant::Vector3int16(
+        Vector3int16::new(
+            operation_fn_f32(left, right.x as f32) as i16,
+            operation_fn_f32(left, right.y as f32) as i16,
+            operation_fn_f32(left, right.z as f32) as i16,
+        )
+    ))
+}
+
 fn operation_number_with_vector2(
     left: f32, right: Vector2,
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
-    return Datatype::Variant(Variant::Vector2(
+    Datatype::Variant(Variant::Vector2(
         Vector2::new(
             operation_fn_f32(left, right.x),
             operation_fn_f32(left, right.y)
+        )
+    ))
+}
+
+fn operation_number_with_vector2int16(
+    left: f32, right: Vector2int16,
+    operation_fn_f32: &OperationFn<f32>
+) -> Datatype {
+    Datatype::Variant(Variant::Vector2int16(
+        Vector2int16::new(
+            operation_fn_f32(left, right.x as f32) as i16,
+            operation_fn_f32(left, right.y as f32) as i16
         )
     ))
 }
@@ -81,7 +113,7 @@ fn operation_number_with_rect(
 ) -> Datatype {
     let (right_min, right_max) = (right.min, right.max);
 
-    return Datatype::Variant(Variant::Rect(
+    Datatype::Variant(Variant::Rect(
         Rect::new(
             Vector2::new(
                 operation_fn_f32(left, right_min.x), operation_fn_f32(left, right_min.y)
@@ -97,7 +129,7 @@ fn operation_number_with_color3(
     left: f32, right: Color3,
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
-    return Datatype::Variant(Variant::Color3(
+    Datatype::Variant(Variant::Color3(
         Color3::new(
             operation_fn_f32(left, right.r),
             operation_fn_f32(left, right.g),
@@ -111,7 +143,7 @@ fn operation_udim_with_number(
     left: UDim, right: f32, 
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
-    return Datatype::Variant(Variant::UDim(
+    Datatype::Variant(Variant::UDim(
         UDim::new(operation_fn_f32(left.scale, right), left.offset)
     ))
 }
@@ -121,7 +153,7 @@ fn operation_udim_with_udim(
     operation_fn_f32: &OperationFn<f32>,
     operation_fn_i32: &OperationFn<i32>
 ) -> Datatype {
-    return Datatype::Variant(Variant::UDim(
+    Datatype::Variant(Variant::UDim(
         UDim::new(
             operation_fn_f32(left.scale, right.scale), 
             operation_fn_i32(left.offset, right.offset)
@@ -136,7 +168,7 @@ fn operation_udim2_with_number(
 ) -> Datatype {
     let (left_x, left_y) = (left.x, left.y);
 
-    return Datatype::Variant(Variant::UDim2(
+    Datatype::Variant(Variant::UDim2(
         UDim2::new(
             UDim::new(operation_fn_f32(left_x.scale, right), left_x.offset),
             UDim::new(operation_fn_f32(left_y.scale, right), left_y.offset)
@@ -152,7 +184,7 @@ fn operation_udim2_with_udim2(
     let (left_x, left_y) = (left.x, left.y);
     let (right_x, right_y) = (right.x, right.y);
 
-    return Datatype::Variant(Variant::UDim2(
+    Datatype::Variant(Variant::UDim2(
         UDim2::new(
             UDim::new(
                 operation_fn_f32(left_x.scale, right_x.scale), 
@@ -180,17 +212,94 @@ fn operation_vector3_with_number(
     ))
 }
 
+fn operation_vector3_with_vector3int16(
+    left: Vector3, right: Vector3int16, 
+    operation_fn_f32: &OperationFn<f32>
+) -> Datatype {
+    Datatype::Variant(Variant::Vector3(
+        Vector3::new(
+            operation_fn_f32(left.x, right.x as f32),
+            operation_fn_f32(left.y, right.y as f32),
+            operation_fn_f32(left.z, right.z as f32),
+        )
+    ))
+}
+
+fn _operation_vector3_with_vector3(
+    left: Vector3, right: Vector3, 
+    operation_fn_f32: &OperationFn<f32>
+) -> Vector3 {
+    Vector3::new(
+        operation_fn_f32(left.x, right.x),
+        operation_fn_f32(left.y, right.y),
+        operation_fn_f32(left.z, right.z),
+    )
+}
 fn operation_vector3_with_vector3(
     left: Vector3, right: Vector3, 
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
-    return Datatype::Variant(Variant::Vector3(
-        Vector3::new(
-            operation_fn_f32(left.x, right.x),
-            operation_fn_f32(left.y, right.y),
-            operation_fn_f32(left.z, right.z),
+    Datatype::Variant(Variant::Vector3(_operation_vector3_with_vector3(left, right, operation_fn_f32)))
+}
+
+fn operation_vector3int16_with_number(
+    left: Vector3int16, right: f32, 
+    operation_fn_f32: &OperationFn<f32>
+) -> Datatype {
+    Datatype::Variant(Variant::Vector3int16(
+        Vector3int16::new(
+            operation_fn_f32(left.x as f32, right) as i16,
+            operation_fn_f32(left.y as f32, right) as i16,
+            operation_fn_f32(left.z as f32, right) as i16,
         )
     ))
+}
+
+fn operation_vector3int16_with_vector3(
+    left: Vector3int16, right: Vector3, 
+    operation_fn_f32: &OperationFn<f32>
+) -> Datatype {
+    Datatype::Variant(Variant::Vector3int16(
+        Vector3int16::new(
+            operation_fn_f32(left.x as f32, right.x) as i16,
+            operation_fn_f32(left.y as f32, right.y) as i16,
+            operation_fn_f32(left.z as f32, right.z) as i16,
+        )
+    ))
+}
+
+fn operation_vector3int16_with_vector3int16(
+    left: Vector3int16, right: Vector3int16, 
+    operation_fn_f32: &OperationFn<f32>
+) -> Datatype {
+    Datatype::Variant(Variant::Vector3int16(
+        Vector3int16::new(
+            operation_fn_f32(left.x as f32, right.x as f32) as i16,
+            operation_fn_f32(left.y as f32, right.y as f32) as i16,
+            operation_fn_f32(left.z as f32, right.z as f32) as i16,
+        )
+    ))
+}
+
+fn operation_cframe_with_cframe(
+    left: CFrame, right: CFrame, 
+    operation_fn_f32: &OperationFn<f32>
+) -> Datatype {
+    let left_orien = left.orientation;
+    let right_orien = right.orientation;
+
+    Datatype::Variant(Variant::CFrame(
+        CFrame::new(
+            _operation_vector3_with_vector3(left.position, right.position, operation_fn_f32),
+            Matrix3::new(
+                _operation_vector3_with_vector3(left_orien.x, right_orien.x, operation_fn_f32),
+                _operation_vector3_with_vector3(left_orien.y, right_orien.y, operation_fn_f32),
+                _operation_vector3_with_vector3(left_orien.z, right_orien.z, operation_fn_f32)
+            )
+        )
+    ))
+
+    
 }
 
 
@@ -202,6 +311,18 @@ fn operation_vector2_with_number(
         Vector2::new(
             operation_fn_f32(left.x, right),
             operation_fn_f32(left.y, right)
+        )
+    ))
+}
+
+fn operation_vector2_with_vector2int16(
+    left: Vector2, right: Vector2int16, 
+    operation_fn_f32: &OperationFn<f32>,
+) -> Datatype {
+    Datatype::Variant(Variant::Vector2(
+        Vector2::new(
+            operation_fn_f32(left.x, right.x as f32),
+            operation_fn_f32(left.y, right.y as f32)
         )
     ))
 }
@@ -218,6 +339,41 @@ fn operation_vector2_with_vector2(
     ))
 }
 
+fn operation_vector2int16_with_number(
+    left: Vector2int16, right: f32, 
+    operation_fn_f32: &OperationFn<f32>
+) -> Datatype {
+    Datatype::Variant(Variant::Vector2int16(
+        Vector2int16::new(
+            operation_fn_f32(left.x as f32, right) as i16,
+            operation_fn_f32(left.y as f32, right) as i16
+        )
+    ))
+}
+
+fn operation_vector2int16_with_vector2(
+    left: Vector2int16, right: Vector2, 
+    operation_fn_f32: &OperationFn<f32>,
+) -> Datatype {
+    Datatype::Variant(Variant::Vector2int16(
+        Vector2int16::new(
+            operation_fn_f32(left.x as f32, right.x) as i16,
+            operation_fn_f32(left.y as f32, right.y) as i16
+        )
+    ))
+}
+
+fn operation_vector2int16_with_vector2int16(
+    left: Vector2int16, right: Vector2int16, 
+    operation_fn_f32: &OperationFn<f32>,
+) -> Datatype {
+    Datatype::Variant(Variant::Vector2int16(
+        Vector2int16::new(
+            operation_fn_f32(left.x as f32, right.x as f32) as i16,
+            operation_fn_f32(left.y as f32, right.y as f32) as i16
+        )
+    ))
+}
 
 fn operation_rect_with_number(
     left: Rect, right: f32, 
@@ -306,8 +462,16 @@ pub fn datatype_operation(
             return Some(operation_number_with_vector3(*left, *right, operation_fn_f32))
         }
 
+        else if let Datatype::Variant(Variant::Vector3int16(right)) = right {
+            return Some(operation_number_with_vector3int16(*left, *right, operation_fn_f32))
+        }
+
         else if let Datatype::Variant(Variant::Vector2(right)) = right {
             return Some(operation_number_with_vector2(*left, *right, operation_fn_f32))
+        }
+
+        else if let Datatype::Variant(Variant::Vector2int16(right)) = right {
+            return Some(operation_number_with_vector2int16(*left, *right, operation_fn_f32))
         }
 
         else if let Datatype::Variant(Variant::Rect(right)) = right {
@@ -344,8 +508,32 @@ pub fn datatype_operation(
             return Some(operation_vector3_with_number(*left, *right, operation_fn_f32))
         }
 
+        if let Datatype::Variant(Variant::Vector3int16(right)) = right {
+            return Some(operation_vector3_with_vector3int16(*left, *right, operation_fn_f32))
+        }
+
         else if let Datatype::Variant(Variant::Vector3(right)) = right {
             return Some(operation_vector3_with_vector3(*left, *right, operation_fn_f32))
+        }
+    }
+
+    else if let Datatype::Variant(Variant::Vector3int16(left)) = left {
+        if let Datatype::Variant(Variant::Float32(right)) = right {
+            return Some(operation_vector3int16_with_number(*left, *right, operation_fn_f32))
+        }
+
+        else if let Datatype::Variant(Variant::Vector3(right)) = right {
+            return Some(operation_vector3int16_with_vector3(*left, *right, operation_fn_f32))
+        }
+
+        else if let Datatype::Variant(Variant::Vector3int16(right)) = right {
+            return Some(operation_vector3int16_with_vector3int16(*left, *right, operation_fn_f32))
+        }
+    }
+
+    else if let Datatype::Variant(Variant::CFrame(left)) = left {
+        if let Datatype::Variant(Variant::CFrame(right)) = right {
+            return Some(operation_cframe_with_cframe(*left, *right, operation_fn_f32))
         }
     }
 
@@ -354,8 +542,26 @@ pub fn datatype_operation(
             return Some(operation_vector2_with_number(*left, *right, operation_fn_f32))
         }
 
+        if let Datatype::Variant(Variant::Vector2int16(right)) = right {
+            return Some(operation_vector2_with_vector2int16(*left, *right, operation_fn_f32))
+        }
+
         else if let Datatype::Variant(Variant::Vector2(right)) = right {
             return Some(operation_vector2_with_vector2(*left, *right, operation_fn_f32))
+        }
+    }
+
+    else if let Datatype::Variant(Variant::Vector2int16(left)) = left {
+        if let Datatype::Variant(Variant::Float32(right)) = right {
+            return Some(operation_vector2int16_with_number(*left, *right, operation_fn_f32))
+        }
+
+        else if let Datatype::Variant(Variant::Vector2(right)) = right {
+            return Some(operation_vector2int16_with_vector2(*left, *right, operation_fn_f32))
+        }
+
+        if let Datatype::Variant(Variant::Vector2int16(right)) = right {
+            return Some(operation_vector2int16_with_vector2int16(*left, *right, operation_fn_f32))
         }
     }
 

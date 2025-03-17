@@ -2,7 +2,7 @@ use crate::string_clip::StringClip;
 use crate::lexer::Token;
 use std::{ops::Deref, sync::LazyLock};
 use num_traits::Num;
-use rbx_types::{UDim, Variant};
+use rbx_types::{Content, UDim, Variant};
 use regex::Regex;
 use crate::guarded_unwrap;
 
@@ -266,6 +266,14 @@ fn parse_string_multi_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>) ->
     (Some(token), None)
 }
 
+fn parse_content_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> TokenWithResult<'a, Option<Datatype>> {
+    if let Token::RobloxContent(content) = token {
+        return (parser.advance(), Some(Datatype::Variant(Variant::Content(Content::from(content)))))
+    }
+
+    (Some(token), None)
+}
+
 fn parse_string_single_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> TokenWithResult<'a, Option<Datatype>> {
     match token {
         Token::StringSingle(str) => {
@@ -410,7 +418,7 @@ fn parse_full_enum<'a>(
 fn parse_enum_keyword<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> TokenWithResult<'a, Option<Datatype>> {
     if !matches!(token, Token::EnumKeyword) { return (Some(token), None) }
 
-    let token = guarded_unwrap!(parser.advance(), return (Some(token), None) );
+    let token = guarded_unwrap!(parser.advance(), return (None, None) );
 
     let mut token_history = vec![];
     parse_full_enum(parser, token, &mut token_history)
@@ -421,7 +429,7 @@ fn parse_enum_shorthand<'a>(parser: &mut Parser<'a>, token: Token<'a>, key: Opti
 
     if !matches!(token, Token::StateOrEnumIdentifier) { return (Some(token), None) }
 
-    let token = guarded_unwrap!(parser.advance(), return (Some(token), None));
+    let token = guarded_unwrap!(parser.advance(), return (None, None));
 
     let enum_item = if let Token::Text(text) = token { text } else { return (Some(token), None) };
 
@@ -504,7 +512,7 @@ fn parse_predefined_color_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>
 fn parse_attribute_name_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> TokenWithResult<'a, Option<Datatype>> {
     if !matches!(token, Token::AttributeIdentifier) { return (Some(token), None) }
 
-    let token = guarded_unwrap!(parser.advance(), return (Some(token), None));
+    let token = guarded_unwrap!(parser.advance(), return (None, None));
 
     if let Token::Text(text) = token {
         return (parser.advance(), Some(Datatype::Variant(Variant::String(format!("${}", text)))))
@@ -523,6 +531,9 @@ fn parse_datatype<'a>(
     };
   
     let parsed = parse_string_datatype(parser, token);
+    if parsed.1.is_some() { return parsed }
+
+    let parsed = parse_content_datatype(parser, token);
     if parsed.1.is_some() { return parsed }
 
     let parsed = parse_number_datatype(parser, token);
@@ -853,7 +864,7 @@ fn parse_tuple_open<'a>(
         Tuple::new(tuple_name, parent_tuple_idx)
     );
 
-    let token = guarded_unwrap!(parser.advance(), return (Some(token), Some(current_tuple_idx)));
+    let token = guarded_unwrap!(parser.advance(), return (None, Some(current_tuple_idx)));
 
     let root_tuple_idx = root_tuple_idx.unwrap_or(current_tuple_idx);
 
@@ -879,7 +890,7 @@ fn parse_tuple_name<'a>(
     parent_tuple_idx: Option<usize>, root_tuple_idx: Option<usize>
 ) -> TokenWithResult<'a, Option<usize>> {
     if let Token::Text(tuple_name) = token {
-        let token = guarded_unwrap!(parser.advance(), return (Some(token), None));
+        let token = guarded_unwrap!(parser.advance(), return (None, None));
 
         return parse_tuple_open(parser, token, Some(tuple_name.to_string()), parent_tuple_idx, root_tuple_idx)
 
@@ -902,13 +913,14 @@ fn parse_property<'a>(parser: &mut Parser<'a>, mut token: Token<'a>) -> Option<T
         let selector = parser.lexer.slice();
         let selector_token = token;
 
-        let next_token = guarded_unwrap!(parser.advance(), return Some(token));
+        token = guarded_unwrap!(parser.advance(), return None);
 
-        if !matches!(next_token, Token::Equals) {
-            return parse_scope_selector(parser, next_token, Selector::new(selector, selector_token))
+        if !matches!(token, Token::Equals) {
+            return parse_scope_selector(parser, token, Selector::new(selector, selector_token))
         };
 
-        token = guarded_unwrap!(parser.advance(), return Some(next_token));
+        token = guarded_unwrap!(parser.advance(), return None);
+
 
         let (token, datatype) = parse_datatype_group(
             parser, token, Some(property_name), None, None
@@ -930,14 +942,14 @@ fn parse_property<'a>(parser: &mut Parser<'a>, mut token: Token<'a>) -> Option<T
 fn parse_attribute<'a>(parser: &mut Parser<'a>, mut token: Token<'a>) -> Option<Token<'a>> {
     if !matches!(token, Token::AttributeIdentifier) { return Some(token) };
 
-    token = guarded_unwrap!(parser.advance(), return Some(token));
+    token = guarded_unwrap!(parser.advance(), return None);
 
     if let Token::Text(attribute_name) = token {
-        let next_token = guarded_unwrap!(parser.advance(), return Some(token));
+        let next_token = guarded_unwrap!(parser.advance(), return None);
         
         if !matches!(next_token, Token::Equals) { return Some(token) }
 
-        token = guarded_unwrap!(parser.advance(), return Some(next_token));
+        token = guarded_unwrap!(parser.advance(), return None);
 
         let (token, datatype) = parse_datatype_group(
             parser, token, Some(attribute_name), None, None
@@ -1021,25 +1033,20 @@ fn parse_derive_declaration<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> Op
     parse_delimiters(parser, token)
 }
 
-pub fn parse_rsml<'a>(lexer: &'a mut logos::Lexer<'a, Token<'a>>) -> Vec<TreeNode> {
-    let mut parser = Parser::new(lexer);
-
-    let root_tree_node = TreeNode::new(0, None);
-    parser.tree_nodes.push(root_tree_node);
-
-    let mut token = guarded_unwrap!(parser.advance(), return parser.tree_nodes);
+fn main_loop(mut parser: &mut Parser) -> Option<()> {
+    let mut token = guarded_unwrap!(parser.advance(), return None);
 
     loop {
         parser.did_advance = false;
 
-        token = guarded_unwrap!(parse_attribute(&mut parser, token), break);
-        token = guarded_unwrap!(parse_property(&mut parser, token), break);
-        token = guarded_unwrap!(parse_scope_selector_start(&mut parser, token), break);
-        token = guarded_unwrap!(parse_scope_open(&mut parser, token, None), break);
-        token = guarded_unwrap!(parse_scope_close(&mut parser, token), break);
-        token = guarded_unwrap!(parse_priority_declaration(&mut parser, token), break);
-        token = guarded_unwrap!(parse_name_declaration(&mut parser, token), break);
-        token = guarded_unwrap!(parse_derive_declaration(&mut parser, token), break);
+        token = parse_attribute(&mut parser, token)?;
+        token = parse_property(&mut parser, token)?;
+        token = parse_scope_selector_start(&mut parser, token)?;
+        token = parse_scope_open(&mut parser, token, None)?;
+        token = parse_scope_close(&mut parser, token)?;
+        token = parse_priority_declaration(&mut parser, token)?;
+        token = parse_name_declaration(&mut parser, token)?;
+        token = parse_derive_declaration(&mut parser, token)?;
 
         // Ensures the parser is advanced at least one time per iteration.
         // This prevents infinite loops.
@@ -1047,6 +1054,17 @@ pub fn parse_rsml<'a>(lexer: &'a mut logos::Lexer<'a, Token<'a>>) -> Vec<TreeNod
             token = guarded_unwrap!(parser.advance(), break)
         }
     }
+
+    None
+}
+
+pub fn parse_rsml<'a>(lexer: &'a mut logos::Lexer<'a, Token<'a>>) -> Vec<TreeNode> {
+    let mut parser = Parser::new(lexer);
+
+    let root_tree_node = TreeNode::new(0, None);
+    parser.tree_nodes.push(root_tree_node);
+
+    main_loop(&mut parser);
 
     return parser.tree_nodes;
 }
