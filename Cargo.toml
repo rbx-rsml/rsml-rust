@@ -1,6 +1,6 @@
 [package]
 name = "rbx-rsml"
-version = "0.0.5"
+version = "0.0.6"
 edition = "2021"
 description = "A lexer and parser for the RSML language."
 homepage = "https://www.rsml.style"
@@ -15,6 +15,7 @@ rbx_types = { version = "1.10.0", features = ["serde"] }
 logos = "0.15.0"
 regex = "1.11.1"
 num-traits = "0.2.19"
+guarded = "0.0.0"
 
 [build-dependencies]
 serde_json = "1.0.139"

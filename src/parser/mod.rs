@@ -4,7 +4,7 @@ use std::{ops::Deref, sync::LazyLock};
 use num_traits::Num;
 use rbx_types::{Content, UDim, Variant};
 use regex::Regex;
-use crate::guarded_unwrap;
+use guarded::guarded_unwrap;
 
 mod datatype_operations;
 use datatype_operations::datatype_operation;

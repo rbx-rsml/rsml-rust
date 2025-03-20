@@ -105,6 +105,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "guarded"
+version = "0.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0821663c32d2ec399f14195e88a25d2f76c5d78aeec4fa914f028a422d12606"
+
+[[package]]
 name = "itoa"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -281,8 +287,9 @@ dependencies = [
 
 [[package]]
 name = "rbx-rsml"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
+ "guarded",
  "logos",
  "num-traits",
  "phf",
