@@ -128,9 +128,7 @@ pub enum Token<'a> {
     #[regex(r"contentid://\d", priority = 999)]
     RobloxContent(&'a str),
 
-    // TODO: update the text string pattern in the luau lexer,
-    // also update the textmate grammer to reflect this regex :).
-    #[regex(r"[-_]*[a-zA-Z]+[^\n\t;,\(\)\{.\}\[\] \/]*", priority = 0)]
+    #[regex(r"[_a-zA-Z][_A-Za-z0-9]*", priority = 0)]
     Text(&'a str)
 }
 

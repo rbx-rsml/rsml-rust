@@ -281,7 +281,7 @@ dependencies = [
 
 [[package]]
 name = "rbx-rsml"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "logos",
  "num-traits",
@@ -304,6 +304,7 @@ dependencies = [
  "blake3",
  "lazy_static",
  "rand",
+ "serde",
  "thiserror",
 ]
 
