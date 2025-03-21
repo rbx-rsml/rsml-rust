@@ -2,9 +2,10 @@ use crate::string_clip::StringClip;
 use crate::lexer::Token;
 use std::{mem, ops::Deref, sync::LazyLock};
 use num_traits::Num;
-use rbx_types::{Content, UDim, Variant};
+use rbx_types::{Color3, Content, UDim, Variant};
 use regex::Regex;
 use guarded::guarded_unwrap;
+use hex_color::HexColor;
 
 mod datatype_operations;
 use datatype_operations::datatype_operation;
@@ -541,6 +542,32 @@ fn parse_predefined_color_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>
     return (Some(token), None)
 }
 
+fn parse_hex_color_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> TokenWithResult<'a, Option<Datatype>> {
+    if let Token::ColorHex(hex) = token {
+        let color = HexColor::parse(hex).unwrap();
+        let datatype = Datatype::Variant(Variant::Color3(Color3::new(
+            (color.r as f32) / 255.0,
+            (color.g as f32) / 255.0,
+            (color.b as f32) / 255.0,
+        )));
+
+        return (parser.advance(), Some(datatype))
+    }
+
+    return (None, None)
+}
+
+// TODO: implement this in the luau version.
+fn parse_color_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> TokenWithResult<'a, Option<Datatype>> {
+    let parsed = parse_predefined_color_datatype(parser, token);
+    if parsed.1.is_some() { return parsed }
+
+    let parsed = parse_hex_color_datatype(parser, token);
+    if parsed.1.is_some() { return parsed }
+
+    return (Some(token), None)
+}
+
 fn parse_attribute_name_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> TokenWithResult<'a, Option<Datatype>> {
     if !matches!(token, Token::AttributeIdentifier) { return (Some(token), None) }
 
@@ -577,7 +604,7 @@ fn parse_datatype<'a>(
     let parsed = parse_enum_datatype(parser, token, key);
     if parsed.1.is_some() { return parsed }
 
-    let parsed = parse_predefined_color_datatype(parser, token);
+    let parsed = parse_color_datatype(parser, token);
     if parsed.1.is_some() { return parsed }
 
     let parsed = parse_attribute_name_datatype(parser, token);
