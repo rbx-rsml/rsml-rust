@@ -1,6 +1,6 @@
 use crate::string_clip::StringClip;
 use crate::lexer::Token;
-use std::{ops::Deref, sync::LazyLock};
+use std::{mem, ops::Deref, sync::LazyLock};
 use num_traits::Num;
 use rbx_types::{Content, UDim, Variant};
 use regex::Regex;
@@ -33,10 +33,42 @@ static MULTI_LINE_STRING_STRIP_LEFT_REGEX: LazyLock<Regex> = LazyLock::new(|| Re
 
 type TokenWithResult<'a, R> = (Option<Token<'a>>, R);
 
+pub struct TreeNodes(Vec<Option<TreeNode>>);
+
+impl TreeNodes {
+    pub fn new() -> Self {
+        Self(vec![])
+    }
+
+    pub fn get(&self, idx: usize) -> Option<&TreeNode> {
+        self.0[idx].as_ref()
+    }
+
+    pub fn get_mut(&mut self, idx: usize) -> Option<&mut TreeNode> {
+        self.0[idx].as_mut()
+    }
+
+    pub fn push(&mut self, tree_node: TreeNode) {
+        self.0.push(Some(tree_node));
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn take(&mut self, idx: usize) -> Option<TreeNode> {
+        mem::replace(&mut self.0[idx], None)
+    }
+
+    pub fn take_root(&mut self) -> TreeNode {
+        mem::replace(&mut self.0[0], None).unwrap()
+    }
+}
+
 struct Parser<'a> {
     lexer: &'a mut logos::Lexer<'a, Token<'a>>,
 
-    tree_nodes: Vec<TreeNode>,
+    tree_nodes: TreeNodes,
     current_tree_node: usize,
 
     tuples: Vec<Tuple>,
@@ -49,7 +81,7 @@ impl<'a> Parser<'a> {
         Self {
             lexer,
 
-            tree_nodes: vec![],
+            tree_nodes: TreeNodes::new(),
             current_tree_node: 0,
 
             tuples: vec![],
@@ -140,7 +172,7 @@ fn parse_scope_open<'a>(parser: &mut Parser<'a>, token: Token<'a>, selector: Opt
 
     let new_tree_node_idx = parser.tree_nodes.len();
 
-    let previous_tree_node = &mut parser.tree_nodes[parser.current_tree_node];
+    let previous_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node).unwrap();
     previous_tree_node.rules.push(new_tree_node_idx);
 
     let current_tree_node = TreeNode::new(parser.current_tree_node, selector);
@@ -210,7 +242,7 @@ fn parse_scope_selector<'a>(
 fn parse_scope_close<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> Option<Token<'a>> {
     if !matches!(token, Token::ScopeClose) { return Some(token) }
 
-    let current_tree_node = &parser.tree_nodes[parser.current_tree_node];
+    let current_tree_node = parser.tree_nodes.get(parser.current_tree_node).unwrap();
     parser.current_tree_node = current_tree_node.parent;
 
     return parser.advance()
@@ -976,7 +1008,7 @@ fn parse_priority_declaration<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> 
     let (token, datatype) = parse_datatype_group(parser, token, None, None, None);
 
     if let Some(Datatype::Variant(Variant::Float32(float32))) = datatype {
-        let current_tree_node = &mut parser.tree_nodes[parser.current_tree_node];
+        let current_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node).unwrap();
         current_tree_node.priority = Some(float32 as i32);
     }
 
@@ -994,7 +1026,7 @@ fn parse_name_declaration<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> Opti
     );
 
     if let Some(Datatype::Variant(Variant::String(name))) = datatype {
-        let current_tree_node = &mut parser.tree_nodes[parser.current_tree_node];
+        let current_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node).unwrap();
         current_tree_node.name = Some(name);
     }
 
@@ -1011,12 +1043,12 @@ fn parse_derive_declaration<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> Op
 
     match datatype {
         Some(Datatype::Variant(Variant::String(string))) => {
-            let current_tree_node = &mut parser.tree_nodes[parser.current_tree_node];
+            let current_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node).unwrap();
             current_tree_node.derives.insert(string);
         },
 
         Some(Datatype::TupleData(tuple_data)) => {
-            let current_tree_node = &mut parser.tree_nodes[parser.current_tree_node];
+            let current_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node).unwrap();
             let derives = &mut current_tree_node.derives;
 
             for datatype in tuple_data {
@@ -1058,7 +1090,7 @@ fn main_loop(mut parser: &mut Parser) -> Option<()> {
     None
 }
 
-pub fn parse_rsml<'a>(lexer: &'a mut logos::Lexer<'a, Token<'a>>) -> Vec<TreeNode> {
+pub fn parse_rsml<'a>(lexer: &'a mut logos::Lexer<'a, Token<'a>>) -> TreeNodes {
     let mut parser = Parser::new(lexer);
 
     let root_tree_node = TreeNode::new(0, None);

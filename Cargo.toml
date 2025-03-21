@@ -1,6 +1,6 @@
 [package]
 name = "rbx-rsml"
-version = "0.0.6"
+version = "0.0.7"
 edition = "2021"
 description = "A lexer and parser for the RSML language."
 homepage = "https://www.rsml.style"
@@ -29,8 +29,6 @@ test = true
 doctest = true
 bench = true
 doc = true 
-proc-macro = true
 harness = true
 edition = "2021"
 crate-type = ["lib"]
-required-features = ["proc-macro"]
