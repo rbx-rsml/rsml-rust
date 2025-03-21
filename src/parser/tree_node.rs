@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use rbx_types::Variant;
+use rbx_types::{Attributes, Variant};
 
 #[derive(Debug)]
 pub struct TreeNode {
@@ -7,7 +7,7 @@ pub struct TreeNode {
     pub name: Option<String>,
     pub derives: HashSet<String>,
     pub priority: Option<i32>,
-    pub attributes: HashMap<String, Variant>,
+    pub attributes: Attributes,
     pub properties: HashMap<String, Variant>,
     pub rules: Vec<usize>,
     pub parent: usize
@@ -16,7 +16,7 @@ pub struct TreeNode {
 impl TreeNode {
     pub fn new(parent: usize, selector: Option<String>) -> Self {
         Self {
-            attributes: HashMap::new(),
+            attributes: Attributes::new(),
             properties: HashMap::new(),
             derives: HashSet::new(),
             rules: vec![],
