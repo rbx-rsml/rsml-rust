@@ -1,7 +1,7 @@
 use crate::string_clip::StringClip;
 use crate::lexer::Token;
 use std::{mem, ops::Deref, sync::LazyLock};
-use num_traits::Num;
+use num_traits::{Float, Num};
 use rbx_types::{Color3, Content, UDim, Variant};
 use regex::Regex;
 use guarded::guarded_unwrap;
@@ -339,7 +339,13 @@ fn parse_number_offset<'a>(parser: &mut Parser<'a>, token: Token<'a>, num_str: &
     if !matches!(token, Token::Offset) { return (Some(token), None) }
 
     let token = parser.advance();
-    let datatype = Some(Datatype::Variant(Variant::UDim(UDim::new(0.0, num_str.parse::<i32>().unwrap()))));
+    let datatype = Some(Datatype::Variant(Variant::UDim(UDim::new(
+        0.0, 
+        match num_str.parse::<i32>() {
+            Ok(int32) => int32,
+            Err(_) => num_str.parse::<f32>().unwrap() as i32
+        }
+    ))));
 
     return (token, datatype)
 }
@@ -381,6 +387,9 @@ fn parse_operator_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> Tok
         },
         Token::OpDiv => {
             (parser.advance(), Some(Datatype::Operator(Operator::Div)))
+        },
+        Token::OpFloorDiv => {
+            (parser.advance(), Some(Datatype::Operator(Operator::FloorDiv)))
         },
         Token::OpMod | Token::ScaleOrOpMod => {
             (parser.advance(), Some(Datatype::Operator(Operator::Mod)))
@@ -495,8 +504,8 @@ fn parse_boolean_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> Toke
 
 #[allow(warnings)]
 fn parse_predefined_tailwind_color<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> TokenWithResult<'a, Option<Datatype>> {
-    if let Token::ColorTailwind(color) = token {
-        let datatype = TAILWIND_COLORS.get(color)
+    if let Token::ColorTailwind(color_name) = token {
+        let datatype = TAILWIND_COLORS.get(&color_name.to_lowercase())
             .and_then(|color| Some(Datatype::Variant(Variant::Color3(**color.deref()))));
 
         return (parser.advance(), datatype)
@@ -507,8 +516,8 @@ fn parse_predefined_tailwind_color<'a>(parser: &mut Parser<'a>, token: Token<'a>
 
 #[allow(warnings)]
 fn parse_predefined_css_color<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> TokenWithResult<'a, Option<Datatype>> {
-    if let Token::ColorCss(color) = token {
-        let datatype = CSS_COLORS.get(color)
+    if let Token::ColorCss(color_name) = token {
+        let datatype = CSS_COLORS.get(&color_name.to_lowercase())
             .and_then(|color| Some(Datatype::Variant(Variant::Color3(**color.deref()))));
 
         return (parser.advance(), datatype)
@@ -519,8 +528,8 @@ fn parse_predefined_css_color<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> 
 
 #[allow(warnings)]
 fn parse_predefined_brick_color<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> TokenWithResult<'a, Option<Datatype>> {
-    if let Token::ColorBrick(color) = token {
-        let datatype = BRICK_COLORS.get(color)
+    if let Token::ColorBrick(color_name) = token {
+        let datatype = BRICK_COLORS.get(&color_name.to_lowercase())
             .and_then(|color| Some(Datatype::Variant(Variant::Color3(**color.deref()))));
 
         return (parser.advance(), datatype)
@@ -644,9 +653,15 @@ fn add<T: Num>(a: T, b: T) -> T { a + b }
 fn sub<T: Num>(a: T, b: T) -> T { a - b }
 
 fn mult<T: Num>(a: T, b: T) -> T { a * b }
+
 fn div<T: Num + Copy + std::fmt::Debug>(a: T, b: T) -> T {
     if will_divide_by_zero(a, b) { return a }
     a / b
+}
+
+fn floor_div<T: Float>(a: T, b: T) -> T {
+    if will_divide_by_zero(a, b) { return a }
+    (a / b).floor()
 }
 
 fn pow_f32(a: f32, b: f32) -> f32 { a.powf(b) }
@@ -654,16 +669,19 @@ fn pow_i32(a: i32, b: i32) -> i32 { a.pow(b as u32) }
 
 fn mod_<T: Num>(a: T, b: T) -> T { a % b }
 
-static ADD_SUB_OPERATORS: [(Operator, fn(f32, f32) -> f32, fn(i32, i32) -> i32); 2] = [
+type OperatorData = (Operator, fn(f32, f32) -> f32, fn(i32, i32) -> i32);
+
+static ADD_SUB_OPERATORS: [OperatorData; 2] = [
     (Operator::Add, add::<f32>, add::<i32>),
     (Operator::Sub, sub::<f32>, sub::<i32>),
 ];
 
-static ORDERED_OPERATORS: &[&[(Operator, fn(f32, f32) -> f32, fn(i32, i32) -> i32)]] = &[
+static ORDERED_OPERATORS: &[&[OperatorData]] = &[
     &[(Operator::Pow, pow_f32, pow_i32)],
 
     &[
         (Operator::Div, div::<f32>, div::<i32>),
+        (Operator::FloorDiv, floor_div::<f32>, div::<i32>),
         (Operator::Mod, mod_::<f32>, mod_::<i32>),
         (Operator::Mult, mult::<f32>, mult::<i32>),
     ],

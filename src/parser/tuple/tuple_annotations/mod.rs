@@ -1,6 +1,6 @@
 use phf_macros::phf_map;
 use crate::parser::Datatype;
-use rbx_types::{BrickColor, CFrame, Color3, Content, Font, FontStyle, FontWeight, Matrix3, NumberRange, Rect, UDim, UDim2, Variant, Vector2, Vector2int16, Vector3, Vector3int16};
+use rbx_types::{BrickColor, CFrame, Color3, Color3uint8, Content, Font, FontStyle, FontWeight, Matrix3, NumberRange, Rect, UDim, UDim2, Variant, Vector2, Vector2int16, Vector3, Vector3int16};
 
 mod colorseq;
 use colorseq::colorseq_annotation;
@@ -169,31 +169,40 @@ fn cframe_annotation(datatypes: &Vec<Datatype>) -> Variant {
     }
 }
 
+// TODO: fix rect annotation in luau version.
 fn rect_annotation(datatypes: &Vec<Datatype>) -> Variant {
-    if datatypes.len() == 2 {
-        let min = coerce_datatype_to_vec2(datatypes.get(0), Vector2::new(0.0, 0.0));
-        let max = coerce_datatype_to_vec2(datatypes.get(0), min);
+    let first = datatypes.get(0);
 
-        return Variant::Rect(Rect::new(min, max))
+    if let Some(Datatype::Variant(Variant::Vector2(vec))) = first {
+        let max = coerce_datatype_to_vec2(datatypes.get(1), *vec);
+
+        return Variant::Rect(Rect::new(*vec, max))
 
     } else {
-        let min_x = coerce_datatype_to_f32(datatypes.get(0), 0.0);
+        let min_x = coerce_datatype_to_f32(first, 0.0);
         let min_y = coerce_datatype_to_f32(datatypes.get(1), min_x);
-        let max_x = coerce_datatype_to_f32(datatypes.get(3), min_x);
-        let max_y = coerce_datatype_to_f32(datatypes.get(4), max_x);
+        let max_x = coerce_datatype_to_f32(datatypes.get(2), min_x);
+        let max_y = coerce_datatype_to_f32(datatypes.get(3), min_y);
 
         return Variant::Rect(Rect::new(
-            Vector2::new(min_x, max_x), Vector2::new(min_y, max_y)
+            Vector2::new(min_x, min_y), Vector2::new(max_x, max_y)
         ))
     }
 }
 
 fn color3_annotation(datatypes: &Vec<Datatype>) -> Variant {
-    let red = coerce_datatype_to_f32(datatypes.get(0), 0.0);
-    let green = coerce_datatype_to_f32(datatypes.get(1), red);
-    let blue = coerce_datatype_to_f32(datatypes.get(3), green);
+    let first = datatypes.get(0);
 
-    return Variant::Color3(Color3::new(red, green, blue))
+    if let Some(Datatype::Variant(Variant::BrickColor(brick_color))) = first {
+        Variant::Color3uint8(brick_color.to_color3uint8())
+
+    } else {
+        let red = coerce_datatype_to_f32(first, 0.0);
+        let green = coerce_datatype_to_f32(datatypes.get(1), red);
+        let blue = coerce_datatype_to_f32(datatypes.get(3), green);
+
+        Variant::Color3(Color3::new(red, green, blue))
+    }
 }
 
 fn rgb_annotation(datatypes: &Vec<Datatype>) -> Variant {

@@ -25,7 +25,7 @@ fn operation_number_with_udim(
 ) -> Datatype {
     if matches!(operator, Operator::Sub) {
         return Datatype::Variant(Variant::UDim(
-            UDim::new(left + right.scale, -right.offset)
+            UDim::new(left - right.scale, -right.offset)
         ))
     };
 
@@ -298,8 +298,6 @@ fn operation_cframe_with_cframe(
             )
         )
     ))
-
-    
 }
 
 
@@ -445,6 +443,8 @@ pub fn datatype_operation(
     left: &Datatype, right: &Datatype, operator: &Operator,
     operation_fn_f32: &OperationFn<f32>, operation_fn_i32: &OperationFn<i32>
 ) -> Option<Datatype> {
+    println!("{:#?} {:#?} {:#?}", left, operator, right);
+
     if let Datatype::Variant(Variant::Float32(left)) = left {
         if let Datatype::Variant(Variant::Float32(right)) = right {
             return Some(operation_number_with_number(*left, *right, operation_fn_f32))

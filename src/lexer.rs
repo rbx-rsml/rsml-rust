@@ -78,6 +78,9 @@ pub enum Token<'a> {
     #[token("/")]
     OpDiv,
 
+    #[token("//")]
+    OpFloorDiv,
+
     #[token("^")]
     OpPow,
 
@@ -93,13 +96,13 @@ pub enum Token<'a> {
     #[token("Enum")]
     EnumKeyword,
 
-    #[regex(r"tw:[a-z]+(:\d+)?")]
+    #[regex(r"(?i)tw:[a-z]+(:\d+)?")]
     ColorTailwind(&'a str),
 
-    #[regex(r"bc:[a-z]+")]
+    #[regex(r"(?i)bc:[a-z]+")]
     ColorBrick(&'a str),
 
-    #[regex(r"css:[a-z]+")]
+    #[regex(r"(?i)css:[a-z]+")]
     ColorCss(&'a str),
 
     #[regex(r"#[0-9a-fA-F]+")]
@@ -121,11 +124,11 @@ pub enum Token<'a> {
     #[regex(r#"'[^\'\n\t]*'"#)]
     StringSingle(&'a str),
 
-    #[regex(r"rbxassetid://\d")]
+    #[regex(r"rbxassetid://\d+")]
     #[regex(r"(rbxasset|rbxthumb|rbxgameasset|rbxhttp|rbxtemp|https?)://[^) ]*")]
     RobloxAsset(&'a str),
 
-    #[regex(r"contentid://\d", priority = 999)]
+    #[regex(r"contentid://\d+", priority = 999)]
     RobloxContent(&'a str),
 
     #[regex(r"[_a-zA-Z][_A-Za-z0-9]*", priority = 0)]

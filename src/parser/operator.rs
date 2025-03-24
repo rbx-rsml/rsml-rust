@@ -2,6 +2,7 @@
 pub enum Operator {
     Pow,
     Div,
+    FloorDiv,
     Mod,
     Mult,
     Add,

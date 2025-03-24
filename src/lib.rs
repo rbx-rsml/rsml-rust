@@ -1,5 +1,5 @@
 mod lexer;
-pub use lexer::lex_rsml;
+pub use lexer::{lex_rsml, Token};
 
 mod parser;
 pub use parser::{parse_rsml, TreeNode, TreeNodes};
