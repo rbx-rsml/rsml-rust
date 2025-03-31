@@ -14,8 +14,10 @@ impl<'a> Selector<'a> {
     }
 
     pub fn append(&mut self, slice: &str, token: Token<'a>) {
-        let should_add_space = !matches!(token, Token::Comma) && matches!(self.current_token,
-            Token::ScopeToDescendants | Token::ScopeToChildren | Token::Text(_) | Token::Comma
+        let last_token = self.current_token;
+
+        let should_add_space = !matches!(token, Token::Comma | Token::StateOrEnumIdentifier) && matches!(last_token,
+             Token::ScopeToDescendants | Token::ScopeToChildren | Token::Text(_) | Token::Comma
         );
 
         self.current_token = token;

@@ -78,17 +78,17 @@ fn colorseq_get_end_time(current_idx: usize, colors: &Vec<Color>, colors_len: us
     return ((colors_len - 1) as f32, 1.0)
 }
 
-pub fn colorseq_annotation(datatypes: &Vec<Datatype>) -> Variant {
+pub fn colorseq_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     // If the data only contains one color then we only
     // need to return a color sequence with that color.
     if datatypes.len() == 1 {
         let (color, _) = colorseq_get_color_and_time(&datatypes[0]);
-        return Variant::ColorSequence(ColorSequence {
+        return Datatype::Variant(Variant::ColorSequence(ColorSequence {
             keypoints: vec![
                 ColorSequenceKeypoint::new(0.0, color),
                 ColorSequenceKeypoint::new(1.0, color)
             ]
-        })
+        }))
     };
 
     let mut colors: Vec<Color> = vec![];
@@ -145,7 +145,7 @@ pub fn colorseq_annotation(datatypes: &Vec<Datatype>) -> Variant {
         colorseq_keypoints.push(ColorSequenceKeypoint::new(1.0, last_keypoint.color))
     }
 
-    return Variant::ColorSequence(ColorSequence {
+    return Datatype::Variant(Variant::ColorSequence(ColorSequence {
         keypoints: colorseq_keypoints
-    })
+    }))
 }

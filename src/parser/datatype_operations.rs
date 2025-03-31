@@ -1,7 +1,3 @@
-// Words can not describe the pain this file fills me with. Eventually
-// I will need to find a better solution for adding different datatypes 
-// together. But this works fine for now i guess.
-
 // TODO: Allow for tuples to have a number datatype
 // specified to reduce the amount of casting.
 
@@ -10,7 +6,7 @@ use rbx_types::{CFrame, Color3, Matrix3, Rect, UDim, UDim2, Variant, Vector2, Ve
 
 type OperationFn<N> = fn(N, N) -> N;
 
-fn operation_number_with_number(
+fn operation_f32_with_f32(
     left: f32, right: f32,
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
@@ -19,7 +15,7 @@ fn operation_number_with_number(
     ))
 }
 
-fn operation_number_with_udim(
+fn operation_f32_with_udim(
     left: f32, right: UDim, operator: &Operator,
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
@@ -34,7 +30,7 @@ fn operation_number_with_udim(
     ))
 }
 
-fn operation_number_with_udim2(
+fn operation_f32_with_udim2(
     left: f32, right: UDim2, operator: &Operator,
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
@@ -42,13 +38,13 @@ fn operation_number_with_udim2(
 
     let solved_right_x = {
         if let Datatype::Variant(Variant::UDim(solved_right_x)) = 
-            operation_number_with_udim(left, right_x, operator, operation_fn_f32) { solved_right_x } 
+            operation_f32_with_udim(left, right_x, operator, operation_fn_f32) { solved_right_x } 
         else { unreachable!() }
     };
 
     let solved_right_y = {
         if let Datatype::Variant(Variant::UDim(solved_right_y)) = 
-            operation_number_with_udim(left, right_y, operator, operation_fn_f32) { solved_right_y } 
+            operation_f32_with_udim(left, right_y, operator, operation_fn_f32) { solved_right_y } 
         else { unreachable!() }
     };
 
@@ -57,7 +53,7 @@ fn operation_number_with_udim2(
     ))
 }
 
-fn operation_number_with_vector3(
+fn operation_f32_with_vector3(
     left: f32, right: Vector3,
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
@@ -70,7 +66,7 @@ fn operation_number_with_vector3(
     ))
 }
 
-fn operation_number_with_vector3int16(
+fn operation_f32_with_vector3int16(
     left: f32, right: Vector3int16,
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
@@ -83,7 +79,7 @@ fn operation_number_with_vector3int16(
     ))
 }
 
-fn operation_number_with_vector2(
+fn operation_f32_with_vector2(
     left: f32, right: Vector2,
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
@@ -95,7 +91,7 @@ fn operation_number_with_vector2(
     ))
 }
 
-fn operation_number_with_vector2int16(
+fn operation_f32_with_vector2int16(
     left: f32, right: Vector2int16,
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
@@ -107,7 +103,7 @@ fn operation_number_with_vector2int16(
     ))
 }
 
-fn operation_number_with_rect(
+fn operation_f32_with_rect(
     left: f32, right: Rect,
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
@@ -125,7 +121,7 @@ fn operation_number_with_rect(
     ))
 }
 
-fn operation_number_with_color3(
+fn operation_f32_with_color3(
     left: f32, right: Color3,
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
@@ -139,7 +135,7 @@ fn operation_number_with_color3(
 }
 
 
-fn operation_udim_with_number(
+fn operation_udim_with_f32(
     left: UDim, right: f32, 
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
@@ -162,7 +158,7 @@ fn operation_udim_with_udim(
 }
 
 
-fn operation_udim2_with_number(
+fn operation_udim2_with_f32(
     left: UDim2, right: f32,
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
@@ -199,7 +195,7 @@ fn operation_udim2_with_udim2(
 }
 
 
-fn operation_vector3_with_number(
+fn operation_vector3_with_f32(
     left: Vector3, right: f32, 
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
@@ -242,7 +238,7 @@ fn operation_vector3_with_vector3(
     Datatype::Variant(Variant::Vector3(_operation_vector3_with_vector3(left, right, operation_fn_f32)))
 }
 
-fn operation_vector3int16_with_number(
+fn operation_vector3int16_with_f32(
     left: Vector3int16, right: f32, 
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
@@ -301,7 +297,7 @@ fn operation_cframe_with_cframe(
 }
 
 
-fn operation_vector2_with_number(
+fn operation_vector2_with_f32(
     left: Vector2, right: f32, 
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
@@ -337,7 +333,7 @@ fn operation_vector2_with_vector2(
     ))
 }
 
-fn operation_vector2int16_with_number(
+fn operation_vector2int16_with_f32(
     left: Vector2int16, right: f32, 
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
@@ -373,7 +369,7 @@ fn operation_vector2int16_with_vector2int16(
     ))
 }
 
-fn operation_rect_with_number(
+fn operation_rect_with_f32(
     left: Rect, right: f32, 
     operation_fn_f32: &OperationFn<f32>
 ) -> Datatype {
@@ -411,7 +407,7 @@ fn operation_rect_with_rect(
 }
 
 
-fn operation_color3_with_number(
+fn operation_color3_with_f32(
     left: Color3, right: f32,
     operation_fn_f32: &OperationFn<f32>,
 ) -> Datatype {
@@ -445,45 +441,45 @@ pub fn datatype_operation(
 ) -> Option<Datatype> {
     if let Datatype::Variant(Variant::Float32(left)) = left {
         if let Datatype::Variant(Variant::Float32(right)) = right {
-            return Some(operation_number_with_number(*left, *right, operation_fn_f32))
+            return Some(operation_f32_with_f32(*left, *right, operation_fn_f32))
         }
 
         else if let Datatype::Variant(Variant::UDim(right)) = right {
-            return Some(operation_number_with_udim(*left, *right, operator, operation_fn_f32))
+            return Some(operation_f32_with_udim(*left, *right, operator, operation_fn_f32))
         }
 
         else if let Datatype::Variant(Variant::UDim2(right)) = right {
-            return Some(operation_number_with_udim2(*left, *right, operator, operation_fn_f32))
+            return Some(operation_f32_with_udim2(*left, *right, operator, operation_fn_f32))
         }
 
         else if let Datatype::Variant(Variant::Vector3(right)) = right {
-            return Some(operation_number_with_vector3(*left, *right, operation_fn_f32))
+            return Some(operation_f32_with_vector3(*left, *right, operation_fn_f32))
         }
 
         else if let Datatype::Variant(Variant::Vector3int16(right)) = right {
-            return Some(operation_number_with_vector3int16(*left, *right, operation_fn_f32))
+            return Some(operation_f32_with_vector3int16(*left, *right, operation_fn_f32))
         }
 
         else if let Datatype::Variant(Variant::Vector2(right)) = right {
-            return Some(operation_number_with_vector2(*left, *right, operation_fn_f32))
+            return Some(operation_f32_with_vector2(*left, *right, operation_fn_f32))
         }
 
         else if let Datatype::Variant(Variant::Vector2int16(right)) = right {
-            return Some(operation_number_with_vector2int16(*left, *right, operation_fn_f32))
+            return Some(operation_f32_with_vector2int16(*left, *right, operation_fn_f32))
         }
 
         else if let Datatype::Variant(Variant::Rect(right)) = right {
-            return Some(operation_number_with_rect(*left, *right, operation_fn_f32))
+            return Some(operation_f32_with_rect(*left, *right, operation_fn_f32))
         }
 
         else if let Datatype::Variant(Variant::Color3(right)) = right {
-            return Some(operation_number_with_color3(*left, *right, operation_fn_f32))
+            return Some(operation_f32_with_color3(*left, *right, operation_fn_f32))
         }
     }
 
     else if let Datatype::Variant(Variant::UDim(left)) = left {
         if let Datatype::Variant(Variant::Float32(right)) = right {
-            return Some(operation_udim_with_number(*left, *right, operation_fn_f32))
+            return Some(operation_udim_with_f32(*left, *right, operation_fn_f32))
         }
 
         else if let Datatype::Variant(Variant::UDim(right)) = right {
@@ -493,7 +489,7 @@ pub fn datatype_operation(
 
     else if let Datatype::Variant(Variant::UDim2(left)) = left {
         if let Datatype::Variant(Variant::Float32(right)) = right {
-            return Some(operation_udim2_with_number(*left, *right, operation_fn_f32))
+            return Some(operation_udim2_with_f32(*left, *right, operation_fn_f32))
         }
 
         else if let Datatype::Variant(Variant::UDim2(right)) = right {
@@ -503,7 +499,7 @@ pub fn datatype_operation(
 
     else if let Datatype::Variant(Variant::Vector3(left)) = left {
         if let Datatype::Variant(Variant::Float32(right)) = right {
-            return Some(operation_vector3_with_number(*left, *right, operation_fn_f32))
+            return Some(operation_vector3_with_f32(*left, *right, operation_fn_f32))
         }
 
         if let Datatype::Variant(Variant::Vector3int16(right)) = right {
@@ -517,7 +513,7 @@ pub fn datatype_operation(
 
     else if let Datatype::Variant(Variant::Vector3int16(left)) = left {
         if let Datatype::Variant(Variant::Float32(right)) = right {
-            return Some(operation_vector3int16_with_number(*left, *right, operation_fn_f32))
+            return Some(operation_vector3int16_with_f32(*left, *right, operation_fn_f32))
         }
 
         else if let Datatype::Variant(Variant::Vector3(right)) = right {
@@ -537,7 +533,7 @@ pub fn datatype_operation(
 
     else if let Datatype::Variant(Variant::Vector2(left)) = left {
         if let Datatype::Variant(Variant::Float32(right)) = right {
-            return Some(operation_vector2_with_number(*left, *right, operation_fn_f32))
+            return Some(operation_vector2_with_f32(*left, *right, operation_fn_f32))
         }
 
         if let Datatype::Variant(Variant::Vector2int16(right)) = right {
@@ -551,7 +547,7 @@ pub fn datatype_operation(
 
     else if let Datatype::Variant(Variant::Vector2int16(left)) = left {
         if let Datatype::Variant(Variant::Float32(right)) = right {
-            return Some(operation_vector2int16_with_number(*left, *right, operation_fn_f32))
+            return Some(operation_vector2int16_with_f32(*left, *right, operation_fn_f32))
         }
 
         else if let Datatype::Variant(Variant::Vector2(right)) = right {
@@ -565,7 +561,7 @@ pub fn datatype_operation(
 
     else if let Datatype::Variant(Variant::Rect(left)) = left {
         if let Datatype::Variant(Variant::Float32(right)) = right {
-            return Some(operation_rect_with_number(*left, *right, operation_fn_f32))
+            return Some(operation_rect_with_f32(*left, *right, operation_fn_f32))
         }
 
         else if let Datatype::Variant(Variant::Rect(right)) = right {
@@ -575,7 +571,7 @@ pub fn datatype_operation(
 
     else if let Datatype::Variant(Variant::Color3(left)) = left {
         if let Datatype::Variant(Variant::Float32(right)) = right {
-            return Some(operation_color3_with_number(*left, *right, operation_fn_f32))
+            return Some(operation_color3_with_f32(*left, *right, operation_fn_f32))
         }
 
         else if let Datatype::Variant(Variant::Color3(right)) = right {

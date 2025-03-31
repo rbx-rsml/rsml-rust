@@ -82,17 +82,17 @@ fn numseq_get_end_time(current_idx: usize, numbers: &Vec<Number>, numbers_len: u
     return ((numbers_len - 1) as f32, 1.0)
 }
 
-pub fn numseq_annotation(datatypes: &Vec<Datatype>) -> Variant {
+pub fn numseq_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     // If the data only contains one color then we only
     // need to return a color sequence with that color.
     if datatypes.len() == 1 {
         let (number, _, envelope) = numseq_get_number_time_and_envelope(&datatypes[0]);
-        return Variant::NumberSequence(NumberSequence {
+        return Datatype::Variant(Variant::NumberSequence(NumberSequence {
             keypoints: vec![
                 NumberSequenceKeypoint::new(0.0, number, envelope),
                 NumberSequenceKeypoint::new(1.0, number, envelope)
             ]
-        })
+        }))
     };
 
     let mut numbers: Vec<Number> = vec![];
@@ -149,7 +149,7 @@ pub fn numseq_annotation(datatypes: &Vec<Datatype>) -> Variant {
         numseq_keypoints.push(NumberSequenceKeypoint::new(1.0, last_keypoint.value, last_keypoint.envelope))
     }
 
-    return Variant::NumberSequence(NumberSequence {
+    return Datatype::Variant(Variant::NumberSequence(NumberSequence {
         keypoints: numseq_keypoints
-    })
+    }))
 }

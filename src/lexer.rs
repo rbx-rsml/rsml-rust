@@ -93,6 +93,9 @@ pub enum Token<'a> {
     #[token("false")]
     BoolFalse,
 
+    #[token("nil")]
+    Nil,
+
     #[token("Enum")]
     EnumKeyword,
 

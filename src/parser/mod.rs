@@ -34,6 +34,7 @@ static MULTI_LINE_STRING_STRIP_LEFT_REGEX: LazyLock<Regex> = LazyLock::new(|| Re
 
 type TokenWithResult<'a, R> = (Option<Token<'a>>, R);
 
+#[derive(Debug)]
 pub struct TreeNodes(Vec<Option<TreeNode>>);
 
 impl TreeNodes {
@@ -467,17 +468,23 @@ fn parse_enum_keyword<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> TokenWit
 }
 
 fn parse_enum_shorthand<'a>(parser: &mut Parser<'a>, token: Token<'a>, key: Option<&str>) -> TokenWithResult<'a, Option<Datatype>> {
-    let key = guarded_unwrap!(key, return (Some(token), None));
-
     if !matches!(token, Token::StateOrEnumIdentifier) { return (Some(token), None) }
 
     let token = guarded_unwrap!(parser.advance(), return (None, None));
 
     let enum_item = if let Token::Text(text) = token { text } else { return (Some(token), None) };
 
-    // TODO: convert this to its enum member number value (instead of a string) using an api dump.
-    let datatype = Some(Datatype::Variant(Variant::String(format!("Enum.{}.{}", key, enum_item))));
-    return (parser.advance(), datatype)
+    if let Some(key) = key {
+        // TODO: convert this to its enum member number value (instead of a string) using an api dump.
+        let datatype = Datatype::Variant(Variant::String(format!("Enum.{}.{}", key, enum_item)));
+        return (parser.advance(), Some(datatype))
+
+    } else {
+        let datatype = Datatype::IncompleteEnumShorthand(enum_item.into());
+        return (parser.advance(), Some(datatype))
+    }
+
+    
 }
 
 fn parse_enum_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>, key: Option<&str>) -> TokenWithResult<'a, Option<Datatype>> {
@@ -488,6 +495,12 @@ fn parse_enum_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>, key: Optio
     if parsed.1.is_some() { return parsed }
 
     (Some(token), None)
+}
+
+fn parse_nil_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> TokenWithResult<'a, Option<Datatype>> {
+    if !matches!(token, Token::Nil) { return (Some(token), None) }
+
+    (parser.advance(), Some(Datatype::None))
 }
 
 fn parse_boolean_datatype<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> TokenWithResult<'a, Option<Datatype>> {
@@ -622,6 +635,9 @@ fn parse_datatype<'a>(
     let parsed = parse_boolean_datatype(parser, token);
     if parsed.1.is_some() { return parsed }
 
+    let parsed = parse_nil_datatype(parser, token);
+    if parsed.1.is_some() { return parsed }
+
     (Some(token), None)
 }
 
@@ -744,7 +760,7 @@ fn solve_datatype_group(mut datatypes: Vec<Datatype>) -> Datatype {
                     occurrence_idx_offset += 1;
                     let left = datatypes.remove(left_idx);
 
-                    if matches!(left, Datatype::Empty) {
+                    if matches!(left, Datatype::None) {
                         (Datatype::Variant(Variant::Float32(0.0)), left_idx)
                     } else {
                         (left, left_idx)
@@ -855,7 +871,7 @@ fn parse_tuple_close<'a>(
 
     if let Some(some_parent_tuple_idx) = parent_tuple_idx {
         let datatype = current_tuple.coerce_to_datatype();
-        parser.get_tuple_mut(some_parent_tuple_idx).unwrap().data.push(datatype);
+        parser.get_tuple_mut(some_parent_tuple_idx).unwrap().push(datatype);
 
         let token = guarded_unwrap!(token, return None);
         
@@ -885,7 +901,7 @@ fn parse_tuple_datatype<'a>(
     let datatype = guarded_unwrap!(datatype, return None);
 
     let current_tuple = parser.get_tuple_mut(current_tuple_idx).unwrap();
-    current_tuple.data.push(datatype);
+    current_tuple.push(datatype);
 
     if let Some(token) = token {
         let parsed = parse_tuple_delimiter(parser, token, current_tuple_idx, root_tuple_idx);
@@ -1002,7 +1018,7 @@ fn parse_property<'a>(parser: &mut Parser<'a>, mut token: Token<'a>) -> Option<T
         let (token, datatype) = parse_datatype_group(
             parser, token, Some(property_name), None, None
         );
-        let variant = datatype.and_then(|d| d.coerce_to_variant());
+        let variant = datatype.and_then(|d| d.coerce_to_variant(Some(property_name)));
 
         if let Some(variant) = variant {
             let current_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node).unwrap();
@@ -1031,7 +1047,7 @@ fn parse_attribute<'a>(parser: &mut Parser<'a>, mut token: Token<'a>) -> Option<
         let (token, datatype) = parse_datatype_group(
             parser, token, Some(attribute_name), None, None
         );
-        let variant = datatype.and_then(|d| d.coerce_to_variant());
+        let variant = datatype.and_then(|d| d.coerce_to_variant(Some(attribute_name)));
 
         if let Some(variant) = variant {
             let current_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node).unwrap();
