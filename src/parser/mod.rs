@@ -2,6 +2,7 @@ use crate::string_clip::StringClip;
 use crate::lexer::Token;
 use std::{mem, ops::Deref, sync::LazyLock};
 use num_traits::{Float, Num};
+use phf_macros::phf_map;
 use rbx_types::{Color3, Content, UDim, Variant};
 use regex::Regex;
 use guarded::guarded_unwrap;
@@ -467,6 +468,12 @@ fn parse_enum_keyword<'a>(parser: &mut Parser<'a>, token: Token<'a>) -> TokenWit
     parse_full_enum(parser, token, &mut token_history)
 }
 
+static SHORTHAND_HARDCODES: phf::Map<&'static str, &'static str> = phf_map! {
+    "FlexMode" => "UIFlexMode",
+    "HorizontalFlex" => "UIFlexAlignment",
+    "VerticalFlex" => "UIFlexAlignment"
+};
+
 fn parse_enum_shorthand<'a>(parser: &mut Parser<'a>, token: Token<'a>, key: Option<&str>) -> TokenWithResult<'a, Option<Datatype>> {
     if !matches!(token, Token::StateOrEnumIdentifier) { return (Some(token), None) }
 
@@ -475,8 +482,10 @@ fn parse_enum_shorthand<'a>(parser: &mut Parser<'a>, token: Token<'a>, key: Opti
     let enum_item = if let Token::Text(text) = token { text } else { return (Some(token), None) };
 
     if let Some(key) = key {
+        let enum_name = SHORTHAND_HARDCODES.get(key).unwrap_or(&key);
+
         // TODO: convert this to its enum member number value (instead of a string) using an api dump.
-        let datatype = Datatype::Variant(Variant::String(format!("Enum.{}.{}", key, enum_item)));
+        let datatype = Datatype::Variant(Variant::String(format!("Enum.{}.{}", enum_name, enum_item)));
         return (parser.advance(), Some(datatype))
 
     } else {

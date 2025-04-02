@@ -83,9 +83,9 @@ fn udim2_annotation(datatypes: &Vec<Datatype>) -> Datatype {
 
     } else {
         let x_scale = coerce_datatype_to_f32(datatypes.get(0), 0.0);
-        let x_offset = coerce_datatype_to_f32(datatypes.get(1), 0.0) as i32;
-        let y_scale = coerce_datatype_to_f32(datatypes.get(3), 0.0);
-        let y_offset = coerce_datatype_to_f32(datatypes.get(4), 0.0) as i32;
+        let x_offset = coerce_datatype_to_f32(datatypes.get(1), x_scale * 100.0) as i32;
+        let y_scale = coerce_datatype_to_f32(datatypes.get(3), x_scale);
+        let y_offset = coerce_datatype_to_f32(datatypes.get(4), y_scale * 100.0) as i32;
 
         return Datatype::Variant(Variant::UDim2(UDim2::new(
             UDim::new(x_scale, x_offset), UDim::new(y_scale, y_offset)
@@ -238,14 +238,35 @@ fn font_annotation(datatypes: &Vec<Datatype>) -> Datatype {
                 "Thin" => FontWeight::Thin,
                 "ExtraLight" => FontWeight::ExtraLight,
                 "Light" => FontWeight::Light,
+                "Regular" => FontWeight::Regular,
                 "Medium" => FontWeight::Medium,
                 "SemiBold" => FontWeight::SemiBold,
                 "Bold" => FontWeight::Bold,
                 "ExtraBold" => FontWeight::ExtraBold,
                 "Heavy" => FontWeight::Heavy,
+                "Enum.FontWeight.Thin" => FontWeight::Thin,
+                "Enum.FontWeight.ExtraLight" => FontWeight::ExtraLight,
+                "Enum.FontWeight.Light" => FontWeight::Light,
+                "Enum.FontWeight.Regular" => FontWeight::Regular,
+                "Enum.FontWeight.Medium" => FontWeight::Medium,
+                "Enum.FontWeight.SemiBold" => FontWeight::SemiBold,
+                "Enum.FontWeight.Bold" => FontWeight::Bold,
+                "Enum.FontWeight.ExtraBold" => FontWeight::ExtraBold,
+                "Enum.FontWeight.Heavy" => FontWeight::Heavy,
                 _ => FontWeight::Regular
             },
-
+            Datatype::Variant(Variant::Float32(float32)) => match *float32 {
+                100.0 => FontWeight::Thin,
+                200.0 => FontWeight::ExtraLight,
+                300.0 => FontWeight::Light,
+                400.0 => FontWeight::Regular,
+                500.0 => FontWeight::Medium,
+                600.0 => FontWeight::SemiBold,
+                700.0 => FontWeight::Bold,
+                800.0 => FontWeight::ExtraBold,
+                900.0 => FontWeight::Heavy,
+                _ => FontWeight::Regular
+            }
             _ => FontWeight::Regular
         }
     } else { FontWeight::Regular };
@@ -255,8 +276,13 @@ fn font_annotation(datatypes: &Vec<Datatype>) -> Datatype {
             Datatype::Variant(Variant::String(style_str)) | 
             Datatype::IncompleteEnumShorthand(style_str) => match style_str.as_str() {
                 "Italic" => FontStyle::Italic,
+                "Enum.FontStyle.Italic" => FontStyle::Italic,
                 _ => FontStyle::Normal
             },
+            Datatype::Variant(Variant::Float32(float32)) => match *float32 {
+                1.0 => FontStyle::Italic,
+                _ => FontStyle::Normal
+            }
             _ => FontStyle::Normal
         }
     } else { FontStyle::Normal };
