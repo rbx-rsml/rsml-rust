@@ -558,25 +558,6 @@ dependencies = [
 [[package]]
 name = "rbx-rsml"
 version = "0.0.15"
-dependencies = [
- "criterion",
- "guarded",
- "hex_color",
- "logos",
- "num-traits",
- "phf",
- "phf_codegen",
- "phf_macros",
- "rbx-rsml 0.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
- "rbx_types 2.0.0",
- "rbx_types_ops",
- "regex",
- "serde_json",
-]
-
-[[package]]
-name = "rbx-rsml"
-version = "0.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9035119ee2d48c8ef6c2b6ab2c4b90d3e66c0ebff342eccb72dc2f81c76822ff"
 dependencies = [
@@ -588,6 +569,25 @@ dependencies = [
  "phf_codegen",
  "phf_macros",
  "rbx_types 1.10.0",
+ "regex",
+ "serde_json",
+]
+
+[[package]]
+name = "rbx-rsml"
+version = "0.0.16"
+dependencies = [
+ "criterion",
+ "guarded",
+ "hex_color",
+ "logos",
+ "num-traits",
+ "phf",
+ "phf_codegen",
+ "phf_macros",
+ "rbx-rsml 0.0.15",
+ "rbx_types 2.0.0",
+ "rbx_types_ops",
  "regex",
  "serde_json",
 ]
