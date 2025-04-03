@@ -11,15 +11,24 @@ license = "MIT"
 [dependencies]
 phf = "0.11.3"
 phf_macros = "0.11.3"
-rbx_types = { version = "1.10.0", features = ["serde"] }
+rbx_types = { version = "2.0.0", features = ["serde"] }
+rbx_types_ops = "0.0.4"
 logos = "0.15.0"
 regex = "1.11.1"
 num-traits = "0.2.19"
 guarded = "0.0.0"
 hex_color = "3.0.0"
 
+[dev-dependencies]
+criterion = "0.5.1"
+rbx-rsml-main = { package = "rbx-rsml", version = "0.0.15" }
+
+[[bench]]
+name = "benchmark"
+harness = false
+
 [build-dependencies]
-serde_json = "1.0.139"
+serde_json = "1.0.140"
 phf = "0.11.3"
 phf_codegen = "0.11.3"
 

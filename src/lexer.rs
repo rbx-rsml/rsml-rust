@@ -4,19 +4,37 @@ use logos::Logos;
 pub struct LexerError(pub String);
 
 #[derive(Logos, Debug, Eq, Hash, PartialEq, Copy, Clone)]
-#[logos(error = String)]
-pub enum Token<'a> {
+pub enum Token {
+    // Do not change the order of the operators.
+    #[token("^")]
+    OpPow,
+    #[token("/")]
+    OpDiv,
+    #[token("//")]
+    OpFloorDiv,
+    #[regex(r"[\n\f\t\r ]+\%")]
+    OpMod,
+    #[token("%", priority = 5)]
+    ScaleOrOpMod,
+    #[token("*")]
+    OpMult,
+    #[token("+")]
+    OpAdd,
+    #[token("-")]
+    OpSub,
+
+
     #[regex(r"\-\-\[=*\[", priority = 99)]
-    CommentMultiStart(&'a str),
+    CommentMultiStart,
 
     #[regex(r"\[=*\[", priority = 98)]
-    StringMultiStart(&'a str),
+    StringMultiStart,
 
     #[regex(r"\]=*\]", priority = 98)]
-    StringMultiEnd(&'a str),
+    StringMultiEnd,
 
     #[regex(r"\-\-[^\[\n\f\r]*", priority = 98)]
-    CommentSingle(&'a str),
+    CommentSingle,
 
     #[token("{", priority = 1)]
     ScopeOpen,
@@ -66,27 +84,6 @@ pub enum Token<'a> {
     #[token("@name", priority = 1)]
     NameDeclaration,
 
-    #[token("+")]
-    OpAdd,
-
-    #[token("-")]
-    OpSub,
-
-    #[token("*")]
-    OpMult,
-
-    #[token("/")]
-    OpDiv,
-
-    #[token("//")]
-    OpFloorDiv,
-
-    #[token("^")]
-    OpPow,
-
-    #[regex(r"[\n\f\t\r ]+\%")]
-    OpMod,
-
     #[token("true")]
     BoolTrue,
 
@@ -100,44 +97,41 @@ pub enum Token<'a> {
     EnumKeyword,
 
     #[regex(r"(?i)tw:[a-z]+(:\d+)?")]
-    ColorTailwind(&'a str),
+    ColorTailwind,
 
     #[regex(r"(?i)bc:[a-z]+")]
-    ColorBrick(&'a str),
+    ColorBrick,
 
     #[regex(r"(?i)css:[a-z]+")]
-    ColorCss(&'a str),
+    ColorCss,
 
     #[regex(r"#[0-9a-fA-F]+")]
-    ColorHex(&'a str),
+    ColorHex,
 
     #[regex(r"\d*\.?\d+", priority = 4)]
-    Number(&'a str),
+    Number,
 
     #[token("px", priority = 45)]
     Offset,
-
-    #[token("%", priority = 5)]
-    ScaleOrOpMod,
 
     #[token(".")]
     TagOrEnumIdentifier,
 
     #[regex(r#""[^\"\n\t]*""#)]
     #[regex(r#"'[^\'\n\t]*'"#)]
-    StringSingle(&'a str),
+    StringSingle,
 
     #[regex(r"rbxassetid://\d+")]
     #[regex(r"(rbxasset|rbxthumb|rbxgameasset|rbxhttp|rbxtemp|https?)://[^) ]*")]
-    RobloxAsset(&'a str),
+    RobloxAsset,
 
     #[regex(r"contentid://\d+", priority = 999)]
-    RobloxContent(&'a str),
+    RobloxContent,
 
     #[regex(r"[_a-zA-Z][_A-Za-z0-9]*", priority = 0)]
-    Text(&'a str)
+    Text
 }
 
-pub fn lex_rsml<'a>(content: &'a str) -> logos::Lexer<'a, Token<'a>> {
+pub fn lex_rsml<'a>(content: &'a str) -> logos::Lexer<'a, Token> {
     Token::lexer(&content)
 }

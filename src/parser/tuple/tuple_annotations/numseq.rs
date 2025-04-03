@@ -2,17 +2,7 @@ use crate::parser::Datatype;
 use rbx_types::{NumberSequence, NumberSequenceKeypoint, Variant};
 use std::cmp::Ordering;
 
-use super::extract_datatype_f32;
-
-fn coerce_datatype_to_f32(datatype: Option<&Datatype>, default: f32) -> f32 {
-    if let Some(datatype) = datatype {
-        return match datatype {
-            Datatype::Variant(Variant::Float32(float32)) => *float32,
-            _ => default
-        }
-    }
-    default
-}
+use super::{coerce_datatype_to_f32, extract_datatype_f32};
 
 fn numseq_get_number_time_and_envelope(datatype: &Datatype) -> (f32, Option<f32>, f32) {
     match datatype {
