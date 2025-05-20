@@ -20,6 +20,12 @@ use cframe::cframe_annotation;
 mod color3_rgb;
 use color3_rgb::{color3_annotation, rgb_annotation};
 
+mod oklab;
+use oklab::oklab_annotation;
+
+mod oklch;
+use oklch::oklch_annotation;
+
 mod brickcolor;
 use brickcolor::brickcolor_annotation;
 
@@ -41,8 +47,8 @@ use content::content_annotation;
 mod lerp;
 use lerp::lerp_annotation;
 
-mod floor_ceil_round;
-use floor_ceil_round::{floor_annotation, ceil_annotation, round_annotation};
+mod floor_ceil_round_abs;
+use floor_ceil_round_abs::{abs_annotation, ceil_annotation, floor_annotation, round_annotation};
 
 fn extract_datatype_f32(datatype: Option<&Datatype>) -> Option<f32> {
     match datatype {
@@ -61,7 +67,17 @@ fn coerce_datatype_to_f32(datatype: Option<&Datatype>, default: f32) -> f32 {
     default
 }
 
-pub static TUPLE_ANNOTATIONS: phf::Map<&'static str, fn(&Vec<Datatype>) -> Datatype> = phf_map! {
+trait Remap {
+    fn remap(self, from: (f32, f32), to: (f32, f32)) -> f32;
+}
+
+impl Remap for f32 {
+    fn remap(self, from: (f32, f32), to: (f32, f32)) -> f32 {
+        to.0 + ((self - from.0) / (from.1 - from.0)) * (to.1 - to.0)
+    }
+}
+
+pub const TUPLE_ANNOTATIONS: phf::Map<&'static str, fn(&Vec<Datatype>) -> Datatype> = phf_map! {
     "udim" => udim_annotation,
     "udim2" => udim2_annotation,
     "rect" => rect_annotation,
@@ -72,6 +88,8 @@ pub static TUPLE_ANNOTATIONS: phf::Map<&'static str, fn(&Vec<Datatype>) -> Datat
     "cframe" => cframe_annotation,
     "color3" => color3_annotation,
     "rgb" => rgb_annotation,
+    "oklab" => oklab_annotation,
+    "oklch" => oklch_annotation,
     "brickcolor" => brickcolor_annotation,
     "colorseq" => colorseq_annotation,
     "numseq" => numseq_annotation,
@@ -82,5 +100,6 @@ pub static TUPLE_ANNOTATIONS: phf::Map<&'static str, fn(&Vec<Datatype>) -> Datat
     "lerp" => lerp_annotation,
     "floor" => floor_annotation,
     "ceil" => ceil_annotation,
-    "round" => round_annotation
+    "round" => round_annotation,
+    "abs" => abs_annotation
 };

@@ -18,9 +18,9 @@ fn coerce_datatype_to_vec3(datatype: Option<&Datatype>, default: Vector3) -> Vec
 }
 
 pub fn cframe_annotation(datatypes: &Vec<Datatype>) -> Datatype {
-    let datatypes_0 = datatypes.get(0);
+    let first_datatype = datatypes.get(0);
 
-    if let Some(Datatype::Variant(Variant::Float32(pos_x_component))) = datatypes_0 {
+    if let Some(Datatype::Variant(Variant::Float32(pos_x_component))) = first_datatype {
         let pos_y_component = coerce_datatype_to_f32(datatypes.get(1), *pos_x_component);
         let pos_z_component = coerce_datatype_to_f32(datatypes.get(2), pos_y_component);
 
@@ -44,6 +44,7 @@ pub fn cframe_annotation(datatypes: &Vec<Datatype>) -> Datatype {
                 Vector3::new(orien_z_x_component, orien_z_y_component, orien_z_z_component),
             )
         )))
+        
     } else {
         let pos_component = coerce_datatype_to_vec3(
             datatypes.get(0),

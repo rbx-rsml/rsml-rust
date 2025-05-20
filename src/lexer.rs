@@ -23,7 +23,6 @@ pub enum Token {
     #[token("-")]
     OpSub,
 
-
     #[regex(r"\-\-\[=*\[", priority = 99)]
     CommentMultiStart,
 
@@ -60,6 +59,12 @@ pub enum Token {
     #[token("$", priority = 1)]
     AttributeIdentifier,
 
+    #[token("$!", priority = 1)]
+    StaticAttributeIdentifier,
+
+    #[token("!", priority = 1)]
+    StaticArgIdentifier,
+
     #[token("#", priority = 1)]
     NameIdentifier,
 
@@ -84,6 +89,12 @@ pub enum Token {
     #[token("@name", priority = 1)]
     NameDeclaration,
 
+    #[token("@macro")]
+    MacroDeclaration,
+
+    #[token("@util")]
+    UtilDeclaration,
+
     #[token("true")]
     BoolTrue,
 
@@ -99,16 +110,19 @@ pub enum Token {
     #[regex(r"(?i)tw:[a-z]+(:\d+)?")]
     ColorTailwind,
 
+    #[regex(r"(?i)skin:[a-z]+(:\d+)?")]
+    ColorSkin,
+
     #[regex(r"(?i)bc:[a-z]+")]
     ColorBrick,
 
     #[regex(r"(?i)css:[a-z]+")]
     ColorCss,
 
-    #[regex(r"#[0-9a-fA-F]+")]
+    #[regex(r"#[\da-fA-F]+")]
     ColorHex,
 
-    #[regex(r"\d*\.?\d+", priority = 4)]
+    #[regex(r"[\d_]*\.?[\d_]+", priority = 4)]
     Number,
 
     #[token("px", priority = 45)]
@@ -128,8 +142,11 @@ pub enum Token {
     #[regex(r"contentid://\d+", priority = 999)]
     RobloxContent,
 
-    #[regex(r"[_a-zA-Z][_A-Za-z0-9]*", priority = 0)]
-    Text
+    #[regex(r"[_A-Za-z][_A-Za-z\d]*|[_A-Za-z]+(-[A-Za-z\d_]+)+")]
+    Text,
+
+    #[regex(r"([_A-Za-z][_A-Za-z\d]*|[_A-Za-z]+(-[A-Za-z\d_]+)+)!")]
+    MacroCall
 }
 
 pub fn lex_rsml<'a>(content: &'a str) -> logos::Lexer<'a, Token> {

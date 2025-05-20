@@ -3,9 +3,11 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
-static BRICK_COLORS: &[u8] = include_bytes!("colors/brick.json");
-static CSS_COLORS: &[u8] = include_bytes!("colors/css.json");
-static TAILWIND_COLORS: &[u8] = include_bytes!("colors/tailwind.json");
+const TAILWIND_COLORS: &[u8] = include_bytes!("colors/tailwind.json");
+const SKIN_COLORS: &[u8] = include_bytes!("colors/skin.json");
+const CSS_COLORS: &[u8] = include_bytes!("colors/css.json");
+const BRICK_COLORS: &[u8] = include_bytes!("colors/brick.json");
+
 
 fn alphanumeric(s: &str) -> String {
     s.split(|c: char| !c.is_alphanumeric())
@@ -23,17 +25,15 @@ fn write_phf_for_colors(name: &str, colors: &[u8]) -> String {
         for (key, value) in map {
             if let serde_json::Value::Array(arr) = value {
                 if arr.len() == 3 {
-                    if let (Some(r), Some(g), Some(b)) = (arr[0].as_f64(), arr[1].as_f64(), arr[2].as_f64()) {
-                        let name = format!("LOCK_{}", alphanumeric(&key).to_uppercase());
-                        let value = &format!(
-                            "LazyLock::new(|| rbx_types::Color3::new({} as f32, {} as f32, {} as f32));",
-                            r / 255.0, g / 255.0, b / 255.0
-                        );
+                    let name = format!("LOCK_{}", alphanumeric(&key).to_uppercase());
+                    let value = &format!(
+                        "LazyLock::new(|| palette::Oklab::new({}f32, {}f32, {}f32));",
+                        arr[0], arr[1], arr[2]
+                    );
 
-                        statics += &format!("\nstatic {}: LazyLock<rbx_types::Color3> = {}", name, value);
+                    statics += &format!("\nstatic {}: LazyLock<palette::Oklab> = {}", name, value);
 
-                        phf_map.entry(key, &format!("&{}", name));
-                    }
+                    phf_map.entry(key, &format!("&{}", name));
                 }
             }
         }
@@ -41,7 +41,7 @@ fn write_phf_for_colors(name: &str, colors: &[u8]) -> String {
         panic!("Expected a JSON object");
     }
 
-    return format!("{}\npub static {}: phf::Map<&'static str, &LazyLock<rbx_types::Color3>> = {};", statics, name, phf_map.build())
+    return format!("{}\npub static {}: phf::Map<&'static str, &LazyLock<palette::Oklab>> = {};", statics, name, phf_map.build())
 }
 
 fn main() {
@@ -50,10 +50,11 @@ fn main() {
 
     write!(
         &mut file,
-        "use std::sync::LazyLock;\n{}\n\n{}\n\n{}",
-        write_phf_for_colors("BRICK_COLORS", BRICK_COLORS),
-        write_phf_for_colors("CSS_COLORS", CSS_COLORS),
+        "use std::sync::LazyLock;\n{}\n\n{}\n\n{}\n\n{}",
         write_phf_for_colors("TAILWIND_COLORS", TAILWIND_COLORS),
+        write_phf_for_colors("SKIN_COLORS", SKIN_COLORS),
+        write_phf_for_colors("CSS_COLORS", CSS_COLORS),
+        write_phf_for_colors("BRICK_COLORS", BRICK_COLORS)
     )
     .unwrap();
 }

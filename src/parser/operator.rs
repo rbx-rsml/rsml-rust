@@ -13,7 +13,7 @@ pub enum Operator {
     Sub
 }
 
-static TOKEN_TO_OPERATOR_MAP: phf::Map<usize, Operator> = phf_map! {
+const TOKEN_TO_OPERATOR_MAP: phf::Map<usize, Operator> = phf_map! {
     0usize => Operator::Pow,
     1usize => Operator::Div,
     2usize => Operator::FloorDiv,

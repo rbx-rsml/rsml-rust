@@ -5,15 +5,15 @@ use super::Datatype;
 
 pub struct Tuple {
     pub name: Option<String>,
-    pub parent_idx: Option<usize>,
+    pub parent: Option<usize>,
     data: Vec<Datatype>
 }
 
 impl Tuple {
-    pub fn new(name: Option<String>, parent_idx: Option<usize>) -> Self {
+    pub fn new(name: Option<String>, parent: Option<usize>) -> Self {
         Self {
             name,
-            parent_idx,
+            parent,
             data: vec![]
         }
     }

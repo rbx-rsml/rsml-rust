@@ -1,11 +1,14 @@
-use crate::string_clip::StringClip;
+use crate::{macros::{MacroGroup, MacroTokenIterator}, string_clip::StringClip};
 use crate::lexer::Token;
 use guarded::guarded_unwrap;
-use std::{ops::Deref, sync::LazyLock};
+use num_traits::Num;
+use palette::Srgb;
+use tree_node_group::{AnyTreeNode, AnyTreeNodeMut, TreeNodeType};
+use std::collections::HashSet;
+use std::{fmt::Debug, ops::Deref, str::FromStr, sync::LazyLock};
 use phf_macros::phf_map;
-use rbx_types::{Color3, Content, UDim, Variant};
+use rbx_types::{Color3uint8, Content, UDim, Variant};
 use regex::Regex;
-use hex_color::HexColor;
 
 mod tree_node_group;
 pub use tree_node_group::{TreeNodeGroup, TreeNode};
@@ -26,17 +29,34 @@ use operator::Operator;
 mod colors {
     include!(concat!(env!("OUT_DIR"), "/colors.rs"));
 }
-use colors::{TAILWIND_COLORS, BRICK_COLORS, CSS_COLORS};
+use colors::{TAILWIND_COLORS, BRICK_COLORS, CSS_COLORS, SKIN_COLORS};
 
-static MULTI_LINE_STRING_STRIP_LEFT_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[ \t\f]*\n+").unwrap());
+const MULTI_LINE_STRING_STRIP_LEFT_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[ \t\f]*\n+").unwrap());
 
 type TokenWithResult<'a, R> = (Option<Token>, R);
+
+fn parse_number_string<D>(num_str: &str) -> Result<D, <D as FromStr>::Err>
+where
+    D: Num + FromStr,
+    <D as FromStr>::Err: Debug 
+{   
+    let mut num_str = num_str.to_string();
+    num_str.retain(|c| !r#"_"#.contains(c));
+    num_str.parse::<D>()
+}
 
 struct Parser<'a> {
     lexer: &'a mut logos::Lexer<'a, Token>,
 
+    /// The names of the macros that the parser is currently inside of.
+    /// Used to prevent infinite recursion.
+    current_macros: HashSet<(String, usize)>,
+
+    macros: &'a MacroGroup,
+    injected_macro_tokens: Vec<MacroTokenIterator<'a>>,
+
     tree_nodes: TreeNodeGroup,
-    current_tree_node: usize,
+    current_tree_node_idx: TreeNodeType,
 
     tuples: Vec<Tuple>,
 
@@ -44,16 +64,50 @@ struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    fn new(lexer: &'a mut logos::Lexer<'a, Token>) -> Self {
+    fn new(lexer: &'a mut logos::Lexer<'a, Token>, macros: &'a MacroGroup) -> Self {
         Self {
             lexer,
 
+            current_macros: HashSet::new(),
+            macros,
+
+            injected_macro_tokens: vec![],
+
             tree_nodes: TreeNodeGroup::new(),
-            current_tree_node: 0,
+            current_tree_node_idx: TreeNodeType::Root,
 
             tuples: vec![],
 
             did_advance: false,
+        }
+    }
+
+    fn inject_tokens(&mut self, injected_macro_tokens: MacroTokenIterator<'a>) {
+        self.injected_macro_tokens.push(injected_macro_tokens);
+    }
+
+    fn core_next(&mut self) -> Option<Result<Token, ()>> {
+        if let Some(last_injected_macro_tokens) = self.injected_macro_tokens.last_mut() {
+            let next_injected = last_injected_macro_tokens.next();
+
+            if next_injected.is_some() {
+                next_injected
+
+            } else {
+                self.injected_macro_tokens.pop();
+                self.core_next()
+            }
+
+        } else {
+            self.lexer.next()
+        }
+    }
+
+    fn slice(&self) -> &'a str {
+        if let Some(injected_macro_tokens) = self.injected_macro_tokens.last() {
+            injected_macro_tokens.slice()
+        } else {
+            self.lexer.slice()
         }
     }
 
@@ -64,7 +118,7 @@ impl<'a> Parser<'a> {
         self.did_advance = true;
 
         loop {
-            match self.lexer.next() {
+            match self.core_next() {
                 Some(Ok(token)) => break Some(token),
                 None => return None,
                 _ => ()
@@ -77,7 +131,9 @@ impl<'a> Parser<'a> {
 
         let token = parse_comment_multi(self, token).unwrap_or(token);
 
-        Some(parse_comment_single(self, token).unwrap_or(token))
+        let token = parse_comment_single(self, token).unwrap_or(token);
+
+        parse_macro_call(self, token)
     }
 
     // create remove tuple for when a tuple is coerced into a datatype and thusly
@@ -100,6 +156,82 @@ impl<'a> Parser<'a> {
     }
 }
 
+fn parse_macro_call<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Token> {
+    if !matches!(token, Token::MacroCall) { return Some(token) }
+
+    let macro_name_with_suffix = parser.slice();
+    let macro_name: String = macro_name_with_suffix.chars().take(macro_name_with_suffix.chars().count() - 1).collect();
+
+    let next_token = parser.advance();
+    if !matches!(next_token, Some(Token::ParensOpen)) { return next_token }
+
+    let mut scope_nestedness = 0usize;
+    let mut parens_nestedness = 0usize;
+    let mut parens_nestedness_is_zero = true;
+
+    let mut args_tokens: Vec<Vec<(Token, &'a str)>> = vec![];
+    let mut current_args_tokens: Vec<(Token, &'a str)> = vec![];
+    
+    let mut next_token = parser.advance()?;
+    'loop_for_token: loop {
+        match next_token {
+            Token::ScopeOpen => scope_nestedness += 1,
+            Token::ScopeClose => scope_nestedness -= 1,
+
+            Token::ParensOpen => {
+                parens_nestedness += 1;
+                parens_nestedness_is_zero = false;
+            },
+            Token::ParensClose => {
+                if parens_nestedness_is_zero {
+                    if current_args_tokens.len() != 0 {
+                        args_tokens.push(current_args_tokens);
+                    }
+                    break
+
+                } else {
+                    parens_nestedness -= 1;
+                    parens_nestedness_is_zero = parens_nestedness == 0;
+                }
+            }
+
+            Token::Comma => {
+                if scope_nestedness == 0 && parens_nestedness_is_zero && current_args_tokens.len() != 0 {
+                    args_tokens.push(current_args_tokens);
+                    current_args_tokens = vec![];
+
+                    next_token = parser.advance()?;
+                    continue;
+                }
+            }
+
+            _ => ()
+        }
+        
+        current_args_tokens.push((next_token, parser.slice()));
+        next_token = parser.advance()?;
+    }
+
+    let args_len = args_tokens.len();
+
+    println!("{args_tokens:#?}");
+
+    let macro_data = guarded_unwrap!(parser.macros.get(&macro_name, args_len), return parser.advance());
+
+    let current_macro = (macro_name, args_len);
+
+    // Prevents infinite recursion.
+    if parser.current_macros.contains(&current_macro) {
+        return parser.advance()
+    }
+
+    parser.inject_tokens(macro_data.iter(Some(args_tokens)));
+
+    parser.current_macros.insert(current_macro);
+
+    parser.advance()
+}
+
 fn parse_comment_multi_end<'a>(
     parser: &mut Parser<'a>, start_equals_amount: usize
 ) -> Option<Token> {
@@ -109,7 +241,7 @@ fn parse_comment_multi_end<'a>(
         let token = parser.core_advance()?;
 
         if let Token::StringMultiEnd = token {
-            let end_token_value = parser.lexer.slice();
+            let end_token_value = parser.slice();
             let end_equals_amount = end_token_value.clip(1, 1).len();
 
             if start_equals_amount == end_equals_amount {
@@ -121,7 +253,7 @@ fn parse_comment_multi_end<'a>(
 
 fn parse_comment_multi<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Token> {
     if let Token::CommentMultiStart = token {
-        let token_value = parser.lexer.slice();
+        let token_value = parser.slice();
         let start_equals_amount = token_value.clip(3, 1).len();
 
         return parse_comment_multi_end(parser, start_equals_amount);
@@ -138,16 +270,20 @@ fn parse_comment_single<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Tok
 
 fn parse_scope_open<'a>(parser: &mut Parser<'a>, token: Token, selector: Option<String>) -> Option<Token> {
     if !matches!(token, Token::ScopeOpen) { return Some(token) }
-
+ 
     let new_tree_node_idx = parser.tree_nodes.len();
+    let new_tree_node_idx_as_parent = TreeNodeType::Node(new_tree_node_idx);
 
-    let previous_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node).unwrap();
-    previous_tree_node.rules.push(new_tree_node_idx);
+    let previous_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node_idx);
+    match previous_tree_node {
+        AnyTreeNodeMut::Root(node) => node.unwrap().child_rules.push(new_tree_node_idx),
+        AnyTreeNodeMut::Node(node) => node.unwrap().child_rules.push(new_tree_node_idx)
+    }
 
-    let current_tree_node = TreeNode::new(parser.current_tree_node, selector);
+    let current_tree_node = TreeNode::new(parser.current_tree_node_idx, selector);
     parser.tree_nodes.push(current_tree_node);
 
-    parser.current_tree_node = new_tree_node_idx;
+    parser.current_tree_node_idx = new_tree_node_idx_as_parent;
 
     parser.advance()
 }
@@ -173,7 +309,7 @@ fn parse_scope_selector_start<'a>(parser: &mut Parser<'a>, token: Token) -> Opti
         Token::TagOrEnumIdentifier | Token::ScopeToDescendants | Token::ScopeToChildren
     ) { return Some(token) }
 
-    let selector = Selector::new(parser.lexer.slice(), token);
+    let selector = Selector::new(parser.slice(), token);
 
     let token = parser.advance()?;
     return parse_scope_selector(parser, token, selector);
@@ -197,7 +333,7 @@ fn parse_scope_selector<'a>(
                 selector.append(",", delim_token);
             }
             
-            selector.append(parser.lexer.slice(), token);
+            selector.append(parser.slice(), token);
 
             token = parser.advance()?;
 
@@ -211,59 +347,57 @@ fn parse_scope_selector<'a>(
 fn parse_scope_close<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Token> {
     if !matches!(token, Token::ScopeClose) { return Some(token) }
 
-    let current_tree_node = parser.tree_nodes.get(parser.current_tree_node).unwrap();
-    parser.current_tree_node = current_tree_node.parent;
+    let current_tree_node = parser.tree_nodes.get(parser.current_tree_node_idx);
+    match current_tree_node {
+        AnyTreeNode::Node(node) => parser.current_tree_node_idx = node.unwrap().parent,
+        _ => ()
+    }
 
     return parser.advance()
 }
 
 fn parse_string_multi_end<'a>(
-    parser: &mut Parser<'a>, start_equals_amount: usize, token_history: &mut Vec<&'a str>
-) -> Option<Token> {
+    parser: &mut Parser<'a>, start_equals_amount: usize
+) -> TokenWithResult<'a, String> {
+    let mut string_data = String::new();
+
     // We keep advancing tokens until we find a closing multiline string
     // token with the same amount of equals signs as the start token.
     loop {
         match parser.lexer.next() {
             Some(Ok(token)) => {
                 if let Token::StringMultiEnd = token {
-                    let end_token_value = parser.lexer.slice();
+                    let end_token_value = parser.slice();
                     let end_equals_amount = end_token_value.clip(1, 1).len();
         
                     if start_equals_amount == end_equals_amount {
-                        return parser.core_advance()
+                        return (parser.core_advance(), string_data)
                     }
                 }
 
-                token_history.push(parser.lexer.slice());
+                string_data += parser.slice();
             },
 
             Some(Err(_)) => {
-               token_history.push(parser.lexer.slice())
+                string_data += parser.slice();
             },
 
-            None => return None
+            None => return (None, string_data)
         };
     }
 }
 
 fn parse_string_multi_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
     if let Token::StringMultiStart = token {
-        let token_value = parser.lexer.slice();
+        let token_value = parser.slice();
         let start_equals_amount = token_value.clip(1, 1).len();
 
-        let mut token_history = vec![];
-        let token = parse_string_multi_end(parser, start_equals_amount, &mut token_history);
-
-        // Joins the string tokens together ignoring the opening and closing tokens.
-        let mut str = "".to_string();
-        for token in token_history {
-            str += &token
-        }
+        let (token, string_data) = parse_string_multi_end(parser, start_equals_amount);
 
         // Luau strips multiline strings up until the first occurance of a newline character.
         // So we will mimic this behaviour.
-        str = MULTI_LINE_STRING_STRIP_LEFT_REGEX.replace(&str, "").to_string();
-        return (token, Some(Datatype::Variant(Variant::String(str))))
+        let string_data = MULTI_LINE_STRING_STRIP_LEFT_REGEX.replace(&string_data, "").to_string();
+        return (token, Some(Datatype::Variant(Variant::String(string_data))))
     };
 
     (Some(token), None)
@@ -271,7 +405,7 @@ fn parse_string_multi_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> Tok
 
 fn parse_content_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
     if let Token::RobloxContent = token {
-        let content = parser.lexer.slice();
+        let content = parser.slice();
         return (parser.advance(), Some(Datatype::Variant(Variant::Content(Content::from(content)))))
     }
 
@@ -281,17 +415,15 @@ fn parse_content_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWit
 fn parse_string_single_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
     match token {
         Token::StringSingle => {
-            let str = parser.lexer.slice();
-            let token = parser.advance();
+            let str = parser.slice();
             let datatype = Some(Datatype::Variant(Variant::String(str.clip(1, 1).to_string())));
-            return (token, datatype)
+            return (parser.advance(), datatype)
         },
 
         Token::RobloxAsset => {
-            let str = parser.lexer.slice();
-            let token = parser.advance();
+            let str = parser.slice();
             let datatype = Some(Datatype::Variant(Variant::String(str.to_string())));
-            return (token, datatype)
+            return (parser.advance(), datatype)
         },
 
         _ => (Some(token), None)
@@ -311,30 +443,28 @@ fn parse_string_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWith
 fn parse_number_offset<'a>(parser: &mut Parser<'a>, token: Token, num_str: &str) -> TokenWithResult<'a, Option<Datatype>> {
     if !matches!(token, Token::Offset) { return (Some(token), None) }
 
-    let token = parser.advance();
     let datatype = Some(Datatype::Variant(Variant::UDim(UDim::new(
         0.0, 
-        match num_str.parse::<i32>() {
+        match parse_number_string::<i32>(num_str) {
             Ok(int32) => int32,
-            Err(_) => num_str.parse::<f32>().unwrap() as i32
+            Err(_) => parse_number_string::<f32>(num_str).unwrap() as i32
         }
     ))));
 
-    return (token, datatype)
+    return (parser.advance(), datatype)
 }
 
 fn parse_number_scale<'a>(parser: &mut Parser<'a>, token: Token, num_str: &str) -> TokenWithResult<'a, Option<Datatype>> {
     if !matches!(token, Token::ScaleOrOpMod) { return (Some(token), None) }
 
-    let token = parser.advance();
-    let datatype = Some(Datatype::Variant(Variant::UDim(UDim::new(num_str.parse::<f32>().unwrap() / 100.0, 0))));
+    let datatype = Some(Datatype::Variant(Variant::UDim(UDim::new(parse_number_string::<f32>(num_str).unwrap() / 100.0, 0))));
 
-    return (token, datatype)
+    return (parser.advance(), datatype)
 }
 
 fn parse_number_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
     if let Token::Number = token {
-        let token_value = parser.lexer.slice();
+        let token_value = parser.slice();
         let token = parser.advance();
 
         if let Some(token) = token {
@@ -345,7 +475,7 @@ fn parse_number_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWith
             if parsed.1.is_some() { return parsed }
         }
 
-        let datatype = Some(Datatype::Variant(Variant::Float32(token_value.parse::<f32>().unwrap())));
+        let datatype = Some(Datatype::Variant(Variant::Float32(parse_number_string::<f32>(token_value).unwrap())));
 
         return (token, datatype)
     }
@@ -369,7 +499,7 @@ fn parse_enum_tokens<'a>(parser: &mut Parser<'a>, token_history: &mut Vec<Token>
         let token = &token_history[idx];
         
         if let Token::Text = token {
-            let text = parser.lexer.slice();
+            let text = parser.slice();
             full_enum += &format!(".{}", text);
             
             first_stop_idx = idx;
@@ -381,7 +511,7 @@ fn parse_enum_tokens<'a>(parser: &mut Parser<'a>, token_history: &mut Vec<Token>
         let token = &token_history[idx];
 
         if let Token::Text = token {
-            let text = parser.lexer.slice();
+            let text = parser.slice();
             full_enum += &format!(".{}", text);
             break
         }
@@ -421,7 +551,7 @@ fn parse_enum_keyword<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithRes
     parse_full_enum(parser, token, &mut token_history)
 }
 
-static SHORTHAND_HARDCODES: phf::Map<&'static str, &'static str> = phf_map! {
+const SHORTHAND_HARDCODES: phf::Map<&'static str, &'static str> = phf_map! {
     "FlexMode" => "UIFlexMode",
     "HorizontalFlex" => "UIFlexAlignment",
     "VerticalFlex" => "UIFlexAlignment"
@@ -432,7 +562,7 @@ fn parse_enum_shorthand<'a>(parser: &mut Parser<'a>, token: Token, key: Option<&
 
     let token = guarded_unwrap!(parser.advance(), return (None, None));
 
-    let enum_item = if let Token::Text = token { parser.lexer.slice() } else { return (Some(token), None) };
+    let enum_item = if let Token::Text = token { parser.slice() } else { return (Some(token), None) };
 
     if let Some(key) = key {
         let enum_name = SHORTHAND_HARDCODES.get(key).unwrap_or(&key);
@@ -478,11 +608,11 @@ fn parse_boolean_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWit
 }
 
 #[allow(warnings)]
-fn parse_predefined_tailwind_color<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
+fn parse_preset_tailwind_color<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
     if let Token::ColorTailwind = token {
-        let color_name = parser.lexer.slice();
+        let color_name = parser.slice();
         let datatype = TAILWIND_COLORS.get(&color_name.to_lowercase())
-            .and_then(|color| Some(Datatype::Variant(Variant::Color3(**color.deref()))));
+            .and_then(|color| Some(Datatype::Oklab(**color.deref())));
 
         return (parser.advance(), datatype)
     }
@@ -491,11 +621,24 @@ fn parse_predefined_tailwind_color<'a>(parser: &mut Parser<'a>, token: Token) ->
 }
 
 #[allow(warnings)]
-fn parse_predefined_css_color<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
+fn parse_preset_skin_color<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
+    if let Token::ColorSkin = token {
+        let color_name = parser.slice();
+        let datatype = SKIN_COLORS.get(&color_name.to_lowercase())
+            .and_then(|color| Some(Datatype::Oklab(**color.deref())));
+
+        return (parser.advance(), datatype)
+    }
+
+    (Some(token), None)
+}
+
+#[allow(warnings)]
+fn parse_preset_css_color<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
     if let Token::ColorCss = token {
-        let color_name = parser.lexer.slice();
+        let color_name = parser.slice();
         let datatype = CSS_COLORS.get(&color_name.to_lowercase())
-            .and_then(|color| Some(Datatype::Variant(Variant::Color3(**color.deref()))));
+            .and_then(|color| Some(Datatype::Oklab(**color.deref())));
 
         return (parser.advance(), datatype)
     }
@@ -504,11 +647,11 @@ fn parse_predefined_css_color<'a>(parser: &mut Parser<'a>, token: Token) -> Toke
 }
 
 #[allow(warnings)]
-fn parse_predefined_brick_color<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
+fn parse_preset_brick_color<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
     if let Token::ColorBrick = token {
-        let color_name = parser.lexer.slice();
+        let color_name = parser.slice();
         let datatype = BRICK_COLORS.get(&color_name.to_lowercase())
-            .and_then(|color| Some(Datatype::Variant(Variant::Color3(**color.deref()))));
+            .and_then(|color| Some(Datatype::Oklab(**color.deref())));
 
         return (parser.advance(), datatype)
     }
@@ -516,27 +659,41 @@ fn parse_predefined_brick_color<'a>(parser: &mut Parser<'a>, token: Token) -> To
     (Some(token), None)
 }
 
-fn parse_predefined_color_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
-    let parsed = parse_predefined_tailwind_color(parser, token);
+fn parse_preset_color_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
+    let parsed = parse_preset_tailwind_color(parser, token);
     if parsed.1.is_some() { return parsed }
 
-    let parsed = parse_predefined_css_color(parser, token);
+    let parsed = parse_preset_skin_color(parser, token);
     if parsed.1.is_some() { return parsed }
 
-    let parsed = parse_predefined_brick_color(parser, token);
+    let parsed = parse_preset_css_color(parser, token);
+    if parsed.1.is_some() { return parsed }
+
+    let parsed = parse_preset_brick_color(parser, token);
     if parsed.1.is_some() { return parsed }
 
     return (Some(token), None)
 }
 
+fn normalize_hex(hex: &str) -> String {
+    let hex = hex.trim_start_matches('#');
+
+    match hex.len() {
+        3 | 6 => hex.into(),
+        1..=5 => format!("{:0<6}", hex),
+        _ => hex.into(),
+    }
+}
+
 fn parse_hex_color_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
     if let Token::ColorHex = token {
-        let hex = parser.lexer.slice();
-        let color = HexColor::parse(hex).unwrap();
-        let datatype = Datatype::Variant(Variant::Color3(Color3::new(
-            (color.r as f32) / 255.0,
-            (color.g as f32) / 255.0,
-            (color.b as f32) / 255.0,
+        let hex = parser.slice();
+
+        let color: Srgb<u8> = normalize_hex(hex).parse().unwrap();
+        let datatype = Datatype::Variant(Variant::Color3uint8(Color3uint8::new(
+            color.red,
+            color.green,
+            color.blue,
         )));
 
         return (parser.advance(), Some(datatype))
@@ -546,7 +703,7 @@ fn parse_hex_color_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenW
 }
 
 fn parse_color_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
-    let parsed = parse_predefined_color_datatype(parser, token);
+    let parsed = parse_preset_color_datatype(parser, token);
     if parsed.1.is_some() { return parsed }
 
     let parsed = parse_hex_color_datatype(parser, token);
@@ -555,26 +712,75 @@ fn parse_color_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithR
     return (Some(token), None)
 }
 
-fn parse_attribute_name_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
+fn parse_attribute_reference_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
     if !matches!(token, Token::AttributeIdentifier) { return (Some(token), None) }
 
     let token = guarded_unwrap!(parser.advance(), return (None, None));
 
     if let Token::Text = token {
-        let text = parser.lexer.slice();
-        return (parser.advance(), Some(Datatype::Variant(Variant::String(format!("${}", text)))))
+        let attribute_name = parser.slice();
+        return (parser.advance(), Some(Datatype::Variant(Variant::String(format!("${}", attribute_name)))))
+    }
+
+    (Some(token), None)
+}
+
+fn resolve_static_attribute_reference<'a>(parser: &mut Parser<'a>, static_name: &str, tree_node_idx: TreeNodeType) -> Datatype {
+    let tree_node = parser.tree_nodes.get(tree_node_idx);
+
+    match tree_node {
+        AnyTreeNode::Root(node) => {
+            let resolved = node.unwrap().static_attributes.get(static_name);
+
+            match resolved {
+                Some(datatype) => datatype.clone(),
+        
+                None => Datatype::None
+            }
+        },
+
+        AnyTreeNode::Node(node) => {
+            let node = node.unwrap();
+            let resolved = node.static_attributes.get(static_name);
+
+            match resolved {
+                Some(datatype) => datatype.clone(),
+        
+                None => resolve_static_attribute_reference(parser, static_name, node.parent)
+            }
+        }
+    }
+}
+
+fn parse_static_attribute_reference_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithResult<'a, Option<Datatype>> {
+    if !matches!(token, Token::StaticAttributeIdentifier) { return (Some(token), None) }
+
+    let token = guarded_unwrap!(parser.advance(), return (None, None));
+
+    if let Token::Text = token {
+        let static_name = parser.slice();
+
+        let resolved_datatype = resolve_static_attribute_reference(parser, static_name, parser.current_tree_node_idx);
+
+        return (parser.advance(), Some(resolved_datatype))
     }
 
     (Some(token), None)
 }
 
 fn parse_datatype<'a>(
-    parser: &mut Parser<'a>, token: Token, key: Option<&str>
+    parser: &mut Parser<'a>, mut token: Token, key: Option<&str>
 ) -> TokenWithResult<'a, Option<Datatype>> {
-    if let (Some(token), Some(current_tuple_idx)) = parse_tuple_name(parser, token, None, None) {
-        let current_tuple = parser.get_tuple(current_tuple_idx).unwrap();
+    if let (Some(tuple_token), current_tuple_idx) = parse_tuple_name(parser, token, None, None) {
+        // Checking for a tuple can lead to a new token,
+        // even if cases where a tuple isn't found.
+        token = tuple_token;
 
-        return (Some(token), Some(current_tuple.coerce_to_datatype()))
+        if let Some(current_tuple_idx) = current_tuple_idx {
+            let current_tuple = parser.get_tuple(current_tuple_idx).unwrap();
+
+            return (Some(token), Some(current_tuple.coerce_to_datatype()))
+        }
     };
   
     let parsed = parse_string_datatype(parser, token);
@@ -595,7 +801,10 @@ fn parse_datatype<'a>(
     let parsed = parse_color_datatype(parser, token);
     if parsed.1.is_some() { return parsed }
 
-    let parsed = parse_attribute_name_datatype(parser, token);
+    let parsed = parse_attribute_reference_datatype(parser, token);
+    if parsed.1.is_some() { return parsed }
+
+    let parsed = parse_static_attribute_reference_datatype(parser, token);
     if parsed.1.is_some() { return parsed }
 
     let parsed = parse_boolean_datatype(parser, token);
@@ -675,7 +884,7 @@ fn parse_tuple_close<'a>(
     let token = parser.advance();
 
     let current_tuple = parser.get_tuple(current_tuple_idx).unwrap();
-    let parent_tuple_idx = current_tuple.parent_idx;
+    let parent_tuple_idx = current_tuple.parent;
 
     if let Some(some_parent_tuple_idx) = parent_tuple_idx {
         let datatype = current_tuple.coerce_to_datatype();
@@ -791,7 +1000,7 @@ fn parse_tuple_name<'a>(
     parent_tuple_idx: Option<usize>, root_tuple_idx: Option<usize>
 ) -> TokenWithResult<'a, Option<usize>> {
     if let Token::Text = token {
-        let tuple_name = parser.lexer.slice();
+        let tuple_name = parser.slice();
         let token = guarded_unwrap!(parser.advance(), return (None, None));
 
         return parse_tuple_open(parser, token, Some(tuple_name.to_string()), parent_tuple_idx, root_tuple_idx)
@@ -812,7 +1021,7 @@ fn parse_delimiters<'a>(parser: &mut Parser<'a>, token: Token)  -> Option<Token>
 
 fn parse_property<'a>(parser: &mut Parser<'a>, mut token: Token) -> Option<Token> {
     if let Token::Text = token {
-        let property_name = parser.lexer.slice();
+        let property_name = parser.slice();
         let selector_token = token;
 
         token = guarded_unwrap!(parser.advance(), return None);
@@ -821,21 +1030,63 @@ fn parse_property<'a>(parser: &mut Parser<'a>, mut token: Token) -> Option<Token
             return parse_scope_selector(parser, token, Selector::new(property_name, selector_token))
         };
 
+        // We only want to parse the property if the current node is not the root.
+        if let TreeNodeType::Node(node_idx) = parser.current_tree_node_idx {
+            token = guarded_unwrap!(parser.advance(), return None);
+
+            let (token, datatype) = parse_datatype_group(
+                parser, token, Some(property_name), None, None
+            );
+            let variant = datatype.and_then(|d| d.coerce_to_variant(Some(property_name)));
+    
+            if let Some(variant) = variant {
+                let current_tree_node = parser.tree_nodes[node_idx].as_mut().unwrap();
+                current_tree_node.properties.insert(property_name.to_string(), variant);
+            }
+    
+            let token = guarded_unwrap!(token, return None);
+            return parse_delimiters(parser, token);
+
+        } else {
+            return Some(token)
+        }
+    }
+
+    Some(token)
+}
+
+fn parse_static_attribute<'a>(parser: &mut Parser<'a>, mut token: Token) -> Option<Token> {
+    if !matches!(token, Token::StaticAttributeIdentifier) { return Some(token) };
+
+    token = guarded_unwrap!(parser.advance(), return None);
+
+    if let Token::Text = token {
+        let static_name = parser.slice();
+        let next_token = guarded_unwrap!(parser.advance(), return None);
+        
+        if !matches!(next_token, Token::Equals) { return Some(token) }
+
         token = guarded_unwrap!(parser.advance(), return None);
 
-
         let (token, datatype) = parse_datatype_group(
-            parser, token, Some(property_name), None, None
+            parser, token, Some(static_name), None, None
         );
-        let variant = datatype.and_then(|d| d.coerce_to_variant(Some(property_name)));
+        let datatype = datatype.and_then(|d| d.coerce_to_static(Some(static_name)));
 
-        if let Some(variant) = variant {
-            let current_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node).unwrap();
-            current_tree_node.properties.insert(property_name.to_string(), variant);
+        if let Some(datatype) = datatype {
+            let current_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node_idx);
+            match current_tree_node {
+                AnyTreeNodeMut::Root(node) => {
+                    node.unwrap().static_attributes.insert(static_name.to_string(), datatype)
+                },
+                AnyTreeNodeMut::Node(node) => {
+                    node.unwrap().static_attributes.insert(static_name.to_string(), datatype)
+                }
+            };
         }
 
         let token = guarded_unwrap!(token, return None);
-        return parse_delimiters(parser, token);
+        return parse_delimiters(parser, token)
     }
 
     Some(token)
@@ -847,7 +1098,7 @@ fn parse_attribute<'a>(parser: &mut Parser<'a>, mut token: Token) -> Option<Toke
     token = guarded_unwrap!(parser.advance(), return None);
 
     if let Token::Text = token {
-        let attribute_name = parser.lexer.slice();
+        let attribute_name = parser.slice();
         let next_token = guarded_unwrap!(parser.advance(), return None);
         
         if !matches!(next_token, Token::Equals) { return Some(token) }
@@ -860,8 +1111,15 @@ fn parse_attribute<'a>(parser: &mut Parser<'a>, mut token: Token) -> Option<Toke
         let variant = datatype.and_then(|d| d.coerce_to_variant(Some(attribute_name)));
 
         if let Some(variant) = variant {
-            let current_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node).unwrap();
-            current_tree_node.attributes.insert(attribute_name.to_string(), variant);
+            let current_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node_idx);
+            match current_tree_node {
+                AnyTreeNodeMut::Root(node) => {
+                    node.unwrap().attributes.insert(attribute_name.to_string(), variant)
+                },
+                AnyTreeNodeMut::Node(node) => {
+                    node.unwrap().attributes.insert(attribute_name.to_string(), variant)
+                }
+            };
         }
 
         let token = guarded_unwrap!(token, return None);
@@ -876,15 +1134,21 @@ fn parse_priority_declaration<'a>(parser: &mut Parser<'a>, token: Token) -> Opti
 
     let token = parser.advance()?;
 
-    let (token, datatype) = parse_datatype_group(parser, token, None, None, None);
+    // We only want to parse the priority if the current node is not the root.
+    if let TreeNodeType::Node(node_idx) = parser.current_tree_node_idx {
+        let (token, datatype) = parse_datatype_group(parser, token, None, None, None);
 
-    if let Some(Datatype::Variant(Variant::Float32(float32))) = datatype {
-        let current_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node).unwrap();
-        current_tree_node.priority = Some(float32 as i32);
+        if let Some(Datatype::Variant(Variant::Float32(float32))) = datatype {
+            let current_tree_node = parser.tree_nodes[node_idx].as_mut().unwrap();
+            current_tree_node.priority = Some(float32 as i32);
+        }
+    
+        let token = guarded_unwrap!(token, return None);
+        parse_delimiters(parser, token)
+
+    } else {
+        Some(token)
     }
-
-    let token = guarded_unwrap!(token, return None);
-    return parse_delimiters(parser, token)
 }
 
 fn parse_name_declaration<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Token> {
@@ -892,64 +1156,116 @@ fn parse_name_declaration<'a>(parser: &mut Parser<'a>, token: Token) -> Option<T
 
     let token = parser.advance()?;
 
-    let (token, datatype) = parse_datatype_group(
-        parser, token, None, None, None
-    );
+    // We only want to parse the name if the current node is not the root.
+    if let TreeNodeType::Node(node_idx) = parser.current_tree_node_idx {
+        let (token, datatype) = parse_datatype_group(
+            parser, token, None, None, None
+        );
+    
+        if let Some(Datatype::Variant(Variant::String(name))) = datatype {
+            let current_tree_node = parser.tree_nodes[node_idx].as_mut().unwrap();
+            current_tree_node.name = Some(name);
+        }
+    
+        let token = guarded_unwrap!(token, return None);
+        parse_delimiters(parser, token)
 
-    if let Some(Datatype::Variant(Variant::String(name))) = datatype {
-        let current_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node).unwrap();
-        current_tree_node.name = Some(name);
+    } else {
+        Some(token)
     }
-
-    let token = guarded_unwrap!(token, return None);
-    return parse_delimiters(parser, token)
 }
 
-fn parse_derive_declaration<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Token> {
+fn parse_ignore_derive_declaration<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Token> {
     if !matches!(token, Token::DeriveDeclaration) { return Some(token) }
 
-    let token = parser.advance()?;
+    let token = parser.core_advance()?;
+    if !matches!(token, Token::Text) { return Some(token) }
 
-    let (token, datatype) = parse_datatype_group(parser, token, None, None, None);
+    let token = parser.core_advance()?;
 
-    match datatype {
-        Some(Datatype::Variant(Variant::String(string))) => {
-            let current_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node).unwrap();
-            current_tree_node.derives.insert(string);
-        },
-
-        Some(Datatype::TupleData(tuple_data)) => {
-            let current_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node).unwrap();
-            let derives = &mut current_tree_node.derives;
-
-            for datatype in tuple_data {
-                if let Datatype::Variant(Variant::String(string)) = datatype {
-                    derives.insert(string);
-                }
-            }
-        },
-
-        _ => ()
-    }
-
-    let token = guarded_unwrap!(token, return None);
-    parse_delimiters(parser, token)
+    parse_ignore_tuple_open(parser, token)
 }
 
-fn main_loop(mut parser: &mut Parser) -> Option<()> {
+// Util and Macro declarations are ignored in the main parser.
+fn parse_ignore_scope_open<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Token> {
+    if !matches!(token, Token::ScopeOpen) { return Some(token) }
+
+    let mut nestedness = 0usize;
+
+    loop {
+        match parser.core_advance()? {
+            Token::ScopeOpen => nestedness += 1,
+            Token::ScopeClose => match nestedness {
+                // End of parsing.
+                0 => return parser.advance(),
+                _ => nestedness -= 1
+            },
+            _ => ()
+        }
+    }
+}
+
+// Util declarations are ignored in the main parser.
+fn parse_util_declaration<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Token> {
+    if !matches!(token, Token::UtilDeclaration) { return Some(token) }
+
+    let token = parser.core_advance()?;
+    if !matches!(token, Token::Text) { return Some(token) }
+
+    let token = parser.core_advance()?;
+    parse_ignore_scope_open(parser, token)
+}
+
+// Macro declarations are ignored in the main parser.
+fn parse_ignore_tuple_open<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Token> {
+    if !matches!(token, Token::ParensOpen) { return Some(token) }
+
+    let mut nestedness = 0usize;
+
+    loop {
+        match parser.core_advance()? {
+            Token::ParensOpen => nestedness += 1,
+            Token::ParensClose => match nestedness {
+                // End of parsing.
+                0 => return parser.advance(),
+                _ => nestedness -= 1
+            },
+            _ => ()
+        }
+    }
+}
+
+// Macro declarations are ignored in the main parser.
+fn parse_macro_declaration<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Token> {
+    if !matches!(token, Token::MacroDeclaration) { return Some(token) }
+
+    let token = parser.core_advance()?;
+    if !matches!(token, Token::Text) { return Some(token) }
+
+    let token = parser.core_advance()?;
+
+    let token = parse_ignore_tuple_open(parser, token)?;
+
+    parse_ignore_scope_open(parser, token)
+}
+
+fn main_loop<'a>(parser: &mut Parser<'a>) -> Option<()> {
     let mut token = guarded_unwrap!(parser.advance(), return None);
 
     loop {
         parser.did_advance = false;
 
-        token = parse_attribute(&mut parser, token)?;
-        token = parse_property(&mut parser, token)?;
-        token = parse_scope_selector_start(&mut parser, token)?;
-        token = parse_scope_open(&mut parser, token, None)?;
-        token = parse_scope_close(&mut parser, token)?;
-        token = parse_priority_declaration(&mut parser, token)?;
-        token = parse_name_declaration(&mut parser, token)?;
-        token = parse_derive_declaration(&mut parser, token)?;
+        token = parse_attribute(parser, token)?;
+        token = parse_static_attribute(parser, token)?;
+        token = parse_property(parser, token)?;
+        token = parse_scope_selector_start(parser, token)?;
+        token = parse_scope_open(parser, token, None)?;
+        token = parse_scope_close(parser, token)?;
+        token = parse_priority_declaration(parser, token)?;
+        token = parse_name_declaration(parser, token)?;
+        token = parse_ignore_derive_declaration(parser, token)?;
+        token = parse_util_declaration(parser, token)?;
+        token = parse_macro_declaration(parser, token)?;
 
         // Ensures the parser is advanced at least one time per iteration.
         // This prevents infinite loops.
@@ -961,11 +1277,8 @@ fn main_loop(mut parser: &mut Parser) -> Option<()> {
     None
 }
 
-pub fn parse_rsml<'a>(lexer: &'a mut logos::Lexer<'a, Token>) -> TreeNodeGroup {
-    let mut parser = Parser::new(lexer);
-
-    let root_tree_node = TreeNode::new(0, None);
-    parser.tree_nodes.push(root_tree_node);
+pub fn parse_rsml<'a>(lexer: &'a mut logos::Lexer<'a, Token>, macros: &'a MacroGroup) -> TreeNodeGroup {
+    let mut parser = Parser::<'a>::new(lexer, macros);
 
     main_loop(&mut parser);
 

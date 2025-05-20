@@ -8,6 +8,7 @@ pub use datatype::Datatype;
 
 use super::operator::Operator;
 
+#[derive(Debug)]
 pub struct DatatypeGroup(Vec<Datatype>);
 
 impl DatatypeGroup {
@@ -64,9 +65,7 @@ impl DatatypeGroup {
     }
 
     fn solve(&mut self) -> Datatype {
-        // Merges Add and Sub operators with the datatype to the right if
-        // the datatype to  the left isn't an operator.
-        let occurrences = self.find_operators(&ADD_SUB_OPERATORS);
+        let occurrences = self.find_operators(ADD_SUB_OPERATORS);
         let mut occurrence_idx_offset = 0;
         for (mut occurrence_idx, operation_fn) in occurrences {
             occurrence_idx -= occurrence_idx_offset;
@@ -74,12 +73,11 @@ impl DatatypeGroup {
             let right_idx = occurrence_idx + 1;
             if right_idx >= self.len() { continue; }
     
-            let can_merge;
-            if occurrence_idx == 0 { can_merge = true }
+            let can_merge = if occurrence_idx == 0 {  true }
             else {
                 let left = &self[occurrence_idx - 1];
-                can_merge = if matches!(left, Datatype::Operator(_)) { true } else { false }
-            }
+                if matches!(left, Datatype::Operator(_)) { true } else { false }
+            };
     
             if can_merge {
                 let right = self.remove(right_idx);
@@ -116,24 +114,27 @@ impl DatatypeGroup {
     
                     } else {
                         let left_idx = occurrence_idx - 1;
-                        occurrence_idx_offset += 1;
                         let left = self.remove(left_idx);
-    
-                        if matches!(left, Datatype::None) {
-                            (Datatype::Variant(Variant::Float32(0.0)), left_idx)
-                        } else {
-                            (left, left_idx)
-                        }
+                        occurrence_idx_offset += 1;
+                        
+                        (left, left_idx)
                     }
                 };
+
+                if matches!(left, Datatype::None) && matches!(right, Datatype::None) {
+                    self[left_idx] = Datatype::None;
+                    continue;
+                }
     
                 let left = match left {
                     Datatype::Variant(left) => left,
+                    Datatype::None => Variant::Float32(0.0),
                     _ => { self[left_idx] = left; continue }
                 };
     
                 let right = match right {
                     Datatype::Variant(right) => right,
+                    Datatype::None => Variant::Float32(0.0),
                     _ => { self[left_idx] = Datatype::Variant(left); continue }
                 };
     
@@ -143,7 +144,7 @@ impl DatatypeGroup {
                 };
             }
         };
-    
+        
         return self[0].clone()
     }
 }
@@ -193,12 +194,12 @@ fn sub(left: &Variant, right: &Variant) -> Option<Variant> {
 
 type OperatorData = (Operator, fn(&Variant, &Variant) -> Option<Variant>);
 
-static ADD_SUB_OPERATORS: [OperatorData; 2] = [
+const ADD_SUB_OPERATORS: &[OperatorData; 2] = &[
     (Operator::Add, add),
     (Operator::Sub, sub),
 ];
 
-static ORDERED_OPERATORS: &[&[OperatorData]] = &[
+const ORDERED_OPERATORS: &[&[OperatorData]] = &[
     &[(Operator::Pow, pow)],
 
     &[
@@ -208,5 +209,5 @@ static ORDERED_OPERATORS: &[&[OperatorData]] = &[
         (Operator::Mult, mult),
     ],
 
-    &ADD_SUB_OPERATORS,
+    ADD_SUB_OPERATORS,
 ];

@@ -1,6 +1,8 @@
 use super::Operator;
+
+use palette::{IntoColor, Oklab, Oklch, Srgb};
 use guarded::guarded_unwrap;
-use rbx_types::Variant;
+use rbx_types::{Color3, Variant};
 
 #[derive(Clone, Debug)]
 pub enum Datatype {
@@ -9,6 +11,9 @@ pub enum Datatype {
     TupleData(Vec<Datatype>),
 
     IncompleteEnumShorthand(String),
+
+    Oklab(Oklab),
+    Oklch(Oklch),
 
     // We can't use `Option::None` to represent the lack of a datatype
     // as it is used to represent the end of a datatype group.
@@ -31,7 +36,28 @@ impl Datatype {
                 // TODO: convert this to its enum member number value (instead of a string) using an api dump.
                 Some(Variant::String(format!("Enum.{}.{}", key, value)))
             },
+            Datatype::Oklab(color) => {
+                let color: Srgb<f32> = color.into_color();
+                Some(Variant::Color3(Color3::new(color.red, color.green, color.blue)))
+            },
+            Datatype::Oklch(color) => {
+                let color: Srgb<f32> = color.into_color();
+                Some(Variant::Color3(Color3::new(color.red, color.green, color.blue)))
+            }
             Datatype::None | Datatype::Operator(_) => None,
+        }
+    }
+
+    pub fn coerce_to_static(self, key: Option<&str>) -> Option<Datatype> {
+        match self {
+            Datatype::None | Datatype::Operator(_) => None,
+            Datatype::IncompleteEnumShorthand(value) => {
+                let key = guarded_unwrap!(key, return None);
+
+                // TODO: convert this to its enum member number value (instead of a string) using an api dump.
+                Some(Datatype::Variant(Variant::String(format!("Enum.{}.{}", key, value))))
+            },
+            d => Some(d)
         }
     }
 }
