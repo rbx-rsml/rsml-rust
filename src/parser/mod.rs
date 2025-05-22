@@ -5,7 +5,6 @@ use indexmap::IndexSet;
 use num_traits::Num;
 use palette::Srgb;
 use tree_node_group::{AnyTreeNode, AnyTreeNodeMut, TreeNodeType};
-use std::collections::HashSet;
 use std::{fmt::Debug, ops::Deref, str::FromStr, sync::LazyLock};
 use phf_macros::phf_map;
 use rbx_types::{Color3uint8, Content, UDim, Variant};
@@ -271,17 +270,17 @@ fn parse_comment_single<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Tok
 fn parse_scope_open<'a>(parser: &mut Parser<'a>, token: Token, selector: Option<String>) -> Option<Token> {
     if !matches!(token, Token::ScopeOpen) { return Some(token) }
  
-    let new_tree_node_idx = parser.tree_nodes.len();
+    let new_tree_node_idx = parser.tree_nodes.nodes.len();
     let new_tree_node_idx_as_parent = TreeNodeType::Node(new_tree_node_idx);
 
-    let previous_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node_idx);
+    let previous_tree_node = parser.tree_nodes.get_node_mut(parser.current_tree_node_idx);
     match previous_tree_node {
         AnyTreeNodeMut::Root(node) => node.unwrap().child_rules.push(new_tree_node_idx),
         AnyTreeNodeMut::Node(node) => node.unwrap().child_rules.push(new_tree_node_idx)
     }
 
     let current_tree_node = TreeNode::new(parser.current_tree_node_idx, selector);
-    parser.tree_nodes.push(current_tree_node);
+    parser.tree_nodes.add_node(current_tree_node);
 
     parser.current_tree_node_idx = new_tree_node_idx_as_parent;
 
@@ -1074,7 +1073,7 @@ fn parse_static_attribute<'a>(parser: &mut Parser<'a>, mut token: Token) -> Opti
         let datatype = datatype.and_then(|d| d.coerce_to_static(Some(static_name)));
 
         if let Some(datatype) = datatype {
-            let current_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node_idx);
+            let current_tree_node = parser.tree_nodes.get_node_mut(parser.current_tree_node_idx);
             match current_tree_node {
                 AnyTreeNodeMut::Root(node) => {
                     node.unwrap().static_attributes.insert(static_name.to_string(), datatype)
@@ -1111,7 +1110,7 @@ fn parse_attribute<'a>(parser: &mut Parser<'a>, mut token: Token) -> Option<Toke
         let variant = datatype.and_then(|d| d.coerce_to_variant(Some(attribute_name)));
 
         if let Some(variant) = variant {
-            let current_tree_node = parser.tree_nodes.get_mut(parser.current_tree_node_idx);
+            let current_tree_node = parser.tree_nodes.get_node_mut(parser.current_tree_node_idx);
             match current_tree_node {
                 AnyTreeNodeMut::Root(node) => {
                     node.unwrap().attributes.insert(attribute_name.to_string(), variant)

@@ -8,8 +8,8 @@ pub use root_tree_node::RootTreeNode;
 
 #[derive(Debug)]
 pub struct TreeNodeGroup {
-    root: Option<RootTreeNode>,
-    nodes: Vec<Option<TreeNode>>
+    pub root: Option<RootTreeNode>,
+    pub nodes: Vec<Option<TreeNode>>
 }
 
 pub enum AnyTreeNode<'a> {
@@ -41,7 +41,7 @@ impl TreeNodeGroup {
         self.root.as_ref()
     }
 
-    pub fn get_mut(&mut self, idx: TreeNodeType) -> AnyTreeNodeMut {
+    pub fn get_node_mut(&mut self, idx: TreeNodeType) -> AnyTreeNodeMut {
         match idx {
             TreeNodeType::Node(idx) => AnyTreeNodeMut::Node(self.nodes[idx].as_mut()),
             TreeNodeType::Root => AnyTreeNodeMut::Root(self.root.as_mut())
@@ -52,15 +52,11 @@ impl TreeNodeGroup {
         self.root.as_mut()
     }
 
-    pub fn push(&mut self, tree_node: TreeNode) {
+    pub fn add_node(&mut self, tree_node: TreeNode) {
         self.nodes.push(Some(tree_node));
     }
 
-    pub fn len(&self) -> usize {
-        self.nodes.len()
-    }
-
-    pub fn take(&mut self, idx: usize) -> Option<TreeNode> {
+    pub fn take_node(&mut self, idx: usize) -> Option<TreeNode> {
         mem::replace(&mut self.nodes[idx], None)
     }
 
