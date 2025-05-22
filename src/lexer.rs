@@ -62,8 +62,8 @@ pub enum Token {
     #[token("$!", priority = 1)]
     StaticAttributeIdentifier,
 
-    #[token("!", priority = 1)]
-    StaticArgIdentifier,
+    #[token("&", priority = 1)]
+    ArgIdentifier,
 
     #[token("#", priority = 1)]
     NameIdentifier,

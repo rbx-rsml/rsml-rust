@@ -1,6 +1,7 @@
 use crate::{macros::{MacroGroup, MacroTokenIterator}, string_clip::StringClip};
 use crate::lexer::Token;
 use guarded::guarded_unwrap;
+use indexmap::IndexSet;
 use num_traits::Num;
 use palette::Srgb;
 use tree_node_group::{AnyTreeNode, AnyTreeNodeMut, TreeNodeType};
@@ -50,7 +51,7 @@ struct Parser<'a> {
 
     /// The names of the macros that the parser is currently inside of.
     /// Used to prevent infinite recursion.
-    current_macros: HashSet<(String, usize)>,
+    current_macros: IndexSet<(String, usize)>,
 
     macros: &'a MacroGroup,
     injected_macro_tokens: Vec<MacroTokenIterator<'a>>,
@@ -68,7 +69,7 @@ impl<'a> Parser<'a> {
         Self {
             lexer,
 
-            current_macros: HashSet::new(),
+            current_macros: IndexSet::new(),
             macros,
 
             injected_macro_tokens: vec![],
@@ -95,6 +96,7 @@ impl<'a> Parser<'a> {
 
             } else {
                 self.injected_macro_tokens.pop();
+                self.current_macros.pop();
                 self.core_next()
             }
 
@@ -173,7 +175,7 @@ fn parse_macro_call<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Token> 
     let mut current_args_tokens: Vec<(Token, &'a str)> = vec![];
     
     let mut next_token = parser.advance()?;
-    'loop_for_token: loop {
+    loop {
         match next_token {
             Token::ScopeOpen => scope_nestedness += 1,
             Token::ScopeClose => scope_nestedness -= 1,
@@ -213,8 +215,6 @@ fn parse_macro_call<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Token> 
     }
 
     let args_len = args_tokens.len();
-
-    println!("{args_tokens:#?}");
 
     let macro_data = guarded_unwrap!(parser.macros.get(&macro_name, args_len), return parser.advance());
 

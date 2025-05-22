@@ -34,7 +34,7 @@ impl<'a> Macro {
                 let token = guarded_unwrap!(guarded_unwrap!(lexer.next(), break), continue);
                 let token_slice = lexer.slice();
 
-                if matches!(token, Token::StaticArgIdentifier) {
+                if matches!(token, Token::ArgIdentifier) {
                     if let Some(Ok(next_token)) = lexer.next() {
                         let next_token_slice = lexer.slice();
 

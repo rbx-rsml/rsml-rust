@@ -3,6 +3,7 @@
 /src/main.rs
 
 *.rsml
+!builtins.rsml
 
 # MacOS file system clutter.
 ._*

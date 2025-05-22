@@ -1,0 +1,44 @@
+-- Macros which are built in to RSML.
+
+@macro Padding (&all) {
+    ::UIPadding {
+        PaddingTop = &all;
+        PaddingBottom = &all;
+        PaddingLeft = &all;
+        PaddingRight = &all;
+    }
+}
+
+@macro Padding (&top_bottom, &left_right) {
+    ::UIPadding {
+        PaddingTop = &top_bottom;
+        PaddingBottom = &top_bottom;
+        PaddingLeft = &left_right;
+        PaddingRight = &left_right;
+    }
+}
+
+@macro Padding (&top, &left_right, &bottom) {
+    ::UIPadding {
+        PaddingTop = &top;
+        PaddingLeft = &left_right;
+        PaddingRight = &left_right;
+        PaddingBottom = &bottom;
+    }
+}
+
+@macro Padding (&top, &right, &bottom, &left) {
+    ::UIPadding {
+        PaddingTop = &top;
+        PaddingRight = &right;
+        PaddingBottom = &bottom;
+        PaddingLeft = &left;
+    }
+}
+
+@macro CornerRadius (&radius) {
+    ::UICorner {
+        CornerRadius = &radius;
+    }
+}
+
