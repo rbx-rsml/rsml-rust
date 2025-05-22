@@ -389,6 +389,8 @@ dependencies = [
 [[package]]
 name = "rbx_types_ops"
 version = "0.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d12f9fb3d70f9fa07aec1d0d3141051abdf752573196589e0c9409fce2cc29b"
 dependencies = [
  "num-traits",
  "rbx_types",
