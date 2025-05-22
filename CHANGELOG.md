@@ -13,6 +13,7 @@
 - Added `abs` tuple annotation - calculates the absolute values for a datatypes component's.
 - Fixed infinite recursion error when subtracting a non udim or udim2 from a number.
 - Added macros.
-- derives are now processed in a pre pass.
+- derives are now processed in a separate pre-pass.
 - you can now derive a tuple of paths via the derive pre pass.
 - fixed issue with dividing and multiplying a px.
+- Added a new `file_to_rsml` helper function.
