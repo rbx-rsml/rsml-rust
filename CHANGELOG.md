@@ -1,3 +1,12 @@
+# v0.1.4
+- Changed `properties` from `HashMap` to `Attributes` in `TreeNode`.
+
+# v0.1.3
+- Fixed issues with `TreeNodeGroup`
+
+# v0.1.2
+- Fixed issues with `TreeNodeGroup`
+
 # v0.1.1
 - The derives are now also returned from `file_to_rsml`.
 

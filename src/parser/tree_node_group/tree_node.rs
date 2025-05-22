@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use rbx_types::{Attributes, Variant};
+use rbx_types::Attributes;
 
 use crate::Datatype;
 
@@ -10,7 +10,7 @@ pub struct TreeNode {
     pub priority: Option<i32>,
     pub attributes: Attributes,
     pub static_attributes: HashMap<String, Datatype>,
-    pub properties: HashMap<String, Variant>,
+    pub properties: Attributes,
     pub child_rules: Vec<usize>,
     pub parent: TreeNodeType
 }
@@ -26,7 +26,7 @@ impl TreeNode {
         Self {
             attributes: Attributes::new(),
             static_attributes: HashMap::new(),
-            properties: HashMap::new(),
+            properties: Attributes::new(),
             child_rules: vec![],
             priority: None,
             name: None,
