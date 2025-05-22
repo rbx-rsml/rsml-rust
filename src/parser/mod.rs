@@ -270,7 +270,7 @@ fn parse_comment_single<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Tok
 fn parse_scope_open<'a>(parser: &mut Parser<'a>, token: Token, selector: Option<String>) -> Option<Token> {
     if !matches!(token, Token::ScopeOpen) { return Some(token) }
  
-    let new_tree_node_idx = parser.tree_nodes.nodes.len();
+    let new_tree_node_idx = parser.tree_nodes.nodes_len();
     let new_tree_node_idx_as_parent = TreeNodeType::Node(new_tree_node_idx);
 
     let previous_tree_node = parser.tree_nodes.get_node_mut(parser.current_tree_node_idx);

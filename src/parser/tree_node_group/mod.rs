@@ -8,8 +8,8 @@ pub use root_tree_node::RootTreeNode;
 
 #[derive(Debug)]
 pub struct TreeNodeGroup {
-    pub root: Option<RootTreeNode>,
-    pub nodes: Vec<Option<TreeNode>>
+    root: Option<RootTreeNode>,
+    nodes: Vec<Option<TreeNode>>
 }
 
 pub enum AnyTreeNode<'a> {
@@ -35,6 +35,10 @@ impl TreeNodeGroup {
             TreeNodeType::Node(idx) => AnyTreeNode::Node(self.nodes[idx].as_ref()),
             TreeNodeType::Root => AnyTreeNode::Root(self.root.as_ref())
         }
+    }
+
+    pub fn nodes_len(&self) -> usize {
+        self.nodes.len()
     }
 
     pub fn get_root(&self) -> Option<&RootTreeNode> {
