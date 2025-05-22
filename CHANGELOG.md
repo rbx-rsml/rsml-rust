@@ -1,3 +1,6 @@
+# v0.1.1
+- The derives are now also returned from `file_to_rsml`.
+
 # v0.1.0
 - Optimized how multiline strings are parsed.
 - Properties, attributes and selectors can now have dashes in the middle of them.
