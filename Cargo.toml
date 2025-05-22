@@ -1,6 +1,6 @@
 [package]
 name = "rbx-rsml"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 description = "A lexer and parser for the RSML language."
 homepage = "https://www.rsml.style"
