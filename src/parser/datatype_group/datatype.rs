@@ -1,8 +1,10 @@
+use crate::parser::EnumItemFromNameAndValueName;
+
 use super::Operator;
 
 use palette::{IntoColor, Oklab, Oklch, Srgb};
 use guarded::guarded_unwrap;
-use rbx_types::{Color3, Variant};
+use rbx_types::{Color3, EnumItem, Variant};
 
 #[derive(Clone, Debug)]
 pub enum Datatype {
@@ -37,8 +39,8 @@ impl Datatype {
             Datatype::IncompleteEnumShorthand(value) => {
                 let key = guarded_unwrap!(key, return None);
 
-                // TODO: convert this to its enum member number value (instead of a string) using an api dump.
-                Some(Variant::String(format!("Enum.{}.{}", key, value)))
+                let enum_item = guarded_unwrap!(EnumItem::from_name_and_value_name(key, &value), return None);
+                Some(Variant::EnumItem(enum_item))
             },
 
             Datatype::Oklab(color) => {
@@ -60,8 +62,8 @@ impl Datatype {
             Datatype::IncompleteEnumShorthand(value) => {
                 let key = guarded_unwrap!(key, return None);
 
-                // TODO: convert this to its enum member number value (instead of a string) using an api dump.
-                Some(Datatype::Variant(Variant::String(format!("Enum.{}.{}", key, value))))
+                let enum_item = guarded_unwrap!(EnumItem::from_name_and_value_name(key, &value), return None);
+                Some(Datatype::Variant(Variant::EnumItem(enum_item)))
             },
             d => Some(d)
         }

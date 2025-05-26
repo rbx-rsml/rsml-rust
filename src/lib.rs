@@ -29,7 +29,7 @@ mod string_clip {
 
 const BUILTINS_CONTENT: &str = include_str!("../builtins.rsml");
 
-static BUILTIN_MACROS: LazyLock<MacroGroup> = LazyLock::new(|| {
+pub static BUILTIN_MACROS: LazyLock<MacroGroup> = LazyLock::new(|| {
     let mut macro_group = MacroGroup::new();
     parse_rsml_macros(&mut macro_group, &mut lex_rsml_macros(&BUILTINS_CONTENT));
     macro_group

@@ -64,8 +64,8 @@ impl TreeNodeGroup {
         mem::replace(&mut self.nodes[idx], None)
     }
 
-    pub fn take_root(&mut self) -> RootTreeNode {
-        mem::replace(&mut self.root, None).unwrap()
+    pub fn take_root(&mut self) -> Option<RootTreeNode> {
+        mem::replace(&mut self.root, None)
     }
 }
 

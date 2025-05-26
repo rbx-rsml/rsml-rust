@@ -1,3 +1,7 @@
+# v0.1.5
+- Added more builtins.
+- Changed Enum datatypes to use `EnumItem`.
+
 # v0.1.4
 - Changed `properties` from `HashMap` to `Attributes` in `TreeNode`.
 

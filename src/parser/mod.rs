@@ -7,7 +7,7 @@ use palette::Srgb;
 use tree_node_group::{AnyTreeNode, AnyTreeNodeMut, TreeNodeType};
 use std::{fmt::Debug, ops::Deref, str::FromStr, sync::LazyLock};
 use phf_macros::phf_map;
-use rbx_types::{Color3uint8, Content, UDim, Variant};
+use rbx_types::{Color3uint8, Content, EnumItem, UDim, Variant};
 use regex::Regex;
 
 mod tree_node_group;
@@ -22,6 +22,9 @@ use selector::Selector;
 mod datatype_group;
 use datatype_group::DatatypeGroup;
 pub use datatype_group::Datatype;
+
+mod variants;
+pub use variants::EnumItemFromNameAndValueName;
 
 mod operator;
 use operator::Operator;
@@ -491,32 +494,36 @@ fn parse_operator_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWi
 
 fn parse_enum_tokens<'a>(parser: &mut Parser<'a>, token_history: &mut Vec<Token>) -> Option<Datatype> {
     let token_history_len = token_history.len();
-    let mut full_enum = "Enum".to_string();
     let mut first_stop_idx = 0;
 
+    let mut enum_name = None;
     for idx in 0..=token_history_len {
         let token = &token_history[idx];
         
         if let Token::Text = token {
             let text = parser.slice();
-            full_enum += &format!(".{}", text);
+            enum_name = Some(text);
             
             first_stop_idx = idx;
             break
         }
     };
+    let enum_name = guarded_unwrap!(enum_name, return None);
 
+    let mut enum_value_name = None;
     for idx in (first_stop_idx + 1)..=token_history_len {
         let token = &token_history[idx];
 
         if let Token::Text = token {
             let text = parser.slice();
-            full_enum += &format!(".{}", text);
+            enum_value_name = Some(text);
             break
         }
     };
+    let enum_value_name = guarded_unwrap!(enum_value_name, return None);
 
-    return Some(Datatype::Variant(Variant::String(full_enum)))
+    let enum_item = guarded_unwrap!(EnumItem::from_name_and_value_name(enum_name, enum_value_name), return Some(Datatype::None));
+    return Some(Datatype::Variant(Variant::EnumItem(enum_item)))
 }
 
 fn parse_full_enum<'a>(
@@ -550,7 +557,7 @@ fn parse_enum_keyword<'a>(parser: &mut Parser<'a>, token: Token) -> TokenWithRes
     parse_full_enum(parser, token, &mut token_history)
 }
 
-const SHORTHAND_HARDCODES: phf::Map<&'static str, &'static str> = phf_map! {
+const SHORTHAND_REBINDS: phf::Map<&'static str, &'static str> = phf_map! {
     "FlexMode" => "UIFlexMode",
     "HorizontalFlex" => "UIFlexAlignment",
     "VerticalFlex" => "UIFlexAlignment"
@@ -561,17 +568,18 @@ fn parse_enum_shorthand<'a>(parser: &mut Parser<'a>, token: Token, key: Option<&
 
     let token = guarded_unwrap!(parser.advance(), return (None, None));
 
-    let enum_item = if let Token::Text = token { parser.slice() } else { return (Some(token), None) };
+    let enum_value_name = if let Token::Text = token { parser.slice() } else { return (Some(token), None) };
 
     if let Some(key) = key {
-        let enum_name = SHORTHAND_HARDCODES.get(key).unwrap_or(&key);
+        let enum_name = SHORTHAND_REBINDS.get(key).unwrap_or(&key);
 
-        // TODO: convert this to its enum member number value (instead of a string) using an api dump.
-        let datatype = Datatype::Variant(Variant::String(format!("Enum.{}.{}", enum_name, enum_item)));
-        return (parser.advance(), Some(datatype))
+        let enum_item = guarded_unwrap!(
+            EnumItem::from_name_and_value_name(enum_name, enum_value_name), return (parser.advance(), Some(Datatype::None))
+        );
+        return (parser.advance(), Some(Datatype::Variant(Variant::EnumItem(enum_item))))
 
     } else {
-        let datatype = Datatype::IncompleteEnumShorthand(enum_item.into());
+        let datatype = Datatype::IncompleteEnumShorthand(enum_value_name.into());
         return (parser.advance(), Some(datatype))
     }
 

@@ -42,3 +42,8 @@
     }
 }
 
+@macro Scale (&scale) {
+    ::UIScale {
+        Scale = &scale;
+    }
+}
