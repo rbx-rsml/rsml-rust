@@ -10,3 +10,5 @@
 .DS_STORE
 
 /macros
+
+**/._DS_Store
