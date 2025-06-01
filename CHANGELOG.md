@@ -1,3 +1,7 @@
+# v0.1.8
+- You can now multiply A Rect with a Vector2 or a Vector2int16.
+- Fixed issue where Vector2int16's and Vector3int16's could not be floored, ceiled, rounded, or absoluted.
+
 # v0.1.7
 - Fixed issue with udim2 when specifying 4 components of the tuple.
 
