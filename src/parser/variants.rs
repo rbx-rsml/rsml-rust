@@ -1,7 +1,5 @@
-use std::{collections::HashMap, rc::Rc};
-
 use guarded::guarded_unwrap;
-use rbx_types::{Attributes, EnumItem, Variant};
+use rbx_types::EnumItem;
 
 pub trait EnumItemFromNameAndValueName {
     fn from_name_and_value_name(enum_name: &str, enum_value_name: &str) -> Option<EnumItem> {

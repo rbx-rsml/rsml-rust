@@ -1,5 +1,4 @@
 use guarded::guarded_unwrap;
-use num_traits::{Float, PrimInt};
 use rbx_types_ops::{Abs, Ceil, Floor, Round};
 
 use crate::parser::Datatype;
