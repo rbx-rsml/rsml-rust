@@ -1,3 +1,9 @@
+# v0.1.7
+- Fixed issue with udim2 when specifying 4 components of the tuple.
+
+# v0.1.6
+- fixed issues with certain property modifer tuples not working properly on all types
+
 # v0.1.5
 - Added more builtins.
 - Changed Enum datatypes to use `EnumItem`.

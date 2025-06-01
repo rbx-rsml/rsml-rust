@@ -31,8 +31,8 @@ pub fn udim2_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     } else {
         let x_scale = coerce_datatype_to_f32(datatypes.get(0), 0.0);
         let x_offset = coerce_datatype_to_f32(datatypes.get(1), x_scale * 100.0) as i32;
-        let y_scale = coerce_datatype_to_f32(datatypes.get(3), x_scale);
-        let y_offset = coerce_datatype_to_f32(datatypes.get(4), y_scale * 100.0) as i32;
+        let y_scale = coerce_datatype_to_f32(datatypes.get(2), x_scale);
+        let y_offset = coerce_datatype_to_f32(datatypes.get(3), y_scale * 100.0) as i32;
 
         return Datatype::Variant(Variant::UDim2(UDim2::new(
             UDim::new(x_scale, x_offset), UDim::new(y_scale, y_offset)
