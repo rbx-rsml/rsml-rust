@@ -44,7 +44,7 @@ pub fn lerp_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     op_match_between_two_variants!(
         lerp, from, to, time, [ 
             Float32, UDim, UDim2, Rect, Vector2, Vector2int16,
-            Vector3, Vector3int16, CFrame, Color3
+            Vector3, Vector3int16, CFrame, Color3, Color3uint8
         ]
     )
 }
