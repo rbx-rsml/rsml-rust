@@ -67,6 +67,16 @@ fn coerce_datatype_to_f32(datatype: Option<&Datatype>, default: f32) -> f32 {
     default
 }
 
+fn coerce_datatype_to_i32(datatype: Option<&Datatype>, default: i32) -> i32 {
+    if let Some(datatype) = datatype {
+        return match datatype {
+            Datatype::Variant(Variant::Float32(float32)) => *float32 as i32,
+            _ => default
+        }
+    }
+    default
+}
+
 trait Remap {
     fn remap(self, from: (f32, f32), to: (f32, f32)) -> f32;
 }

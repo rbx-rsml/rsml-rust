@@ -1028,6 +1028,8 @@ fn parse_delimiters<'a>(parser: &mut Parser<'a>, token: Token)  -> Option<Token>
 
 fn parse_property<'a>(parser: &mut Parser<'a>, mut token: Token) -> Option<Token> {
     if let Token::Text = token {
+        println!("{:#?} {:#?}", parser.slice(), token);
+
         let property_name = parser.slice();
         let selector_token = token;
 
@@ -1065,15 +1067,15 @@ fn parse_property<'a>(parser: &mut Parser<'a>, mut token: Token) -> Option<Token
 fn parse_static_attribute<'a>(parser: &mut Parser<'a>, mut token: Token) -> Option<Token> {
     if !matches!(token, Token::StaticAttributeIdentifier) { return Some(token) };
 
-    token = guarded_unwrap!(parser.advance(), return None);
+    token = parser.advance()?;
 
     if let Token::Text = token {
         let static_name = parser.slice();
-        let next_token = guarded_unwrap!(parser.advance(), return None);
+        let next_token = parser.advance()?;
         
-        if !matches!(next_token, Token::Equals) { return Some(token) }
+        if !matches!(next_token, Token::Equals) { return Some(next_token) }
 
-        token = guarded_unwrap!(parser.advance(), return None);
+        token = parser.advance()?;
 
         let (token, datatype) = parse_datatype_group(
             parser, token, Some(static_name), None, None
@@ -1102,15 +1104,15 @@ fn parse_static_attribute<'a>(parser: &mut Parser<'a>, mut token: Token) -> Opti
 fn parse_attribute<'a>(parser: &mut Parser<'a>, mut token: Token) -> Option<Token> {
     if !matches!(token, Token::AttributeIdentifier) { return Some(token) };
 
-    token = guarded_unwrap!(parser.advance(), return None);
+    token = parser.advance()?;
 
     if let Token::Text = token {
         let attribute_name = parser.slice();
-        let next_token = guarded_unwrap!(parser.advance(), return None);
+        let next_token = parser.advance()?;
         
-        if !matches!(next_token, Token::Equals) { return Some(token) }
+        if !matches!(next_token, Token::Equals) { return Some(next_token) }
 
-        token = guarded_unwrap!(parser.advance(), return None);
+        token = parser.advance()?;
 
         let (token, datatype) = parse_datatype_group(
             parser, token, Some(attribute_name), None, None

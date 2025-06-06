@@ -361,7 +361,7 @@ dependencies = [
 
 [[package]]
 name = "rbx-rsml"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "guarded",
  "indexmap",
