@@ -79,8 +79,6 @@ fn colorseq_get_end_time(current_idx: usize, colors: &Vec<Color>, colors_len: us
 }
 
 pub fn colorseq_annotation(datatypes: &Vec<Datatype>) -> Datatype {
-    println!("{:#?}", datatypes);
-
     // If the data only contains one color then we only
     // need to return a color sequence with that color.
     if datatypes.len() == 1 {
