@@ -1028,8 +1028,6 @@ fn parse_delimiters<'a>(parser: &mut Parser<'a>, token: Token)  -> Option<Token>
 
 fn parse_property<'a>(parser: &mut Parser<'a>, mut token: Token) -> Option<Token> {
     if let Token::Text = token {
-        println!("{:#?} {:#?}", parser.slice(), token);
-
         let property_name = parser.slice();
         let selector_token = token;
 
