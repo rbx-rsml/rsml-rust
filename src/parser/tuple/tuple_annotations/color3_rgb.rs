@@ -25,7 +25,7 @@ pub fn color3_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     } else {
         let red = coerce_datatype_to_f32(first, 0.0);
         let green = coerce_datatype_to_f32(datatypes.get(1), red);
-        let blue = coerce_datatype_to_f32(datatypes.get(3), green);
+        let blue = coerce_datatype_to_f32(datatypes.get(2), green);
 
         Datatype::Variant(Variant::Color3(Color3::new(red, green, blue)))
     }
@@ -51,7 +51,7 @@ pub fn rgb_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     } else {
         let red = coerce_datatype_to_f32(datatypes.get(0), 0.0);
         let green = coerce_datatype_to_f32(datatypes.get(1), red);
-        let blue = coerce_datatype_to_f32(datatypes.get(3), green);
+        let blue = coerce_datatype_to_f32(datatypes.get(2), green);
 
         Datatype::Variant(Variant::Color3uint8(Color3uint8::new(red as u8, green as u8, blue as u8)))
     }
