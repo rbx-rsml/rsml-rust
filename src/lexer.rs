@@ -146,7 +146,10 @@ pub enum Token {
     Text,
 
     #[regex(r"([_A-Za-z][_A-Za-z\d]*|[_A-Za-z]+(-[A-Za-z\d_]+)+)!")]
-    MacroCall
+    MacroCall,
+
+    #[regex(r"[ \t\n\r\f]+", logos::skip)]
+    Whitespace,
 }
 
 pub fn lex_rsml<'a>(content: &'a str) -> logos::Lexer<'a, Token> {

@@ -24,7 +24,10 @@ pub enum UtilsToken {
     UtilDeclaration,
 
     #[regex(r"[_a-zA-Z][-_A-Za-z\d]*", priority = 0)]
-    Text
+    Text,
+
+    #[regex(r"[ \t\n\r\f]+", logos::skip)]
+    Whitespace,
 }
 
 pub fn lex_rsml_utils<'a>(content: &'a str) -> logos::Lexer<'a, UtilsToken> {
