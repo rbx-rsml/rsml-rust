@@ -5,19 +5,24 @@ use crate::parser::Datatype;
 pub fn font_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     let font_name = if let Some(component) = datatypes.get(0) {
         match component {
-            Datatype::Variant(Variant::String(font_str)) => match font_str.starts_with("rbxasset://") {
-                true => font_str,
-                false => &format!("rbxasset://fonts/families/{}.json", font_str)
-            },
+            Datatype::Variant(Variant::String(font_str)) => {
+                if font_str.starts_with("rbxasset://") || font_str.starts_with("rbxassetid://") {
+                    font_str
+                } else {
+                    &format!("rbxasset://fonts/families/{}.json", font_str)
+                }
+            }
             Datatype::Variant(Variant::Float32(num)) => &format!("rbxassetid://{}", num),
-            _ => "rbxasset://fonts/families/SourceSansPro.json"
+            _ => "rbxasset://fonts/families/SourceSansPro.json",
         }
-    } else { "rbxasset://fonts/families/SourceSansPro.json" };
+    } else {
+        "rbxasset://fonts/families/SourceSansPro.json"
+    };
 
     let font_weight = if let Some(component) = datatypes.get(1) {
         match component {
-            Datatype::Variant(Variant::String(weight_string)) | 
-            Datatype::IncompleteEnumShorthand(weight_string) => match weight_string.as_str() {
+            Datatype::Variant(Variant::String(weight_string))
+            | Datatype::IncompleteEnumShorthand(weight_string) => match weight_string.as_str() {
                 "Thin" => FontWeight::Thin,
                 "ExtraLight" => FontWeight::ExtraLight,
                 "Light" => FontWeight::Light,
@@ -36,7 +41,7 @@ pub fn font_annotation(datatypes: &Vec<Datatype>) -> Datatype {
                 "Enum.FontWeight.Bold" => FontWeight::Bold,
                 "Enum.FontWeight.ExtraBold" => FontWeight::ExtraBold,
                 "Enum.FontWeight.Heavy" => FontWeight::Heavy,
-                _ => FontWeight::Regular
+                _ => FontWeight::Regular,
             },
             Datatype::Variant(Variant::Float32(float32)) => match *float32 {
                 100.0 => FontWeight::Thin,
@@ -48,27 +53,31 @@ pub fn font_annotation(datatypes: &Vec<Datatype>) -> Datatype {
                 700.0 => FontWeight::Bold,
                 800.0 => FontWeight::ExtraBold,
                 900.0 => FontWeight::Heavy,
-                _ => FontWeight::Regular
-            }
-            _ => FontWeight::Regular
+                _ => FontWeight::Regular,
+            },
+            _ => FontWeight::Regular,
         }
-    } else { FontWeight::Regular };
+    } else {
+        FontWeight::Regular
+    };
 
     let font_style = if let Some(component) = datatypes.get(2) {
         match component {
-            Datatype::Variant(Variant::String(style_str)) | 
-            Datatype::IncompleteEnumShorthand(style_str) => match style_str.as_str() {
+            Datatype::Variant(Variant::String(style_str))
+            | Datatype::IncompleteEnumShorthand(style_str) => match style_str.as_str() {
                 "Italic" => FontStyle::Italic,
                 "Enum.FontStyle.Italic" => FontStyle::Italic,
-                _ => FontStyle::Normal
+                _ => FontStyle::Normal,
             },
             Datatype::Variant(Variant::Float32(float32)) => match *float32 {
                 1.0 => FontStyle::Italic,
-                _ => FontStyle::Normal
-            }
-            _ => FontStyle::Normal
+                _ => FontStyle::Normal,
+            },
+            _ => FontStyle::Normal,
         }
-    } else { FontStyle::Normal };
+    } else {
+        FontStyle::Normal
+    };
 
     Datatype::Variant(Variant::Font(Font::new(font_name, font_weight, font_style)))
 }

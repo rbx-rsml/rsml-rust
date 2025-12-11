@@ -1,12 +1,15 @@
 [package]
 name = "rbx-rsml"
-version = "0.1.11"
+version = "0.1.12"
 edition = "2021"
 description = "A lexer and parser for the RSML language."
 homepage = "https://www.rsml.style"
 repository = "https://github.com/rbx-rsml/rsml-rust.git"
 readme = "README.md"
 license = "MIT"
+
+[features]
+with_extras = []
 
 [dependencies]
 phf = "0.11.3"
@@ -34,7 +37,7 @@ path = "src/lib.rs"
 test = true
 doctest = true
 bench = true
-doc = true 
+doc = true
 harness = true
 edition = "2021"
 crate-type = ["lib"]

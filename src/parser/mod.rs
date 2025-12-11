@@ -1019,7 +1019,7 @@ fn parse_tuple_name<'a>(
 
 fn parse_delimiters<'a>(parser: &mut Parser<'a>, token: Token)  -> Option<Token> {
     if matches!(token, Token::SemiColon | Token::Comma) {
-        let token = guarded_unwrap!(parser.advance(), return None);
+        let token = parser.advance()?;
         return parse_delimiters(parser, token);
     }
 
@@ -1031,7 +1031,7 @@ fn parse_property<'a>(parser: &mut Parser<'a>, mut token: Token) -> Option<Token
         let property_name = parser.slice();
         let selector_token = token;
 
-        token = guarded_unwrap!(parser.advance(), return None);
+        token = parser.advance()?;
 
         if !matches!(token, Token::Equals) {
             return parse_scope_selector(parser, token, Selector::new(property_name, selector_token))
@@ -1039,7 +1039,7 @@ fn parse_property<'a>(parser: &mut Parser<'a>, mut token: Token) -> Option<Token
 
         // We only want to parse the property if the current node is not the root.
         if let TreeNodeType::Node(node_idx) = parser.current_tree_node_idx {
-            token = guarded_unwrap!(parser.advance(), return None);
+            token = parser.advance()?;
 
             let (token, datatype) = parse_datatype_group(
                 parser, token, Some(property_name), None, None
@@ -1257,7 +1257,7 @@ fn parse_macro_declaration<'a>(parser: &mut Parser<'a>, token: Token) -> Option<
 }
 
 fn main_loop<'a>(parser: &mut Parser<'a>) -> Option<()> {
-    let mut token = guarded_unwrap!(parser.advance(), return None);
+    let mut token = parser.advance()?;
 
     loop {
         parser.did_advance = false;

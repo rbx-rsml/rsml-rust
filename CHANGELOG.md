@@ -1,3 +1,6 @@
+# 0.1.12
+- Strings starting with "rbxassetid://" are now properly accepted in the font tuple annotation.
+
 # v0.1.8
 - You can now multiply A Rect with a Vector2 or a Vector2int16.
 - Fixed issue where Vector2int16's and Vector3int16's could not be floored, ceiled, rounded, or absoluted.

@@ -1,0 +1,21 @@
+{
+    "className": "StyleSheet",
+    "id": "test.rsml",
+    "attributes": {},
+    "children": [
+        {
+            "name": "vourite",
+            "className": "StyleRule",
+            "attributes": {},
+            "properties": {
+                "Selector": {
+                    "String": "vourite"
+                },
+                "PropertiesSerialize": {
+                    "Attributes": {}
+                }
+            },
+            "children": []
+        }
+    ]
+}
