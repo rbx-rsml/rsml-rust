@@ -9,7 +9,7 @@ pub fn font_annotation(datatypes: &Vec<Datatype>) -> Datatype {
                 true => font_str,
                 false => &format!("rbxasset://fonts/families/{}.json", font_str)
             },
-            Datatype::Variant(Variant::Float32(num)) => &format!("rbxassetid://{}", num),
+            Datatype::Variant(Variant::Int64(num)) => &format!("rbxassetid://{}", num),
             _ => "rbxasset://fonts/families/SourceSansPro.json"
         }
     } else { "rbxasset://fonts/families/SourceSansPro.json" };
