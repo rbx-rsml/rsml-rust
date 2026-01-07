@@ -35,24 +35,24 @@ pub fn rgb_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     let first = datatypes.get(0);
 
     if let Some(Datatype::Variant(Variant::BrickColor(brick_color))) = first {
-        Datatype::Variant(Variant::Color3uint8(brick_color.to_color3uint8()))
+        Datatype::Variant(Variant::Color3(brick_color.to_color3uint8().into()))
 
     } else if let Some(Datatype::Variant(Variant::Color3uint8(color))) = first {
-        Datatype::Variant(Variant::Color3uint8((*color).into()))
+        Datatype::Variant(Variant::Color3((*color).into()))
 
     } else if let Some(Datatype::Oklab(color)) = first {
         let color: Srgb<u8> = Srgb::from_color(*color).into();
-        Datatype::Variant(Variant::Color3uint8(Color3uint8::new(color.red, color.green, color.blue)))
+        Datatype::Variant(Variant::Color3(Color3uint8::new(color.red, color.green, color.blue).into()))
 
     } else if let Some(Datatype::Oklch(color)) = first {
         let color: Srgb<u8> = Srgb::from_color(*color).into();
-        Datatype::Variant(Variant::Color3uint8(Color3uint8::new(color.red, color.green, color.blue)))
+        Datatype::Variant(Variant::Color3(Color3uint8::new(color.red, color.green, color.blue).into()))
 
     } else {
         let red = coerce_datatype_to_f32(datatypes.get(0), 0.0);
         let green = coerce_datatype_to_f32(datatypes.get(1), red);
         let blue = coerce_datatype_to_f32(datatypes.get(3), green);
 
-        Datatype::Variant(Variant::Color3uint8(Color3uint8::new(red as u8, green as u8, blue as u8)))
+        Datatype::Variant(Variant::Color3(Color3uint8::new(red as u8, green as u8, blue as u8).into()))
     }
 }
