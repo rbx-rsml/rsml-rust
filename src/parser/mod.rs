@@ -1182,6 +1182,33 @@ fn parse_name_declaration<'a>(parser: &mut Parser<'a>, token: Token) -> Option<T
     }
 }
 
+fn parse_tween_declaration<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Token> {
+    if !matches!(token, Token::TweenDeclaration) { return Some(token) }
+
+    let token = parser.advance()?;
+
+    // The next token should be a Text token (the property name to tween).
+    if !matches!(token, Token::Text) { return Some(token) }
+    let tween_name = parser.slice();
+
+    let token = parser.advance()?;
+
+    // We only want to parse the tween if the current node is not the root.
+    if let TreeNodeType::Node(node_idx) = parser.current_tree_node_idx {
+        let (token, datatype) = parse_datatype_group(parser, token, None, None, None);
+
+        if let Some(datatype) = datatype {
+            let current_tree_node = parser.tree_nodes[node_idx].as_mut().unwrap();
+            current_tree_node.tweens.insert(tween_name.to_string(), datatype);
+        }
+
+        let token = guarded_unwrap!(token, return None);
+        parse_delimiters(parser, token)
+    } else {
+        Some(token)
+    }
+}
+
 fn parse_ignore_derive_declaration<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Token> {
     if !matches!(token, Token::DeriveDeclaration) { return Some(token) }
 
@@ -1270,6 +1297,7 @@ fn main_loop<'a>(parser: &mut Parser<'a>) -> Option<()> {
         token = parse_scope_close(parser, token)?;
         token = parse_priority_declaration(parser, token)?;
         token = parse_name_declaration(parser, token)?;
+        token = parse_tween_declaration(parser, token)?;
         token = parse_ignore_derive_declaration(parser, token)?;
         token = parse_util_declaration(parser, token)?;
         token = parse_macro_declaration(parser, token)?;

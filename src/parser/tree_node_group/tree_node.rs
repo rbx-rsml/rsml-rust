@@ -8,6 +8,7 @@ pub struct TreeNode {
     pub selector: Option<String>,
     pub name: Option<String>,
     pub priority: Option<i32>,
+    pub tweens: HashMap<String, Datatype>,
     pub attributes: Attributes,
     pub static_attributes: HashMap<String, Datatype>,
     pub properties: Attributes,
@@ -30,6 +31,7 @@ impl TreeNode {
             child_rules: vec![],
             priority: None,
             name: None,
+            tweens: HashMap::new(),
             selector,
             parent
         }

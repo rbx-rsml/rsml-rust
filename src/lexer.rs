@@ -95,6 +95,9 @@ pub enum Token {
     #[token("@util")]
     UtilDeclaration,
 
+    #[token("@tween")]
+    TweenDeclaration,
+
     #[token("true")]
     BoolTrue,
 

@@ -1,3 +1,6 @@
+# 0.1.13
+- Added `@tween` declaration support to the lexer and parser.
+
 # 0.1.12
 - Strings starting with "rbxassetid://" are now properly accepted in the font tuple annotation.
 
