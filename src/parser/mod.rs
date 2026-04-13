@@ -306,9 +306,10 @@ fn parse_scope_delimiter<'a>(
 
 fn parse_scope_selector_start<'a>(parser: &mut Parser<'a>, token: Token) -> Option<Token> {
     // The `Token::Text` case is handled in `parse_property`.
-    if !matches!(token, 
+    if !matches!(token,
         Token::NameIdentifier | Token::PsuedoIdentifier | Token::StateOrEnumIdentifier |
-        Token::TagOrEnumIdentifier | Token::ScopeToDescendants | Token::ScopeToChildren
+        Token::TagOrEnumIdentifier | Token::ScopeToDescendants | Token::ScopeToChildren |
+        Token::QuerySelector
     ) { return Some(token) }
 
     let selector = Selector::new(parser.slice(), token);
@@ -325,10 +326,10 @@ fn parse_scope_selector<'a>(
         let parsed_delimiter = parse_scope_delimiter(parser, token, None);
         token = guarded_unwrap!(parsed_delimiter.0, return None);
 
-        if matches!(token, 
+        if matches!(token,
             Token::NameIdentifier | Token::PsuedoIdentifier | Token::StateOrEnumIdentifier |
             Token::TagOrEnumIdentifier | Token::ScopeToDescendants | Token::ScopeToChildren |
-            Token::Text
+            Token::Text | Token::QuerySelector
         ) {
             // Appending the comma token here ensures selectors can't end with delimiters.
             if let Some(delim_token) = parsed_delimiter.1 {

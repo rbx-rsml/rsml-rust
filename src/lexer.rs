@@ -98,6 +98,9 @@ pub enum Token {
     #[token("@tween")]
     TweenDeclaration,
 
+    #[regex(r"@[_A-Za-z][_A-Za-z\d]*|@[_A-Za-z]+(-[A-Za-z\d_]+)+")]
+    QuerySelector,
+
     #[token("true")]
     BoolTrue,
 

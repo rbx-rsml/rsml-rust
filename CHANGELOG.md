@@ -1,3 +1,6 @@
+# 0.1.14
+- Added query selector support to the lexer and parser.
+
 # 0.1.13
 - Added `@tween` declaration support to the lexer and parser.
 

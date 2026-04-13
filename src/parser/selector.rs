@@ -17,7 +17,7 @@ impl<'a> Selector {
         let last_token = self.current_token;
 
         let should_add_space = !matches!(token, Token::Comma | Token::StateOrEnumIdentifier) && matches!(last_token,
-             Token::ScopeToDescendants | Token::ScopeToChildren | Token::Text | Token::Comma
+             Token::ScopeToDescendants | Token::ScopeToChildren | Token::Text | Token::QuerySelector | Token::Comma
         );
 
         self.current_token = token;
