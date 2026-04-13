@@ -697,11 +697,9 @@ fn parse_hex_color_datatype<'a>(parser: &mut Parser<'a>, token: Token) -> TokenW
         let hex = parser.slice();
 
         let color: Srgb<u8> = normalize_hex(hex).parse().unwrap();
-        let datatype = Datatype::Variant(Variant::Color3uint8(Color3uint8::new(
-            color.red,
-            color.green,
-            color.blue,
-        )));
+        let datatype = Datatype::Variant(Variant::Color3(
+            Color3uint8::new(color.red, color.green, color.blue).into(),
+        ));
 
         return (parser.advance(), Some(datatype))
     }
