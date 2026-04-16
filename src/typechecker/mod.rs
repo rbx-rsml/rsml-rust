@@ -150,7 +150,6 @@ impl<'a> Typechecker<'a> {
                             &mut ast_errors,
                             current_path,
                             luaurc.as_deref_mut(),
-                            &mut definitions,
                             &mut dependencies,
                             &mut derives,
                         )
@@ -167,7 +166,7 @@ impl<'a> Typechecker<'a> {
                         },
                         Range::from_span(&typechecker.parsed.rope, construct.span()),
                     );
-                    typechecker.typecheck_tween(body, &mut ast_errors, &mut definitions);
+                    typechecker.typecheck_tween(body, &mut ast_errors);
                 }
 
                 Construct::Rule { selectors, body } => {

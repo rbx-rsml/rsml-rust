@@ -57,10 +57,8 @@ impl<'a> Typechecker<'a> {
                 }
 
                 Construct::Assignment {
-                    left,
-                    middle,
                     right,
-                    terminator,
+                    ..
                 } => {
                     if let Some(right) = right {
                         self.validate_macro_arg_refs(right, None, ast_errors);
@@ -68,82 +66,13 @@ impl<'a> Typechecker<'a> {
                             self.validate_macro_call(name, body, MacroReturnContext::Assignment, ast_errors);
                         }
                     }
-                    let Token::Identifier(property_name) = left.token.value() else {
-                        continue;
-                    };
-                    let Some(middle) = middle else { continue };
-
-                    let assign_start = middle.token.start();
-                    let assign_end = terminator
-                        .as_ref()
-                        .map(|t| t.token.end())
-                        .or_else(|| right.as_ref().map(|r| r.span().1))
-                        .unwrap_or(middle.token.end());
-
-                    definitions.insert(
-                        assign_start..=assign_end,
-                        DefinitionKind::Assignment {
-                            property_name: property_name.to_string(),
-                            type_definition: current_classes.clone(),
-                        },
-                    );
-
-                    let Some(right) = right else { continue };
-                    match right.as_ref() {
-                        Construct::Enum {
-                            keyword,
-                            name,
-                            variant,
-                        } => {
-                            let name_range_start = keyword.token.end();
-                            let name_range_end = name
-                                .as_ref()
-                                .map(|node| node.token.end())
-                                .unwrap_or(assign_end);
-
-                            definitions.insert(
-                                name_range_start..=name_range_end,
-                                DefinitionKind::EnumName,
-                            );
-
-                            if let Some(name_node) = name {
-                                let enum_name = match name_node.token.value() {
-                                    Token::TagSelectorOrEnumPart(Some(name)) => name,
-                                    Token::StateSelectorOrEnumPart(Some(name)) => name,
-                                    _ => continue,
-                                };
-
-                                let variant_range_start = name_node.token.end();
-                                let variant_range_end = variant
-                                    .as_ref()
-                                    .map(|node| node.token.end())
-                                    .unwrap_or(assign_end);
-
-                                definitions.insert(
-                                    variant_range_start..=variant_range_end,
-                                    DefinitionKind::EnumVariant {
-                                        enum_name: enum_name.to_string(),
-                                    },
-                                );
-                            }
-                        }
-
-                        _ => (),
-                    }
                 }
 
                 Construct::Tween {
                     body: Some(body),
                     ..
                 } => {
-                    // Register the full tween span first, then typecheck_tween
-                    // will override specific arg positions with EnumVariant.
-                    let span = construct.span();
-                    definitions.insert(
-                        span.0..=span.1,
-                        DefinitionKind::Declaration,
-                    );
-                    self.typecheck_tween(body, ast_errors, definitions);
+                    self.typecheck_tween(body, ast_errors);
                 }
 
                 Construct::Derive { .. } => {
@@ -151,51 +80,16 @@ impl<'a> Typechecker<'a> {
                         TypeError::NotAllowedInContext { name: construct.name_plural(), context: "non-global scopes" },
                         Range::from_span(&self.parsed.rope, construct.span()),
                     );
-                    let span = construct.span();
-                    definitions.insert(
-                        span.0..=span.1,
-                        DefinitionKind::Declaration,
-                    );
-                }
-
-                // Override the parent Scope definition for declaration constructs
-                // so that property completions are not shown inside them.
-                Construct::Priority { .. }
-                | Construct::Name { .. } => {
-                    let span = construct.span();
-                    definitions.insert(
-                        span.0..=span.1,
-                        DefinitionKind::Declaration,
-                    );
                 }
 
                 Construct::MacroCall { name, body, .. } => {
-                    let span = construct.span();
-                    definitions.insert(
-                        span.0..=span.1,
-                        DefinitionKind::Declaration,
-                    );
                     self.validate_macro_call(name, body, MacroReturnContext::Construct, ast_errors);
                 }
 
-                Construct::Macro { declaration, name, args, return_type, body } => {
+                Construct::Macro { name, args, body, .. } => {
                     ast_errors.push(
                         TypeError::NotAllowedInContext { name: construct.name_plural(), context: "rules" },
                         Range::from_span(&self.parsed.rope, construct.span()),
-                    );
-                    let span_start = declaration.token.start();
-                    let span_end = return_type.as_ref().map(|(arrow, ident)| {
-                            ident.as_ref().map(|i| i.token.end()).unwrap_or(arrow.token.end())
-                        })
-                        .or_else(|| args.as_ref().map(|a| {
-                            a.right.as_ref().map(|r| r.token.end())
-                                .unwrap_or(a.left.token.end())
-                        }))
-                        .or_else(|| name.as_ref().map(|n| n.token.end()))
-                        .unwrap_or(declaration.token.end());
-                    definitions.insert(
-                        span_start..=span_end,
-                        DefinitionKind::Declaration,
                     );
                     self.typecheck_macro(args, body, ast_errors);
                 }

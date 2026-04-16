@@ -13,7 +13,7 @@ use crate::{
 use super::luaurc::Luaurc;
 use super::normalize_path::NormalizePath;
 
-use super::{DefinitionKind, PushTypeError, Typechecker, type_error::*};
+use super::{PushTypeError, Typechecker, type_error::*};
 
 impl<'a> Typechecker<'a> {
     pub(super) fn typecheck_derive<'b>(
@@ -22,7 +22,6 @@ impl<'a> Typechecker<'a> {
         ast_errors: &'b mut AstErrors,
         current_path: &'b Path,
         mut luaurc: Option<&'b mut Luaurc>,
-        definitions: &'b mut super::Definitions,
         dependencies: &'b mut HashSet<PathBuf>,
         derives: &'b mut HashMap<PathBuf, RangeInclusive<usize>>,
     ) -> Pin<Box<dyn Future<Output = ()> + 'b + Send>> {
@@ -47,7 +46,6 @@ impl<'a> Typechecker<'a> {
                         ast_errors,
                         current_path,
                         luaurc.as_deref_mut(),
-                        definitions,
                         dependencies,
                         derives,
                     )
@@ -81,7 +79,6 @@ impl<'a> Typechecker<'a> {
                             ast_errors,
                             current_path,
                             luaurc.as_deref_mut(),
-                            definitions,
                             dependencies,
                             derives,
                         )
@@ -157,7 +154,6 @@ impl<'a> Typechecker<'a> {
         ast_errors: &mut AstErrors,
         current_path: &Path,
         luaurc: Option<&mut Luaurc>,
-        definitions: &mut super::Definitions,
         dependencies: &mut HashSet<PathBuf>,
         derives: &mut HashMap<PathBuf, RangeInclusive<usize>>,
     ) {
@@ -175,13 +171,6 @@ impl<'a> Typechecker<'a> {
                     );
                 } else {
                     dependencies.insert(canonicalized.clone());
-                    definitions.insert(
-                        span.0..=span.1,
-                        DefinitionKind::Derive {
-                            path: canonicalized.clone(),
-                        },
-                    );
-
                     derives.insert(canonicalized, span.0..=span.1);
                 }
             }
@@ -194,13 +183,6 @@ impl<'a> Typechecker<'a> {
                         path: Some(&normalized_path.to_string_lossy()),
                     },
                     self.parsed.range_from_span(span),
-                );
-
-                definitions.insert(
-                    span.0..=span.1,
-                    DefinitionKind::Derive {
-                        path: normalized_path,
-                    },
                 );
             }
         }
