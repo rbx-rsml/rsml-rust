@@ -338,7 +338,7 @@ impl<'a> Parser<'a> {
                         Some(Err(node)) => return (Some(node), Some(datatype_groups)),
                         None => return (None, Some(datatype_groups))
                     }
-                } else { break (None, None) }
+                } else { break (this_node, Some(datatype_groups)) }
             }
         } else { (None, None) }
     }

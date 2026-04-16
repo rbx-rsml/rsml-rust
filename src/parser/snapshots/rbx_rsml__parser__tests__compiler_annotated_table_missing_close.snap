@@ -10,7 +10,7 @@ TreeNodeGroup {
                     "Val": UDim2(
                         UDim2 {
                             x: UDim {
-                                scale: 0.0,
+                                scale: 1.0,
                                 offset: 0,
                             },
                             y: UDim {

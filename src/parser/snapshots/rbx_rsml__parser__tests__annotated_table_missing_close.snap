@@ -46,7 +46,44 @@ expression: parsed.ast
                             ),
                             leading_trivia: None,
                         },
-                        content: None,
+                        content: Some(
+                            [
+                                Node {
+                                    node: Node {
+                                        token: SpannedToken(
+                                            13,
+                                            Number(
+                                                "1",
+                                            ),
+                                            14,
+                                        ),
+                                        leading_trivia: None,
+                                    },
+                                },
+                                Node {
+                                    node: Node {
+                                        token: SpannedToken(
+                                            14,
+                                            Comma,
+                                            15,
+                                        ),
+                                        leading_trivia: None,
+                                    },
+                                },
+                                Node {
+                                    node: Node {
+                                        token: SpannedToken(
+                                            16,
+                                            Number(
+                                                "0",
+                                            ),
+                                            17,
+                                        ),
+                                        leading_trivia: None,
+                                    },
+                                },
+                            ],
+                        ),
                         right: None,
                     },
                 ),
