@@ -1,0 +1,104 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Assignment {
+        left: Node {
+            token: SpannedToken(
+                0,
+                TokenIdentifier(
+                    "Val",
+                ),
+                4,
+            ),
+            leading_trivia: None,
+        },
+        middle: Some(
+            Node {
+                token: SpannedToken(
+                    5,
+                    Equals,
+                    6,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        right: Some(
+            MathOperation {
+                left: MathOperation {
+                    left: Node {
+                        node: Node {
+                            token: SpannedToken(
+                                7,
+                                Number(
+                                    "1",
+                                ),
+                                8,
+                            ),
+                            leading_trivia: None,
+                        },
+                    },
+                    operators: [
+                        Node {
+                            token: SpannedToken(
+                                9,
+                                OpMult,
+                                10,
+                            ),
+                            leading_trivia: None,
+                        },
+                    ],
+                    right: Some(
+                        Node {
+                            node: Node {
+                                token: SpannedToken(
+                                    11,
+                                    Number(
+                                        "2",
+                                    ),
+                                    12,
+                                ),
+                                leading_trivia: None,
+                            },
+                        },
+                    ),
+                },
+                operators: [
+                    Node {
+                        token: SpannedToken(
+                            13,
+                            OpAdd,
+                            14,
+                        ),
+                        leading_trivia: None,
+                    },
+                ],
+                right: Some(
+                    Node {
+                        node: Node {
+                            token: SpannedToken(
+                                15,
+                                Number(
+                                    "3",
+                                ),
+                                16,
+                            ),
+                            leading_trivia: None,
+                        },
+                    },
+                ),
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    16,
+                    SemiColon,
+                    17,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]

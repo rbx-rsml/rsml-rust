@@ -1,0 +1,78 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Macro {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                MacroDeclaration,
+                6,
+            ),
+            leading_trivia: None,
+        },
+        name: Some(
+            Node {
+                token: SpannedToken(
+                    7,
+                    Identifier(
+                        "M",
+                    ),
+                    8,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        args: None,
+        return_type: Some(
+            (
+                Node {
+                    token: SpannedToken(
+                        9,
+                        ReturnArrow,
+                        11,
+                    ),
+                    leading_trivia: None,
+                },
+                Some(
+                    Node {
+                        token: SpannedToken(
+                            12,
+                            Identifier(
+                                "Invalid",
+                            ),
+                            19,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            ),
+        ),
+        body: Some(
+            MacroBody {
+                open: Node {
+                    token: SpannedToken(
+                        20,
+                        ScopeOpen,
+                        21,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Construct(
+                    None,
+                ),
+                close: Some(
+                    Node {
+                        token: SpannedToken(
+                            22,
+                            ScopeClose,
+                            23,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+    },
+]

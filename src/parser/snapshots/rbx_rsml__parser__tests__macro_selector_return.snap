@@ -1,0 +1,107 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Macro {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                MacroDeclaration,
+                6,
+            ),
+            leading_trivia: None,
+        },
+        name: Some(
+            Node {
+                token: SpannedToken(
+                    7,
+                    Identifier(
+                        "MySel",
+                    ),
+                    12,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        args: None,
+        return_type: Some(
+            (
+                Node {
+                    token: SpannedToken(
+                        13,
+                        ReturnArrow,
+                        15,
+                    ),
+                    leading_trivia: None,
+                },
+                Some(
+                    Node {
+                        token: SpannedToken(
+                            16,
+                            Identifier(
+                                "Selector",
+                            ),
+                            24,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            ),
+        ),
+        body: Some(
+            MacroBody {
+                open: Node {
+                    token: SpannedToken(
+                        25,
+                        ScopeOpen,
+                        26,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Selector(
+                    Some(
+                        [
+                            Token(
+                                Node {
+                                    token: SpannedToken(
+                                        27,
+                                        Identifier(
+                                            "Frame",
+                                        ),
+                                        32,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                            Token(
+                                Node {
+                                    token: SpannedToken(
+                                        33,
+                                        TagSelectorOrEnumPart(
+                                            Some(
+                                                "tag",
+                                            ),
+                                        ),
+                                        37,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                        ],
+                    ),
+                ),
+                close: Some(
+                    Node {
+                        token: SpannedToken(
+                            38,
+                            ScopeClose,
+                            39,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+    },
+]

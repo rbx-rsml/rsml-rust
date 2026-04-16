@@ -1,0 +1,47 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Rule {
+        selectors: Some(
+            [
+                Token(
+                    Node {
+                        token: SpannedToken(
+                            0,
+                            PseudoSelector(
+                                "UIPadding",
+                            ),
+                            11,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            ],
+        ),
+        body: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        12,
+                        ScopeOpen,
+                        13,
+                    ),
+                    leading_trivia: None,
+                },
+                content: None,
+                right: Some(
+                    Node {
+                        token: SpannedToken(
+                            14,
+                            ScopeClose,
+                            15,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+    },
+]

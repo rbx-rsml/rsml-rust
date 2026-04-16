@@ -1,0 +1,196 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Assignment {
+        left: Node {
+            token: SpannedToken(
+                0,
+                TokenIdentifier(
+                    "Val",
+                ),
+                4,
+            ),
+            leading_trivia: None,
+        },
+        middle: Some(
+            Node {
+                token: SpannedToken(
+                    5,
+                    Equals,
+                    6,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        right: Some(
+            Table {
+                body: Delimited {
+                    left: Node {
+                        token: SpannedToken(
+                            7,
+                            ParensOpen,
+                            8,
+                        ),
+                        leading_trivia: None,
+                    },
+                    content: Some(
+                        [
+                            Table {
+                                body: Delimited {
+                                    left: Node {
+                                        token: SpannedToken(
+                                            8,
+                                            ParensOpen,
+                                            9,
+                                        ),
+                                        leading_trivia: None,
+                                    },
+                                    content: Some(
+                                        [
+                                            Node {
+                                                node: Node {
+                                                    token: SpannedToken(
+                                                        9,
+                                                        Number(
+                                                            "1",
+                                                        ),
+                                                        10,
+                                                    ),
+                                                    leading_trivia: None,
+                                                },
+                                            },
+                                            Node {
+                                                node: Node {
+                                                    token: SpannedToken(
+                                                        10,
+                                                        Comma,
+                                                        11,
+                                                    ),
+                                                    leading_trivia: None,
+                                                },
+                                            },
+                                            Node {
+                                                node: Node {
+                                                    token: SpannedToken(
+                                                        12,
+                                                        Number(
+                                                            "2",
+                                                        ),
+                                                        13,
+                                                    ),
+                                                    leading_trivia: None,
+                                                },
+                                            },
+                                        ],
+                                    ),
+                                    right: Some(
+                                        Node {
+                                            token: SpannedToken(
+                                                13,
+                                                ParensClose,
+                                                14,
+                                            ),
+                                            leading_trivia: None,
+                                        },
+                                    ),
+                                },
+                            },
+                            Node {
+                                node: Node {
+                                    token: SpannedToken(
+                                        14,
+                                        Comma,
+                                        15,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            },
+                            Table {
+                                body: Delimited {
+                                    left: Node {
+                                        token: SpannedToken(
+                                            16,
+                                            ParensOpen,
+                                            17,
+                                        ),
+                                        leading_trivia: None,
+                                    },
+                                    content: Some(
+                                        [
+                                            Node {
+                                                node: Node {
+                                                    token: SpannedToken(
+                                                        17,
+                                                        Number(
+                                                            "3",
+                                                        ),
+                                                        18,
+                                                    ),
+                                                    leading_trivia: None,
+                                                },
+                                            },
+                                            Node {
+                                                node: Node {
+                                                    token: SpannedToken(
+                                                        18,
+                                                        Comma,
+                                                        19,
+                                                    ),
+                                                    leading_trivia: None,
+                                                },
+                                            },
+                                            Node {
+                                                node: Node {
+                                                    token: SpannedToken(
+                                                        20,
+                                                        Number(
+                                                            "4",
+                                                        ),
+                                                        21,
+                                                    ),
+                                                    leading_trivia: None,
+                                                },
+                                            },
+                                        ],
+                                    ),
+                                    right: Some(
+                                        Node {
+                                            token: SpannedToken(
+                                                21,
+                                                ParensClose,
+                                                22,
+                                            ),
+                                            leading_trivia: None,
+                                        },
+                                    ),
+                                },
+                            },
+                        ],
+                    ),
+                    right: Some(
+                        Node {
+                            token: SpannedToken(
+                                22,
+                                ParensClose,
+                                23,
+                            ),
+                            leading_trivia: None,
+                        },
+                    ),
+                },
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    23,
+                    SemiColon,
+                    24,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]

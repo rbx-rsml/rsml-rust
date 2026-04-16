@@ -48,7 +48,6 @@ impl<'a> Iterator for Lexer<'a> {
     }
 }
 
-pub static DECLARATION_NAMES: [&str; 5] = ["@derive", "@macro", "@priority", "@name", "@tween"];
 
 #[derive(Debug, Clone)]
 pub struct SpannedToken<'a>(pub usize, pub Token<'a>, pub usize);
@@ -121,9 +120,6 @@ pub enum Token<'a> {
     #[regex(r"@(?&ident)", callback = |lex| str_to_option(&lex.slice()[1..]))]
     QuerySelector(&'a str),
 
-    // A catch-all for a bare @ with no identifier.
-    #[token("@", callback = |_| None::<&str>)]
-    InvalidDeclaration(Option<&'a str>),
 
     #[regex(r"\$!(?&ident)?", callback = |lex| str_to_option(&lex.slice()[2..]))]
     StaticTokenIdentifier(&'a str),
@@ -227,26 +223,26 @@ pub enum Token<'a> {
     Nil,
 
     #[regex(r"(?i)tw:[a-z]+(:\d+)?")]
-    ColorTailwind,
+    ColorTailwind(&'a str),
 
     #[regex(r"(?i)skin:[a-z]+(:\d+)?")]
-    ColorSkin,
+    ColorSkin(&'a str),
 
     #[regex(r"(?i)bc:[a-z]+")]
-    ColorBrick,
+    ColorBrick(&'a str),
 
     #[regex(r"(?i)css:[a-z]+")]
-    ColorCss,
+    ColorCss(&'a str),
 
     #[regex(r"#[\da-fA-F]+", priority = 99)]
-    ColorHex,
+    ColorHex(&'a str),
 
     #[regex(r"rbxassetid://\d*")]
     #[regex(r"(rbxasset|rbxthumb|rbxgameasset|rbxhttp|rbxtemp|https?)://[^) ]*")]
-    RbxAsset,
+    RbxAsset(&'a str),
 
     #[regex(r"contentid://\d*", priority = 999)]
-    RbxContent,
+    RbxContent(&'a str),
 
     #[token("Enum")]
     EnumKeyword,
@@ -388,7 +384,6 @@ const TOKEN_KIND_STRING_MAP: LazyLock<HashMap<TokenKind, &'static str>> = lazy_c
     TokenKind::NameDeclaration => "\"@name\"",
     TokenKind::TweenDeclaration => "\"@tween\"",
     TokenKind::QuerySelector => "`query selector`",
-    TokenKind::InvalidDeclaration => "`invalid declaration`",
     TokenKind::Identifier => "`identifer`",
     TokenKind::MacroArgIdentifier => "`macro argument`",
     TokenKind::MacroCallIdentifier => "`macro call`",

@@ -1,0 +1,131 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Macro {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                MacroDeclaration,
+                6,
+            ),
+            leading_trivia: None,
+        },
+        name: Some(
+            Node {
+                token: SpannedToken(
+                    7,
+                    Identifier(
+                        "M",
+                    ),
+                    8,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        args: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        8,
+                        ParensOpen,
+                        9,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Some(
+                    [
+                        Node {
+                            node: Node {
+                                token: SpannedToken(
+                                    9,
+                                    MacroArgIdentifier(
+                                        Some(
+                                            "a",
+                                        ),
+                                    ),
+                                    11,
+                                ),
+                                leading_trivia: None,
+                            },
+                        },
+                        Node {
+                            node: Node {
+                                token: SpannedToken(
+                                    12,
+                                    MacroArgIdentifier(
+                                        Some(
+                                            "b",
+                                        ),
+                                    ),
+                                    14,
+                                ),
+                                leading_trivia: None,
+                            },
+                        },
+                    ],
+                ),
+                right: Some(
+                    Node {
+                        token: SpannedToken(
+                            14,
+                            ParensClose,
+                            15,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+        return_type: Some(
+            (
+                Node {
+                    token: SpannedToken(
+                        16,
+                        ReturnArrow,
+                        18,
+                    ),
+                    leading_trivia: None,
+                },
+                Some(
+                    Node {
+                        token: SpannedToken(
+                            19,
+                            Identifier(
+                                "Construct",
+                            ),
+                            28,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            ),
+        ),
+        body: Some(
+            MacroBody {
+                open: Node {
+                    token: SpannedToken(
+                        29,
+                        ScopeOpen,
+                        30,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Construct(
+                    None,
+                ),
+                close: Some(
+                    Node {
+                        token: SpannedToken(
+                            31,
+                            ScopeClose,
+                            32,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+    },
+]

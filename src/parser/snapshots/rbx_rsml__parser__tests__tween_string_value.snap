@@ -1,0 +1,52 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Tween {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                TweenDeclaration,
+                6,
+            ),
+            leading_trivia: None,
+        },
+        name: Some(
+            Node {
+                token: SpannedToken(
+                    7,
+                    Identifier(
+                        "Slide",
+                    ),
+                    12,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        body: Some(
+            Node {
+                node: Node {
+                    token: SpannedToken(
+                        13,
+                        StringSingle(
+                            "ease-in",
+                        ),
+                        22,
+                    ),
+                    leading_trivia: None,
+                },
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    22,
+                    SemiColon,
+                    23,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]

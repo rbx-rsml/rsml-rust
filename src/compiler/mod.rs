@@ -29,13 +29,13 @@ pub struct CompilerData<'a> {
 }
 
 impl<'a> Compiler<'a> {
-    pub fn new(parsed: ParsedRsml<'a>, source: &'a str) -> CompilerData<'a> {
+    pub fn new(parsed: ParsedRsml<'a>) -> CompilerData<'a> {
         let compiler = Self { parsed };
         let mut tree_nodes = TreeNodeGroup::new();
         let mut current_idx = TreeNodeType::Root;
 
         for construct in &compiler.parsed.ast {
-            compile_construct(construct, &mut tree_nodes, &mut current_idx, source);
+            compile_construct(construct, &mut tree_nodes, &mut current_idx);
         }
 
         CompilerData {
@@ -49,15 +49,14 @@ fn compile_construct(
     construct: &Construct,
     tree_nodes: &mut TreeNodeGroup,
     current_idx: &mut TreeNodeType,
-    source: &str,
 ) {
     match construct {
         Construct::Rule { selectors, body } => {
-            compile_rule(selectors, body, tree_nodes, current_idx, source);
+            compile_rule(selectors, body, tree_nodes, current_idx);
         }
 
         Construct::Assignment { left, right, .. } => {
-            compile_assignment(left, right.as_deref(), tree_nodes, current_idx, source);
+            compile_assignment(left, right.as_deref(), tree_nodes, current_idx);
         }
 
         Construct::Priority { body, .. } => {
@@ -65,7 +64,7 @@ fn compile_construct(
                 if let Some(body) = body {
                     let idx = *current_idx;
                     if let Some(Datatype::Variant(Variant::Float32(value))) =
-                        evaluate_construct(body, None, tree_nodes, &idx, source)
+                        evaluate_construct(body, None, tree_nodes, &idx)
                     {
                         if let Some(node) = tree_nodes[node_idx].as_mut() {
                             node.priority = Some(value as i32);
@@ -80,7 +79,7 @@ fn compile_construct(
                 if let Some(body) = body {
                     let idx = *current_idx;
                     if let Some(Datatype::Variant(Variant::String(value))) =
-                        evaluate_construct(body, None, tree_nodes, &idx, source)
+                        evaluate_construct(body, None, tree_nodes, &idx)
                     {
                         if let Some(node) = tree_nodes[node_idx].as_mut() {
                             node.name = Some(value);
@@ -97,7 +96,7 @@ fn compile_construct(
                         if let Some(body) = body {
                             let idx = *current_idx;
                             if let Some(datatype) =
-                                evaluate_construct(body, None, tree_nodes, &idx, source)
+                                evaluate_construct(body, None, tree_nodes, &idx)
                             {
                                 if let Some(node) = tree_nodes[node_idx].as_mut() {
                                     node.tweens.insert(tween_name.to_string(), datatype);
@@ -122,7 +121,6 @@ fn compile_rule(
     body: &Option<Delimited>,
     tree_nodes: &mut TreeNodeGroup,
     current_idx: &mut TreeNodeType,
-    source: &str,
 ) {
     let selector_string = selectors.as_ref().map(|s| build_selector_string(s));
 
@@ -143,7 +141,7 @@ fn compile_rule(
             *current_idx = new_node_idx_type;
 
             for construct in constructs {
-                compile_construct(construct, tree_nodes, current_idx, source);
+                compile_construct(construct, tree_nodes, current_idx);
             }
 
             *current_idx = saved_idx;
@@ -156,7 +154,6 @@ fn compile_assignment(
     right: Option<&Construct>,
     tree_nodes: &mut TreeNodeGroup,
     current_idx: &mut TreeNodeType,
-    source: &str,
 ) {
     let Some(right) = right else { return };
     let idx = *current_idx;
@@ -165,7 +162,7 @@ fn compile_assignment(
         Token::Identifier(prop_name) => {
             if let TreeNodeType::Node(node_idx) = idx {
                 let datatype =
-                    evaluate_construct(right, Some(prop_name), tree_nodes, &idx, source);
+                    evaluate_construct(right, Some(prop_name), tree_nodes, &idx);
                 let variant = datatype.and_then(|d| d.coerce_to_variant(Some(prop_name)));
 
                 if let Some(variant) = variant {
@@ -178,7 +175,7 @@ fn compile_assignment(
 
         Token::TokenIdentifier(attr_name) => {
             let datatype =
-                evaluate_construct(right, Some(attr_name), tree_nodes, &idx, source);
+                evaluate_construct(right, Some(attr_name), tree_nodes, &idx);
             let variant = datatype.and_then(|d| d.coerce_to_variant(Some(attr_name)));
 
             if let Some(variant) = variant {
@@ -199,7 +196,7 @@ fn compile_assignment(
 
         Token::StaticTokenIdentifier(static_name) => {
             let datatype =
-                evaluate_construct(right, Some(static_name), tree_nodes, &idx, source);
+                evaluate_construct(right, Some(static_name), tree_nodes, &idx);
             let static_val = datatype.and_then(|d| d.coerce_to_static(Some(static_name)));
 
             if let Some(static_val) = static_val {
@@ -227,20 +224,19 @@ fn evaluate_construct(
     key: Option<&str>,
     tree_nodes: &TreeNodeGroup,
     current_idx: &TreeNodeType,
-    source: &str,
 ) -> Option<Datatype> {
     match construct {
-        Construct::Node { node } => evaluate_token(node, key, tree_nodes, current_idx, source),
+        Construct::Node { node } => evaluate_token(node, key, tree_nodes, current_idx),
 
         Construct::MathOperation {
             left,
             operators,
             right,
         } => {
-            let left_val = evaluate_construct(left, key, tree_nodes, current_idx, source)?;
+            let left_val = evaluate_construct(left, key, tree_nodes, current_idx)?;
             let right_val = right
                 .as_ref()
-                .and_then(|r| evaluate_construct(r, key, tree_nodes, current_idx, source));
+                .and_then(|r| evaluate_construct(r, key, tree_nodes, current_idx));
 
             let Some(right_val) = right_val else {
                 return Some(left_val);
@@ -259,13 +255,13 @@ fn evaluate_construct(
         }
 
         Construct::UnaryMinus { operand, .. } => {
-            let val = evaluate_construct(operand, key, tree_nodes, current_idx, source)?;
+            let val = evaluate_construct(operand, key, tree_nodes, current_idx)?;
             let variant = val.coerce_to_variant(key)?;
             negate_variant(&variant).map(Datatype::Variant)
         }
 
         Construct::Table { body } => {
-            let datatypes = evaluate_delimited_to_vec(body, tree_nodes, current_idx, source);
+            let datatypes = evaluate_delimited_to_vec(body, tree_nodes, current_idx);
             coerce_tuple_data(datatypes, None)
         }
 
@@ -277,7 +273,7 @@ fn evaluate_construct(
 
             if let Some(body) = body {
                 let datatypes =
-                    evaluate_delimited_to_vec(body, tree_nodes, current_idx, source);
+                    evaluate_delimited_to_vec(body, tree_nodes, current_idx);
                 coerce_tuple_data(datatypes, annotation_name)
             } else {
                 coerce_tuple_data(vec![], annotation_name)
@@ -309,7 +305,7 @@ fn evaluate_construct(
 
         Construct::Assignment { right, .. } => right
             .as_ref()
-            .and_then(|r| evaluate_construct(r, key, tree_nodes, current_idx, source)),
+            .and_then(|r| evaluate_construct(r, key, tree_nodes, current_idx)),
 
         _ => None,
     }
@@ -320,7 +316,6 @@ fn evaluate_token(
     key: Option<&str>,
     tree_nodes: &TreeNodeGroup,
     current_idx: &TreeNodeType,
-    source: &str,
 ) -> Option<Datatype> {
     match node.token.value() {
         Token::Number(s) => parse_number_str(s).map(|n| Datatype::Variant(Variant::Float32(n))),
@@ -343,13 +338,11 @@ fn evaluate_token(
             Some(Datatype::Variant(Variant::String(multi.content.to_string())))
         }
 
-        Token::RbxAsset => {
-            let slice = source_slice(source, node);
+        Token::RbxAsset(slice) => {
             Some(Datatype::Variant(Variant::String(slice.to_string())))
         }
 
-        Token::RbxContent => {
-            let slice = source_slice(source, node);
+        Token::RbxContent(slice) => {
             Some(Datatype::Variant(Variant::Content(Content::from(
                 slice.to_string(),
             ))))
@@ -362,8 +355,7 @@ fn evaluate_token(
 
         Token::Nil => Some(Datatype::None),
 
-        Token::ColorHex => {
-            let slice = source_slice(source, node);
+        Token::ColorHex(slice) => {
             let hex = normalize_hex(slice);
             let color: Result<Srgb<u8>, _> = hex.parse();
             color.ok().map(|c| {
@@ -373,29 +365,25 @@ fn evaluate_token(
             })
         }
 
-        Token::ColorTailwind => {
-            let slice = source_slice(source, node);
+        Token::ColorTailwind(slice) => {
             TAILWIND_COLORS
                 .get(&slice.to_lowercase())
                 .map(|color| Datatype::Oklab(***color))
         }
 
-        Token::ColorSkin => {
-            let slice = source_slice(source, node);
+        Token::ColorSkin(slice) => {
             SKIN_COLORS
                 .get(&slice.to_lowercase())
                 .map(|color| Datatype::Oklab(***color))
         }
 
-        Token::ColorCss => {
-            let slice = source_slice(source, node);
+        Token::ColorCss(slice) => {
             CSS_COLORS
                 .get(&slice.to_lowercase())
                 .map(|color| Datatype::Oklab(***color))
         }
 
-        Token::ColorBrick => {
-            let slice = source_slice(source, node);
+        Token::ColorBrick(slice) => {
             BRICK_COLORS
                 .get(&slice.to_lowercase())
                 .map(|color| Datatype::Oklab(***color))
@@ -424,17 +412,10 @@ fn evaluate_token(
     }
 }
 
-fn source_slice<'a>(source: &'a str, node: &Node) -> &'a str {
-    let start = node.token.start();
-    let end = node.token.end();
-    &source[start..end]
-}
-
 fn evaluate_delimited_to_vec(
     delimited: &Delimited,
     tree_nodes: &TreeNodeGroup,
     current_idx: &TreeNodeType,
-    source: &str,
 ) -> Vec<Datatype> {
     let Some(content) = &delimited.content else {
         return vec![];
@@ -442,7 +423,7 @@ fn evaluate_delimited_to_vec(
 
     content
         .iter()
-        .filter_map(|c| evaluate_construct(c, None, tree_nodes, current_idx, source))
+        .filter_map(|c| evaluate_construct(c, None, tree_nodes, current_idx))
         .collect()
 }
 

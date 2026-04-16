@@ -1,0 +1,39 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Assignment {
+        left: Node {
+            token: SpannedToken(
+                0,
+                StaticTokenIdentifier(
+                    "Padding",
+                ),
+                9,
+            ),
+            leading_trivia: None,
+        },
+        middle: Some(
+            Node {
+                token: SpannedToken(
+                    10,
+                    Equals,
+                    11,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        right: None,
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    12,
+                    SemiColon,
+                    13,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]

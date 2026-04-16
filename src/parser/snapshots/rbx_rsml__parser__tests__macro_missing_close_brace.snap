@@ -1,0 +1,118 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Macro {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                MacroDeclaration,
+                6,
+            ),
+            leading_trivia: None,
+        },
+        name: Some(
+            Node {
+                token: SpannedToken(
+                    7,
+                    Identifier(
+                        "M",
+                    ),
+                    8,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        args: None,
+        return_type: Some(
+            (
+                Node {
+                    token: SpannedToken(
+                        9,
+                        ReturnArrow,
+                        11,
+                    ),
+                    leading_trivia: None,
+                },
+                Some(
+                    Node {
+                        token: SpannedToken(
+                            12,
+                            Identifier(
+                                "Construct",
+                            ),
+                            21,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            ),
+        ),
+        body: Some(
+            MacroBody {
+                open: Node {
+                    token: SpannedToken(
+                        22,
+                        ScopeOpen,
+                        23,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Construct(
+                    Some(
+                        [
+                            Assignment {
+                                left: Node {
+                                    token: SpannedToken(
+                                        24,
+                                        Identifier(
+                                            "Size",
+                                        ),
+                                        28,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                                middle: Some(
+                                    Node {
+                                        token: SpannedToken(
+                                            29,
+                                            Equals,
+                                            30,
+                                        ),
+                                        leading_trivia: None,
+                                    },
+                                ),
+                                right: Some(
+                                    Node {
+                                        node: Node {
+                                            token: SpannedToken(
+                                                31,
+                                                Number(
+                                                    "1",
+                                                ),
+                                                32,
+                                            ),
+                                            leading_trivia: None,
+                                        },
+                                    },
+                                ),
+                                terminator: Some(
+                                    Node {
+                                        token: SpannedToken(
+                                            32,
+                                            SemiColon,
+                                            33,
+                                        ),
+                                        leading_trivia: None,
+                                    },
+                                ),
+                            },
+                        ],
+                    ),
+                ),
+                close: None,
+            },
+        ),
+    },
+]

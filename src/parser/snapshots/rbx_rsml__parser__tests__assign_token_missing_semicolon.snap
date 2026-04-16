@@ -1,0 +1,43 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Assignment {
+        left: Node {
+            token: SpannedToken(
+                0,
+                TokenIdentifier(
+                    "Size",
+                ),
+                5,
+            ),
+            leading_trivia: None,
+        },
+        middle: Some(
+            Node {
+                token: SpannedToken(
+                    6,
+                    Equals,
+                    7,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        right: Some(
+            Node {
+                node: Node {
+                    token: SpannedToken(
+                        8,
+                        Number(
+                            "100",
+                        ),
+                        11,
+                    ),
+                    leading_trivia: None,
+                },
+            },
+        ),
+        terminator: None,
+    },
+]

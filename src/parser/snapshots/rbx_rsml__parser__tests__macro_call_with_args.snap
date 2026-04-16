@@ -1,0 +1,90 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    MacroCall {
+        name: Node {
+            token: SpannedToken(
+                0,
+                MacroCallIdentifier(
+                    Some(
+                        "MyMacro",
+                    ),
+                ),
+                8,
+            ),
+            leading_trivia: None,
+        },
+        body: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        8,
+                        ParensOpen,
+                        9,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Some(
+                    [
+                        Node {
+                            node: Node {
+                                token: SpannedToken(
+                                    9,
+                                    Identifier(
+                                        "arg1",
+                                    ),
+                                    13,
+                                ),
+                                leading_trivia: None,
+                            },
+                        },
+                        Node {
+                            node: Node {
+                                token: SpannedToken(
+                                    13,
+                                    Comma,
+                                    14,
+                                ),
+                                leading_trivia: None,
+                            },
+                        },
+                        Node {
+                            node: Node {
+                                token: SpannedToken(
+                                    15,
+                                    Identifier(
+                                        "arg2",
+                                    ),
+                                    19,
+                                ),
+                                leading_trivia: None,
+                            },
+                        },
+                    ],
+                ),
+                right: Some(
+                    Node {
+                        token: SpannedToken(
+                            19,
+                            ParensClose,
+                            20,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    20,
+                    SemiColon,
+                    21,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]

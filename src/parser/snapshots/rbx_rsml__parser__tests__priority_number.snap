@@ -1,0 +1,40 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Priority {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                PriorityDeclaration,
+                9,
+            ),
+            leading_trivia: None,
+        },
+        body: Some(
+            Node {
+                node: Node {
+                    token: SpannedToken(
+                        10,
+                        Number(
+                            "10",
+                        ),
+                        12,
+                    ),
+                    leading_trivia: None,
+                },
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    12,
+                    SemiColon,
+                    13,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]

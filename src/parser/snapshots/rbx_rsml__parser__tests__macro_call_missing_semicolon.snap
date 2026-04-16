@@ -1,0 +1,46 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    MacroCall {
+        name: Node {
+            token: SpannedToken(
+                0,
+                MacroCallIdentifier(
+                    Some(
+                        "MyMacro",
+                    ),
+                ),
+                8,
+            ),
+            leading_trivia: None,
+        },
+        body: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        8,
+                        ParensOpen,
+                        9,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Some(
+                    [],
+                ),
+                right: Some(
+                    Node {
+                        token: SpannedToken(
+                            9,
+                            ParensClose,
+                            10,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+        terminator: None,
+    },
+]

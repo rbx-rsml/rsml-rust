@@ -300,7 +300,6 @@ impl<'a> Parser<'a> {
                 node = parser.parse_property_assignment_or_rule_scope(node).handle_construct(&mut body_content)?;
                 node = parser.parse_rule_scope_selector_begin(node).handle_construct(&mut body_content)?;
 
-                node = parser.parse_invalid_declaration(node)?;
                 node = parser.parse_none(node).handle_construct(&mut body_content)?;
 
                 let end_parsing = node_token_matches!(node, ScopeClose);

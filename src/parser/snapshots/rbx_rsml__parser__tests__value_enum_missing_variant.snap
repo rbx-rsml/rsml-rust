@@ -1,0 +1,65 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Assignment {
+        left: Node {
+            token: SpannedToken(
+                0,
+                Identifier(
+                    "SortOrder",
+                ),
+                9,
+            ),
+            leading_trivia: None,
+        },
+        middle: Some(
+            Node {
+                token: SpannedToken(
+                    10,
+                    Equals,
+                    11,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        right: Some(
+            Enum {
+                keyword: Node {
+                    token: SpannedToken(
+                        12,
+                        EnumKeyword,
+                        16,
+                    ),
+                    leading_trivia: None,
+                },
+                name: Some(
+                    Node {
+                        token: SpannedToken(
+                            16,
+                            TagSelectorOrEnumPart(
+                                Some(
+                                    "SortOrder",
+                                ),
+                            ),
+                            26,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+                variant: None,
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    26,
+                    SemiColon,
+                    27,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]

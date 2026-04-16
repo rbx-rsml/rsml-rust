@@ -1,0 +1,136 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Rule {
+        selectors: Some(
+            [
+                MacroCall {
+                    name: Node {
+                        token: SpannedToken(
+                            0,
+                            MacroCallIdentifier(
+                                Some(
+                                    "sel",
+                                ),
+                            ),
+                            4,
+                        ),
+                        leading_trivia: None,
+                    },
+                    body: Some(
+                        Delimited {
+                            left: Node {
+                                token: SpannedToken(
+                                    4,
+                                    ParensOpen,
+                                    5,
+                                ),
+                                leading_trivia: None,
+                            },
+                            content: Some(
+                                [
+                                    Node {
+                                        node: Node {
+                                            token: SpannedToken(
+                                                5,
+                                                Identifier(
+                                                    "arg",
+                                                ),
+                                                8,
+                                            ),
+                                            leading_trivia: None,
+                                        },
+                                    },
+                                ],
+                            ),
+                            right: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        8,
+                                        ParensClose,
+                                        9,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                        },
+                    ),
+                },
+            ],
+        ),
+        body: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        10,
+                        ScopeOpen,
+                        11,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Some(
+                    [
+                        Assignment {
+                            left: Node {
+                                token: SpannedToken(
+                                    12,
+                                    Identifier(
+                                        "Size",
+                                    ),
+                                    16,
+                                ),
+                                leading_trivia: None,
+                            },
+                            middle: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        17,
+                                        Equals,
+                                        18,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                            right: Some(
+                                Node {
+                                    node: Node {
+                                        token: SpannedToken(
+                                            19,
+                                            Number(
+                                                "100",
+                                            ),
+                                            22,
+                                        ),
+                                        leading_trivia: None,
+                                    },
+                                },
+                            ),
+                            terminator: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        22,
+                                        SemiColon,
+                                        23,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                        },
+                    ],
+                ),
+                right: Some(
+                    Node {
+                        token: SpannedToken(
+                            24,
+                            ScopeClose,
+                            25,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+    },
+]

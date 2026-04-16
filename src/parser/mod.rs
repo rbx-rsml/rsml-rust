@@ -1,6 +1,6 @@
 use crate::types::Range;
 
-use crate::lexer::{DECLARATION_NAMES, Lexer, TOKEN_KIND_CONSTRUCT_DELIMITERS, Token, TokenKind};
+use crate::lexer::{Lexer, TOKEN_KIND_CONSTRUCT_DELIMITERS, Token, TokenKind};
 use crate::list::TokenKindList;
 use crate::range_from_span::RangeFromSpan;
 use crate::{node_token_matches, token_kind_list};
@@ -88,8 +88,6 @@ impl<'a> Parser<'a> {
             node = parser
                 .parse_rule_scope_selector_begin(node)
                 .handle_construct(&mut parser.ast)?;
-
-            node = parser.parse_invalid_declaration(node)?;
 
             node = parser.parse_none(node).handle_construct(&mut parser.ast)?;
 
@@ -217,29 +215,6 @@ impl<'a> Parser<'a> {
             return Parsed(Some(node), None);
         };
         self.parse_assignment(node)
-    }
-
-    pub(crate) fn parse_invalid_declaration(&mut self, node: Node<'a>) -> Option<Node<'a>> {
-        let token = &node.token;
-
-        let name = if let Token::InvalidDeclaration(x) = token.value() {
-            x
-        } else {
-            return Some(node);
-        };
-
-        self.ast_errors.push(
-            ParseError::UnexpectedTokens {
-                msg: Some(ParseErrorMessage::correction(
-                    name.as_deref().map(|x| format!("@{x}")),
-                    self.range_from_span((token.start(), token.end())),
-                    &DECLARATION_NAMES,
-                )),
-            },
-            self.range_from_span((token.start(), token.end())),
-        );
-
-        self.advance()
     }
 
     pub(crate) fn parse_none(&mut self, node: Node<'a>) -> Parsed<'a> {
@@ -386,6 +361,18 @@ impl<'a> Parser<'a> {
 mod tests {
     use super::*;
 
+    macro_rules! parser_test {
+        ($name:ident, $source:expr) => {
+            #[test]
+            fn $name() {
+                let parsed = Parser::parse_source($source);
+                insta::assert_debug_snapshot!(parsed.ast);
+            }
+        };
+    }
+
+    // ── Existing test (kept as-is) ──────────────────────────────────
+
     #[test]
     fn unary_minus_in_udim2_expression() {
         let source = r#"$Size = udim2(-20px + 100%, -20px + 100%);"#;
@@ -394,4 +381,171 @@ mod tests {
         assert!(parsed.ast_errors.0.is_empty(), "Expected no parse errors, got: {:?}", parsed.ast_errors.0);
         insta::assert_debug_snapshot!(parsed.ast);
     }
+
+    // ── A. Declarations ─────────────────────────────────────────────
+
+    parser_test!(derive_string, r#"@derive "some-module";"#);
+    parser_test!(derive_missing_semicolon, r#"@derive "module""#);
+    parser_test!(derive_missing_body, r#"@derive"#);
+    parser_test!(priority_number, r#"@priority 10;"#);
+    parser_test!(priority_missing_semicolon, r#"@priority 10"#);
+    parser_test!(name_string, r#"@name "MySheet";"#);
+    parser_test!(name_identifier, r#"@name MySheet;"#);
+    parser_test!(name_missing_semicolon, r#"@name "test""#);
+    parser_test!(tween_simple, r#"@tween MyTween 0.5;"#);
+    parser_test!(tween_string_value, r#"@tween Slide "ease-in";"#);
+    parser_test!(tween_missing_name, r#"@tween ;"#);
+    parser_test!(tween_missing_semicolon, r#"@tween MyTween 0.5"#);
+
+    // ── B. Assignments ──────────────────────────────────────────────
+
+    parser_test!(assign_property_string, r#"Text = "hello";"#);
+    parser_test!(assign_property_number, r#"Size = 42;"#);
+    parser_test!(assign_property_boolean, r#"Visible = true;"#);
+    parser_test!(assign_property_nil, r#"Parent = nil;"#);
+    parser_test!(assign_property_missing_value, r#"Text = ;"#);
+    parser_test!(assign_property_missing_semicolon, r#"Text = "hello""#);
+    parser_test!(assign_token, r#"$Size = 100;"#);
+    parser_test!(assign_token_annotated_table, r#"$Size = udim2(1, 0, 1, 0);"#);
+    parser_test!(assign_token_missing_semicolon, r#"$Size = 100"#);
+    parser_test!(assign_static_token, r#"$!Padding = 10px;"#);
+    parser_test!(assign_static_token_missing_value, r#"$!Padding = ;"#);
+
+    // ── C. Datatype Values ──────────────────────────────────────────
+
+    parser_test!(value_number_scale, r#"Size = 100%;"#);
+    parser_test!(value_number_offset, r#"Size = 20px;"#);
+    parser_test!(value_string_double, r#"Text = "hello world";"#);
+    parser_test!(value_string_single, r#"Text = 'hello world';"#);
+    parser_test!(value_string_multi, r#"Text = [[multi line]];"#);
+    parser_test!(value_color_hex, r#"Color = #ff00ff;"#);
+    parser_test!(value_color_tailwind, r#"Color = tw:red:500;"#);
+    parser_test!(value_color_css, r#"Color = css:tomato;"#);
+    parser_test!(value_color_brick, r#"Color = bc:red;"#);
+    parser_test!(value_rbx_asset, r#"Image = rbxassetid://12345;"#);
+    parser_test!(value_rbx_content, r#"Image = contentid://12345;"#);
+    parser_test!(value_enum, r#"SortOrder = Enum.SortOrder.LayoutOrder;"#);
+    parser_test!(value_enum_missing_variant, r#"SortOrder = Enum.SortOrder;"#);
+
+    // ── D. Tables ───────────────────────────────────────────────────
+
+    parser_test!(annotated_table_udim2, r#"$Size = udim2(1, 0, 1, 0);"#);
+    parser_test!(annotated_table_no_args, r#"$Val = empty();"#);
+    parser_test!(annotated_table_nested, r#"$Val = outer(inner(1, 2));"#);
+    parser_test!(annotated_table_missing_close, r#"$Val = udim2(1, 0;"#);
+    parser_test!(table_bare, r#"$Val = (1, 2, 3);"#);
+    parser_test!(table_empty, r#"$Val = ();"#);
+    parser_test!(table_nested, r#"$Val = ((1, 2), (3, 4));"#);
+    parser_test!(table_missing_close, r#"$Val = (1, 2"#);
+
+    // ── E. Math Operations ──────────────────────────────────────────
+
+    parser_test!(math_add, r#"$Val = 10 + 20;"#);
+    parser_test!(math_sub, r#"$Val = 10 - 5;"#);
+    parser_test!(math_mult, r#"$Val = 10 * 5;"#);
+    parser_test!(math_div, r#"$Val = 10 / 5;"#);
+    parser_test!(math_floor_div, r#"$Val = 10 // 3;"#);
+    parser_test!(math_mod, r#"$Val = 10 % 3;"#);
+    parser_test!(math_pow, r#"$Val = 2 ^ 8;"#);
+    parser_test!(math_precedence_add_mult, r#"$Val = 1 + 2 * 3;"#);
+    parser_test!(math_precedence_mult_add, r#"$Val = 1 * 2 + 3;"#);
+    parser_test!(math_chained_add_sub, r#"$Val = 1 + 2 - 3 + 4;"#);
+    parser_test!(unary_minus_simple, r#"$Val = -10;"#);
+    parser_test!(unary_minus_in_expression, r#"$Val = -10 + 20;"#);
+    parser_test!(math_udim_mixed, r#"$Size = 50% + 10px;"#);
+    parser_test!(math_missing_right_operand, r#"$Val = 10 +;"#);
+
+    // ── F. Rules & Selectors ────────────────────────────────────────
+
+    parser_test!(rule_identifier, r#"Frame { }"#);
+    parser_test!(rule_name_selector, r#"#MyFrame { }"#);
+    parser_test!(rule_tag_selector, r#".tagged { }"#);
+    parser_test!(rule_state_selector, r#":hover { }"#);
+    parser_test!(rule_pseudo_selector, r#"::UIPadding { }"#);
+    parser_test!(rule_children_selector, r#"Frame > TextLabel { }"#);
+    parser_test!(rule_descendants_selector, r#"Frame >> TextLabel { }"#);
+    parser_test!(rule_comma_selectors, r#"Frame, TextLabel { }"#);
+    parser_test!(rule_comma_three, r#"Frame, TextLabel, ImageLabel { }"#);
+    parser_test!(rule_compound, r#"Frame .tag :hover { }"#);
+    parser_test!(rule_with_assignment, r#"Frame { Size = 100; }"#);
+    parser_test!(rule_with_multiple_assignments, "Frame {\n    Size = 100;\n    Visible = true;\n}");
+    parser_test!(rule_nested, r#"Frame { TextLabel { Text = "hi"; } }"#);
+    parser_test!(rule_deeply_nested, r#".tag { :hover { Color = #f00; } }"#);
+    parser_test!(rule_missing_close_brace, r#"Frame { Size = 100;"#);
+    parser_test!(rule_children_missing_part, r#"Frame > { }"#);
+    parser_test!(rule_macro_call_selector, r#"sel!(arg) { Size = 100; }"#);
+    parser_test!(rule_macro_call_comma, r#"sel!(a), Frame { }"#);
+
+    // ── G. Macros ───────────────────────────────────────────────────
+
+    parser_test!(macro_construct_return, r#"@macro MyMacro -> Construct { Size = 100; }"#);
+    parser_test!(macro_args_construct_return, r#"@macro MyMacro(&v) -> Construct { Size = &v; }"#);
+    parser_test!(macro_assignment_return, r#"@macro MyColor -> Assignment { #ff0000 }"#);
+    parser_test!(macro_assignment_return_args, r#"@macro Scale(&x) -> Assignment { &x }"#);
+    parser_test!(macro_selector_return, r#"@macro MySel -> Selector { Frame .tag }"#);
+    parser_test!(macro_selector_return_args, r#"@macro MySel(&c) -> Selector { Frame .tag :hover }"#);
+    parser_test!(macro_nested_rule, r#"@macro Theme(&c) -> Construct { Frame { Color = &c; } }"#);
+    parser_test!(macro_empty_body, r#"@macro MyMacro -> Construct { }"#);
+    parser_test!(macro_missing_name, r#"@macro { }"#);
+    parser_test!(macro_missing_body, r#"@macro MyMacro"#);
+    parser_test!(macro_missing_close_brace, r#"@macro M -> Construct { Size = 1;"#);
+    parser_test!(macro_invalid_return_type, r#"@macro M -> Invalid { }"#);
+    parser_test!(macro_args_missing_comma, r#"@macro M(&a &b) -> Construct { }"#);
+
+    // ── H. Macro Calls ──────────────────────────────────────────────
+
+    parser_test!(macro_call_no_args, r#"MyMacro!();"#);
+    parser_test!(macro_call_with_args, r#"MyMacro!(arg1, arg2);"#);
+    parser_test!(macro_call_complex_args, r#"Apply!(#ff0000, 10px, "hello");"#);
+    parser_test!(macro_call_missing_semicolon, r#"MyMacro!()"#);
+    parser_test!(macro_call_missing_close_paren, r#"MyMacro!(arg1;"#);
+
+    // ── I. Comments ─────────────────────────────────────────────────
+
+    parser_test!(comment_before_assign, "-- comment\nSize = 100;");
+    parser_test!(comment_multi_before_assign, r#"--[[comment]] Size = 100;"#);
+    parser_test!(comment_multi_nested, r#"--[==[comment]==] Size = 100;"#);
+    parser_test!(comment_leading_trivia, "-- a\n-- b\nSize = 100;");
+
+    // ── J. Query Selectors ────────────────────────────────────────────
+
+    parser_test!(query_selector, r#"@media { }"#);
+    parser_test!(query_selector_unknown, r#"@foobar { }"#);
+
+    // ── K. Integration / Edge Cases ─────────────────────────────────
+
+    parser_test!(empty_source, r#""#);
+    parser_test!(multiple_top_level, "@name \"T\";\n@priority 5;\nFrame { Size = 100; }");
+    parser_test!(full_stylesheet, r#"
+@name "MySheet";
+@derive "base";
+@priority 5;
+@tween Fade 0.3;
+
+$!PrimaryColor = #3498db;
+$Padding = 10px;
+
+@macro Highlight(&color) -> Construct {
+    BackgroundColor3 = &color;
+}
+
+Frame {
+    BackgroundColor3 = $!PrimaryColor;
+    Size = udim2(1, -$Padding * 2, 1, -$Padding * 2);
+
+    TextLabel {
+        Text = "Hello";
+        TextColor3 = css:white;
+    }
+
+    :hover {
+        BackgroundColor3 = tw:blue:600;
+    }
+}
+
+#Sidebar, .panel {
+    Size = udim2(0, 200px, 1, 0);
+}
+"#);
+    parser_test!(macro_def_and_call, "@macro P(&v) -> Construct { $!P = &v; }\nP!(10px);");
 }

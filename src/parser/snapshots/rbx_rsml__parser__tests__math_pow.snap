@@ -1,0 +1,78 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Assignment {
+        left: Node {
+            token: SpannedToken(
+                0,
+                TokenIdentifier(
+                    "Val",
+                ),
+                4,
+            ),
+            leading_trivia: None,
+        },
+        middle: Some(
+            Node {
+                token: SpannedToken(
+                    5,
+                    Equals,
+                    6,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        right: Some(
+            MathOperation {
+                left: Node {
+                    node: Node {
+                        token: SpannedToken(
+                            7,
+                            Number(
+                                "2",
+                            ),
+                            8,
+                        ),
+                        leading_trivia: None,
+                    },
+                },
+                operators: [
+                    Node {
+                        token: SpannedToken(
+                            9,
+                            OpPow,
+                            10,
+                        ),
+                        leading_trivia: None,
+                    },
+                ],
+                right: Some(
+                    Node {
+                        node: Node {
+                            token: SpannedToken(
+                                11,
+                                Number(
+                                    "8",
+                                ),
+                                12,
+                            ),
+                            leading_trivia: None,
+                        },
+                    },
+                ),
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    12,
+                    SemiColon,
+                    13,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]

@@ -1,0 +1,62 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Assignment {
+        left: Node {
+            token: SpannedToken(
+                0,
+                TokenIdentifier(
+                    "Val",
+                ),
+                4,
+            ),
+            leading_trivia: None,
+        },
+        middle: Some(
+            Node {
+                token: SpannedToken(
+                    5,
+                    Equals,
+                    6,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        right: Some(
+            UnaryMinus {
+                operator: Node {
+                    token: SpannedToken(
+                        7,
+                        OpSub,
+                        8,
+                    ),
+                    leading_trivia: None,
+                },
+                operand: Node {
+                    node: Node {
+                        token: SpannedToken(
+                            8,
+                            Number(
+                                "10",
+                            ),
+                            10,
+                        ),
+                        leading_trivia: None,
+                    },
+                },
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    10,
+                    SemiColon,
+                    11,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]

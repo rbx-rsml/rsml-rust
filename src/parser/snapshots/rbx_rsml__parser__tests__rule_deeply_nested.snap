@@ -1,0 +1,144 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Rule {
+        selectors: Some(
+            [
+                Token(
+                    Node {
+                        token: SpannedToken(
+                            0,
+                            TagSelectorOrEnumPart(
+                                Some(
+                                    "tag",
+                                ),
+                            ),
+                            4,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            ],
+        ),
+        body: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        5,
+                        ScopeOpen,
+                        6,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Some(
+                    [
+                        Rule {
+                            selectors: Some(
+                                [
+                                    Token(
+                                        Node {
+                                            token: SpannedToken(
+                                                7,
+                                                StateSelectorOrEnumPart(
+                                                    Some(
+                                                        "hover",
+                                                    ),
+                                                ),
+                                                13,
+                                            ),
+                                            leading_trivia: None,
+                                        },
+                                    ),
+                                ],
+                            ),
+                            body: Some(
+                                Delimited {
+                                    left: Node {
+                                        token: SpannedToken(
+                                            14,
+                                            ScopeOpen,
+                                            15,
+                                        ),
+                                        leading_trivia: None,
+                                    },
+                                    content: Some(
+                                        [
+                                            Assignment {
+                                                left: Node {
+                                                    token: SpannedToken(
+                                                        16,
+                                                        Identifier(
+                                                            "Color",
+                                                        ),
+                                                        21,
+                                                    ),
+                                                    leading_trivia: None,
+                                                },
+                                                middle: Some(
+                                                    Node {
+                                                        token: SpannedToken(
+                                                            22,
+                                                            Equals,
+                                                            23,
+                                                        ),
+                                                        leading_trivia: None,
+                                                    },
+                                                ),
+                                                right: Some(
+                                                    Node {
+                                                        node: Node {
+                                                            token: SpannedToken(
+                                                                24,
+                                                                ColorHex(
+                                                                    "#f00",
+                                                                ),
+                                                                28,
+                                                            ),
+                                                            leading_trivia: None,
+                                                        },
+                                                    },
+                                                ),
+                                                terminator: Some(
+                                                    Node {
+                                                        token: SpannedToken(
+                                                            28,
+                                                            SemiColon,
+                                                            29,
+                                                        ),
+                                                        leading_trivia: None,
+                                                    },
+                                                ),
+                                            },
+                                        ],
+                                    ),
+                                    right: Some(
+                                        Node {
+                                            token: SpannedToken(
+                                                30,
+                                                ScopeClose,
+                                                31,
+                                            ),
+                                            leading_trivia: None,
+                                        },
+                                    ),
+                                },
+                            ),
+                        },
+                    ],
+                ),
+                right: Some(
+                    Node {
+                        token: SpannedToken(
+                            32,
+                            ScopeClose,
+                            33,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+    },
+]

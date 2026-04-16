@@ -1,0 +1,49 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Rule {
+        selectors: Some(
+            [
+                Token(
+                    Node {
+                        token: SpannedToken(
+                            0,
+                            TagSelectorOrEnumPart(
+                                Some(
+                                    "tagged",
+                                ),
+                            ),
+                            7,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            ],
+        ),
+        body: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        8,
+                        ScopeOpen,
+                        9,
+                    ),
+                    leading_trivia: None,
+                },
+                content: None,
+                right: Some(
+                    Node {
+                        token: SpannedToken(
+                            10,
+                            ScopeClose,
+                            11,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+    },
+]

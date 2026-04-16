@@ -1,0 +1,31 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Macro {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                MacroDeclaration,
+                6,
+            ),
+            leading_trivia: None,
+        },
+        name: Some(
+            Node {
+                token: SpannedToken(
+                    7,
+                    Identifier(
+                        "MyMacro",
+                    ),
+                    14,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        args: None,
+        return_type: None,
+        body: None,
+    },
+]

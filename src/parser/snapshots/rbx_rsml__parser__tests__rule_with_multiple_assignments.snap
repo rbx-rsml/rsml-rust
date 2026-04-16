@@ -1,0 +1,142 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Rule {
+        selectors: Some(
+            [
+                Token(
+                    Node {
+                        token: SpannedToken(
+                            0,
+                            Identifier(
+                                "Frame",
+                            ),
+                            5,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            ],
+        ),
+        body: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        6,
+                        ScopeOpen,
+                        7,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Some(
+                    [
+                        Assignment {
+                            left: Node {
+                                token: SpannedToken(
+                                    12,
+                                    Identifier(
+                                        "Size",
+                                    ),
+                                    16,
+                                ),
+                                leading_trivia: None,
+                            },
+                            middle: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        17,
+                                        Equals,
+                                        18,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                            right: Some(
+                                Node {
+                                    node: Node {
+                                        token: SpannedToken(
+                                            19,
+                                            Number(
+                                                "100",
+                                            ),
+                                            22,
+                                        ),
+                                        leading_trivia: None,
+                                    },
+                                },
+                            ),
+                            terminator: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        22,
+                                        SemiColon,
+                                        23,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                        },
+                        Assignment {
+                            left: Node {
+                                token: SpannedToken(
+                                    28,
+                                    Identifier(
+                                        "Visible",
+                                    ),
+                                    35,
+                                ),
+                                leading_trivia: None,
+                            },
+                            middle: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        36,
+                                        Equals,
+                                        37,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                            right: Some(
+                                Node {
+                                    node: Node {
+                                        token: SpannedToken(
+                                            38,
+                                            Boolean(
+                                                "true",
+                                            ),
+                                            42,
+                                        ),
+                                        leading_trivia: None,
+                                    },
+                                },
+                            ),
+                            terminator: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        42,
+                                        SemiColon,
+                                        43,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                        },
+                    ],
+                ),
+                right: Some(
+                    Node {
+                        token: SpannedToken(
+                            44,
+                            ScopeClose,
+                            45,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+    },
+]

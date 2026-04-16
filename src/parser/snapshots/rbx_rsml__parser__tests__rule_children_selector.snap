@@ -1,0 +1,69 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Rule {
+        selectors: Some(
+            [
+                Token(
+                    Node {
+                        token: SpannedToken(
+                            0,
+                            Identifier(
+                                "Frame",
+                            ),
+                            5,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+                Token(
+                    Node {
+                        token: SpannedToken(
+                            6,
+                            ChildrenSelector,
+                            7,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+                Token(
+                    Node {
+                        token: SpannedToken(
+                            8,
+                            Identifier(
+                                "TextLabel",
+                            ),
+                            17,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            ],
+        ),
+        body: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        18,
+                        ScopeOpen,
+                        19,
+                    ),
+                    leading_trivia: None,
+                },
+                content: None,
+                right: Some(
+                    Node {
+                        token: SpannedToken(
+                            20,
+                            ScopeClose,
+                            21,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+    },
+]

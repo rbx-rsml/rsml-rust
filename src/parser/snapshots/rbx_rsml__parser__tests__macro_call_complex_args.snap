@@ -1,0 +1,112 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    MacroCall {
+        name: Node {
+            token: SpannedToken(
+                0,
+                MacroCallIdentifier(
+                    Some(
+                        "Apply",
+                    ),
+                ),
+                6,
+            ),
+            leading_trivia: None,
+        },
+        body: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        6,
+                        ParensOpen,
+                        7,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Some(
+                    [
+                        Node {
+                            node: Node {
+                                token: SpannedToken(
+                                    7,
+                                    ColorHex(
+                                        "#ff0000",
+                                    ),
+                                    14,
+                                ),
+                                leading_trivia: None,
+                            },
+                        },
+                        Node {
+                            node: Node {
+                                token: SpannedToken(
+                                    14,
+                                    Comma,
+                                    15,
+                                ),
+                                leading_trivia: None,
+                            },
+                        },
+                        Node {
+                            node: Node {
+                                token: SpannedToken(
+                                    16,
+                                    NumberOffset(
+                                        "10px",
+                                    ),
+                                    20,
+                                ),
+                                leading_trivia: None,
+                            },
+                        },
+                        Node {
+                            node: Node {
+                                token: SpannedToken(
+                                    20,
+                                    Comma,
+                                    21,
+                                ),
+                                leading_trivia: None,
+                            },
+                        },
+                        Node {
+                            node: Node {
+                                token: SpannedToken(
+                                    22,
+                                    StringSingle(
+                                        "hello",
+                                    ),
+                                    29,
+                                ),
+                                leading_trivia: None,
+                            },
+                        },
+                    ],
+                ),
+                right: Some(
+                    Node {
+                        token: SpannedToken(
+                            29,
+                            ParensClose,
+                            30,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    30,
+                    SemiColon,
+                    31,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]
