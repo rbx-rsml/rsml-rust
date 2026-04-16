@@ -279,6 +279,10 @@ impl<'a> Typechecker<'a> {
                 }
             }
 
+            Construct::UnaryMinus { operand, .. } => {
+                self.validate_macro_arg_refs(operand, macro_args, ast_errors);
+            }
+
             Construct::Table { body } => {
                 if let Some(content) = &body.content {
                     for item in content {
@@ -302,7 +306,7 @@ impl<'a> Typechecker<'a> {
     }
 
     fn range_from_span(&self, span: (usize, usize)) -> crate::types::Range {
-        crate::types::Range::from_span(&self.parsed.lexer.rope, span)
+        crate::types::Range::from_span(&self.parsed.rope, span)
     }
 }
 

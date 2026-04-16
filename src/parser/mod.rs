@@ -45,7 +45,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(lexer: Lexer<'a>) -> Self {
+    pub fn new(lexer: Lexer<'a>) -> ParsedRsml<'a> {
         let mut parser = Self {
             lexer,
             last_token_end: 0,
@@ -96,7 +96,11 @@ impl<'a> Parser<'a> {
             Some(node)
         });
 
-        parser
+        ParsedRsml {
+            ast: parser.ast,
+            ast_errors: parser.ast_errors,
+            rope: parser.lexer.rope,
+        }
     }
 
     pub fn range_from_span(&self, span: (usize, usize)) -> Range {
@@ -287,6 +291,7 @@ impl<'a> Parser<'a> {
                 else {
                     break;
                 };
+
                 node = next_node;
             }
         }
@@ -299,6 +304,12 @@ impl<'a> Parser<'a> {
         }
 
         None
+    }
+
+    #[cfg(test)]
+    pub fn parse_source(source: &'a str) -> ParsedRsml<'a> {
+        let lexer = crate::lexer::Lexer::new(source);
+        Self::new(lexer)
     }
 
     pub(crate) fn parse_loop_inner<F: FnMut(&mut Self, Node<'a>) -> Option<(Node<'a>, bool)>>(
@@ -368,5 +379,19 @@ impl<'a> Parser<'a> {
         self.did_advance = last_did_advance;
 
         (Some(node), ParseEndedReason::Eof)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unary_minus_in_udim2_expression() {
+        let source = r#"$Size = udim2(-20px + 100%, -20px + 100%);"#;
+        let parsed = Parser::parse_source(source);
+
+        assert!(parsed.ast_errors.0.is_empty(), "Expected no parse errors, got: {:?}", parsed.ast_errors.0);
+        insta::assert_debug_snapshot!(parsed.ast);
     }
 }

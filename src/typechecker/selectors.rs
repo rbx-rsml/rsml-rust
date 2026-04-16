@@ -149,7 +149,7 @@ impl<'a> Typechecker<'a> {
                 Construct::Derive { .. } => {
                     ast_errors.push(
                         TypeError::NotAllowedInContext { name: construct.name_plural(), context: "non-global scopes" },
-                        Range::from_span(&self.parsed.lexer.rope, construct.span()),
+                        Range::from_span(&self.parsed.rope, construct.span()),
                     );
                     let span = construct.span();
                     definitions.insert(
@@ -181,7 +181,7 @@ impl<'a> Typechecker<'a> {
                 Construct::Macro { declaration, name, args, return_type, body } => {
                     ast_errors.push(
                         TypeError::NotAllowedInContext { name: construct.name_plural(), context: "rules" },
-                        Range::from_span(&self.parsed.lexer.rope, construct.span()),
+                        Range::from_span(&self.parsed.rope, construct.span()),
                     );
                     let span_start = declaration.token.start();
                     let span_end = return_type.as_ref().map(|(arrow, ident)| {
@@ -215,7 +215,7 @@ impl<'a> Typechecker<'a> {
         TypecheckSelectors::new(
             selectors,
             parent_classes,
-            &self.parsed.lexer.rope,
+            &self.parsed.rope,
             ast_errors,
             definitions,
             &self.macro_registry,

@@ -66,7 +66,8 @@ impl<'a> Parser<'a> {
                 ColorHex, ColorTailwind, ColorCss, ColorBrick, ColorSkin,
                 RbxAsset, RbxContent,
                 EnumKeyword, StateSelectorOrEnumPart,
-                MacroCallIdentifier, MacroArgIdentifier
+                MacroCallIdentifier, MacroArgIdentifier,
+                OpSub
             ]),
             construct_delimiters
         ) {
@@ -93,6 +94,18 @@ impl<'a> Parser<'a> {
                 self.handle_multiline_string_error(&token, *expected_nestedness);
 
                 (NodeStatus::Exists, Some(Construct::Node { node }))
+            },
+
+            Token::OpSub => {
+                let next_node = self.advance();
+                let (operand_status, operand) = self.parse_datatype_part(next_node, construct_delimiters);
+                match operand {
+                    Some(operand) => (operand_status, Some(Construct::UnaryMinus {
+                        operator: node,
+                        operand: Box::new(operand),
+                    })),
+                    None => (operand_status, Some(Construct::Node { node }))
+                }
             },
 
             _ => (NodeStatus::Exists, Some(Construct::Node { node }))

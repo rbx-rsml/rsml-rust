@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     lexer::Token,
-    parser::{AstErrors, Construct, Parser},
+    parser::{AstErrors, Construct, ParsedRsml},
     range_from_span::RangeFromSpan,
     types::{Diagnostic, Range},
 };
@@ -107,24 +107,24 @@ impl DefinitionKind {
     }
 }
 
-pub struct TypecheckerData<'a> {
-    pub typechecker: Typechecker<'a>,
+pub struct TypecheckedRsml {
+    pub errors: AstErrors,
     pub derives: HashMap<PathBuf, RangeInclusive<usize>>,
     pub dependencies: HashSet<PathBuf>,
     pub definitions: Definitions,
 }
 
 pub struct Typechecker<'a> {
-    pub parsed: Parser<'a>,
+    pub parsed: &'a ParsedRsml<'a>,
     macro_registry: MacroRegistry<'a>,
 }
 
 impl<'a> Typechecker<'a> {
     pub async fn new(
-        parsed: Parser<'a>,
+        parsed: &'a ParsedRsml<'a>,
         current_path: &Path,
         mut luaurc: Option<&mut Luaurc>,
-    ) -> TypecheckerData<'a> {
+    ) -> TypecheckedRsml {
         let mut typechecker: Typechecker<'a> = Self {
             parsed,
             macro_registry: HashMap::new(),
@@ -165,7 +165,7 @@ impl<'a> Typechecker<'a> {
                             name: construct.name_plural(),
                             context: "the global scope",
                         },
-                        Range::from_span(&typechecker.parsed.lexer.rope, construct.span()),
+                        Range::from_span(&typechecker.parsed.rope, construct.span()),
                     );
                     typechecker.typecheck_tween(body, &mut ast_errors, &mut definitions);
                 }
@@ -201,10 +201,7 @@ impl<'a> Typechecker<'a> {
                                         name: name_str,
                                         arg_count,
                                     },
-                                    Range::from_span(
-                                        &typechecker.parsed.lexer.rope,
-                                        construct.span(),
-                                    ),
+                                    Range::from_span(&typechecker.parsed.rope, construct.span()),
                                 );
                             } else {
                                 signatures.push(MacroSignature {
@@ -237,7 +234,7 @@ impl<'a> Typechecker<'a> {
                                 name: construct.name_plural(),
                                 context: "the global scope",
                             },
-                            Range::from_span(&typechecker.parsed.lexer.rope, construct.span()),
+                            Range::from_span(&typechecker.parsed.rope, construct.span()),
                         );
                     }
                     typechecker.validate_macro_arg_refs(right, None, &mut ast_errors);
@@ -257,7 +254,7 @@ impl<'a> Typechecker<'a> {
                             name: construct.name_plural(),
                             context: "the global scope",
                         },
-                        Range::from_span(&typechecker.parsed.lexer.rope, construct.span()),
+                        Range::from_span(&typechecker.parsed.rope, construct.span()),
                     );
                 }
 
@@ -265,10 +262,8 @@ impl<'a> Typechecker<'a> {
             }
         }
 
-        typechecker.parsed.ast_errors.0.extend(ast_errors.0);
-
-        TypecheckerData {
-            typechecker,
+        TypecheckedRsml {
+            errors: ast_errors,
             derives,
             dependencies,
             definitions,
@@ -280,6 +275,7 @@ impl<'a> Typechecker<'a> {
 mod tests {
     use super::*;
     use crate::{lexer::Lexer, parser::Parser};
+
     use std::path::PathBuf;
 
     struct TypecheckResult {
@@ -293,12 +289,12 @@ mod tests {
         let parsed = Parser::new(lexer);
         let dummy_path = PathBuf::from("/test.rsml");
 
-        let TypecheckerData {
-            typechecker,
+        let TypecheckedRsml {
+            errors: ast_errors,
             derives: _derives,
             definitions,
             dependencies: _dependencies,
-        } = Typechecker::new(parsed, &dummy_path, None).await;
+        } = Typechecker::new(&parsed, &dummy_path, None).await;
 
         let selectors: Vec<(usize, usize, Vec<String>)> = definitions
             .iter()
@@ -328,9 +324,7 @@ mod tests {
             })
             .collect();
 
-        let errors: Vec<String> = typechecker
-            .parsed
-            .ast_errors
+        let errors: Vec<String> = ast_errors
             .0
             .iter()
             .map(|diagnostic| diagnostic.message.clone())

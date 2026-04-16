@@ -6,6 +6,7 @@ pub mod types;
 #[macro_use]
 mod macros;
 
+pub mod compiler;
 pub mod lexer;
 pub mod list;
 pub mod parser;

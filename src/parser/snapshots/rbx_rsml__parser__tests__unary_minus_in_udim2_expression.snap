@@ -1,0 +1,184 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Assignment {
+        left: Node {
+            token: SpannedToken(
+                0,
+                TokenIdentifier(
+                    "Size",
+                ),
+                5,
+            ),
+            leading_trivia: None,
+        },
+        middle: Some(
+            Node {
+                token: SpannedToken(
+                    6,
+                    Equals,
+                    7,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        right: Some(
+            AnnotatedTable {
+                annotation: Node {
+                    token: SpannedToken(
+                        8,
+                        Identifier(
+                            "udim2",
+                        ),
+                        13,
+                    ),
+                    leading_trivia: None,
+                },
+                body: Some(
+                    Delimited {
+                        left: Node {
+                            token: SpannedToken(
+                                13,
+                                ParensOpen,
+                                14,
+                            ),
+                            leading_trivia: None,
+                        },
+                        content: Some(
+                            [
+                                MathOperation {
+                                    left: UnaryMinus {
+                                        operator: Node {
+                                            token: SpannedToken(
+                                                14,
+                                                OpSub,
+                                                15,
+                                            ),
+                                            leading_trivia: None,
+                                        },
+                                        operand: Node {
+                                            node: Node {
+                                                token: SpannedToken(
+                                                    15,
+                                                    NumberOffset(
+                                                        "20px",
+                                                    ),
+                                                    19,
+                                                ),
+                                                leading_trivia: None,
+                                            },
+                                        },
+                                    },
+                                    operators: [
+                                        Node {
+                                            token: SpannedToken(
+                                                20,
+                                                OpAdd,
+                                                21,
+                                            ),
+                                            leading_trivia: None,
+                                        },
+                                    ],
+                                    right: Some(
+                                        Node {
+                                            node: Node {
+                                                token: SpannedToken(
+                                                    22,
+                                                    NumberScale(
+                                                        "100%",
+                                                    ),
+                                                    26,
+                                                ),
+                                                leading_trivia: None,
+                                            },
+                                        },
+                                    ),
+                                },
+                                Node {
+                                    node: Node {
+                                        token: SpannedToken(
+                                            26,
+                                            Comma,
+                                            27,
+                                        ),
+                                        leading_trivia: None,
+                                    },
+                                },
+                                MathOperation {
+                                    left: UnaryMinus {
+                                        operator: Node {
+                                            token: SpannedToken(
+                                                28,
+                                                OpSub,
+                                                29,
+                                            ),
+                                            leading_trivia: None,
+                                        },
+                                        operand: Node {
+                                            node: Node {
+                                                token: SpannedToken(
+                                                    29,
+                                                    NumberOffset(
+                                                        "20px",
+                                                    ),
+                                                    33,
+                                                ),
+                                                leading_trivia: None,
+                                            },
+                                        },
+                                    },
+                                    operators: [
+                                        Node {
+                                            token: SpannedToken(
+                                                34,
+                                                OpAdd,
+                                                35,
+                                            ),
+                                            leading_trivia: None,
+                                        },
+                                    ],
+                                    right: Some(
+                                        Node {
+                                            node: Node {
+                                                token: SpannedToken(
+                                                    36,
+                                                    NumberScale(
+                                                        "100%",
+                                                    ),
+                                                    40,
+                                                ),
+                                                leading_trivia: None,
+                                            },
+                                        },
+                                    ),
+                                },
+                            ],
+                        ),
+                        right: Some(
+                            Node {
+                                token: SpannedToken(
+                                    40,
+                                    ParensClose,
+                                    41,
+                                ),
+                                leading_trivia: None,
+                            },
+                        ),
+                    },
+                ),
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    41,
+                    SemiColon,
+                    42,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]
