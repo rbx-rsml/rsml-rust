@@ -74,21 +74,6 @@ fn compile_construct(
             }
         }
 
-        Construct::Name { body, .. } => {
-            if let TreeNodeType::Node(node_idx) = *current_idx {
-                if let Some(body) = body {
-                    let idx = *current_idx;
-                    if let Some(Datatype::Variant(Variant::String(value))) =
-                        evaluate_construct(body, None, tree_nodes, &idx)
-                    {
-                        if let Some(node) = tree_nodes[node_idx].as_mut() {
-                            node.name = Some(value);
-                        }
-                    }
-                }
-            }
-        }
-
         Construct::Tween { name, body, .. } => {
             if let TreeNodeType::Node(node_idx) = *current_idx {
                 if let Some(name_node) = name {

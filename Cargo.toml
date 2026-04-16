@@ -25,6 +25,7 @@ tokio = { version = "1.47.1", features = ["fs", "macros", "rt"] }
 
 [dev-dependencies]
 insta = "1.42.2"
+paste = "1.0.15"
 
 [build-dependencies]
 serde_json = "1.0.143"

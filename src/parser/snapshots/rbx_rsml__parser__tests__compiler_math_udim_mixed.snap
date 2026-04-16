@@ -1,0 +1,23 @@
+---
+source: src/parser/mod.rs
+expression: compiled.tree_nodes
+---
+TreeNodeGroup {
+    root: Some(
+        RootTreeNode {
+            attributes: Attributes {
+                data: {
+                    "Size": UDim(
+                        UDim {
+                            scale: 0.5,
+                            offset: 10,
+                        },
+                    ),
+                },
+            },
+            static_attributes: {},
+            child_rules: [],
+        },
+    ),
+    nodes: [],
+}

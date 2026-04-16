@@ -4,7 +4,8 @@ use rbx_rsml::parser::Parser;
 
 fn main() {
     let source = r#"
-        $Test = #ff0000;
+        $!Hello = 50px;
+        $Size = udim2($!Hello, -20px + 100%);
     "#;
 
     let lexer = Lexer::new(source);

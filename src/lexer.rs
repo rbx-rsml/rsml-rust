@@ -111,9 +111,6 @@ pub enum Token<'a> {
     #[token("@priority")]
     PriorityDeclaration,
 
-    #[token("@name")]
-    NameDeclaration,
-
     #[token("@tween")]
     TweenDeclaration,
 
@@ -341,7 +338,6 @@ pub const TOKEN_KIND_CONSTRUCT_DELIMITERS: LazyLock<HashSet<TokenKind>> = lazy_c
 
     TokenKind::DeriveDeclaration,
     TokenKind::MacroDeclaration,
-    TokenKind::NameDeclaration,
     TokenKind::PriorityDeclaration,
     TokenKind::TweenDeclaration
 };
@@ -354,7 +350,6 @@ pub const TOKEN_KIND_MACRO_CALL_DELIMITERS: LazyLock<HashSet<TokenKind>> = lazy_
 
     TokenKind::DeriveDeclaration,
     TokenKind::MacroDeclaration,
-    TokenKind::NameDeclaration,
     TokenKind::PriorityDeclaration,
     TokenKind::TweenDeclaration
 };
@@ -381,7 +376,6 @@ const TOKEN_KIND_STRING_MAP: LazyLock<HashMap<TokenKind, &'static str>> = lazy_c
     TokenKind::DeriveDeclaration => "\"@derive\"",
     TokenKind::MacroDeclaration => "\"@macro\"",
     TokenKind::PriorityDeclaration => "\"@priority\"",
-    TokenKind::NameDeclaration => "\"@name\"",
     TokenKind::TweenDeclaration => "\"@tween\"",
     TokenKind::QuerySelector => "`query selector`",
     TokenKind::Identifier => "`identifer`",

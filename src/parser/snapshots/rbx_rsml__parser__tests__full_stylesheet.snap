@@ -3,46 +3,12 @@ source: src/parser/mod.rs
 expression: parsed.ast
 ---
 [
-    Name {
-        declaration: Node {
-            token: SpannedToken(
-                1,
-                NameDeclaration,
-                6,
-            ),
-            leading_trivia: None,
-        },
-        body: Some(
-            Node {
-                node: Node {
-                    token: SpannedToken(
-                        7,
-                        StringSingle(
-                            "MySheet",
-                        ),
-                        16,
-                    ),
-                    leading_trivia: None,
-                },
-            },
-        ),
-        terminator: Some(
-            Node {
-                token: SpannedToken(
-                    16,
-                    SemiColon,
-                    17,
-                ),
-                leading_trivia: None,
-            },
-        ),
-    },
     Derive {
         declaration: Node {
             token: SpannedToken(
-                18,
+                1,
                 DeriveDeclaration,
-                25,
+                8,
             ),
             leading_trivia: None,
         },
@@ -50,11 +16,11 @@ expression: parsed.ast
             Node {
                 node: Node {
                     token: SpannedToken(
-                        26,
+                        9,
                         StringSingle(
                             "base",
                         ),
-                        32,
+                        15,
                     ),
                     leading_trivia: None,
                 },
@@ -63,9 +29,9 @@ expression: parsed.ast
         terminator: Some(
             Node {
                 token: SpannedToken(
-                    32,
+                    15,
                     SemiColon,
-                    33,
+                    16,
                 ),
                 leading_trivia: None,
             },
@@ -74,9 +40,9 @@ expression: parsed.ast
     Priority {
         declaration: Node {
             token: SpannedToken(
-                34,
+                17,
                 PriorityDeclaration,
-                43,
+                26,
             ),
             leading_trivia: None,
         },
@@ -84,9 +50,55 @@ expression: parsed.ast
             Node {
                 node: Node {
                     token: SpannedToken(
-                        44,
+                        27,
                         Number(
                             "5",
+                        ),
+                        28,
+                    ),
+                    leading_trivia: None,
+                },
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    28,
+                    SemiColon,
+                    29,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+    Tween {
+        declaration: Node {
+            token: SpannedToken(
+                30,
+                TweenDeclaration,
+                36,
+            ),
+            leading_trivia: None,
+        },
+        name: Some(
+            Node {
+                token: SpannedToken(
+                    37,
+                    Identifier(
+                        "Fade",
+                    ),
+                    41,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        body: Some(
+            Node {
+                node: Node {
+                    token: SpannedToken(
+                        42,
+                        Number(
+                            "0.3",
                         ),
                         45,
                     ),
@@ -105,69 +117,23 @@ expression: parsed.ast
             },
         ),
     },
-    Tween {
-        declaration: Node {
-            token: SpannedToken(
-                47,
-                TweenDeclaration,
-                53,
-            ),
-            leading_trivia: None,
-        },
-        name: Some(
-            Node {
-                token: SpannedToken(
-                    54,
-                    Identifier(
-                        "Fade",
-                    ),
-                    58,
-                ),
-                leading_trivia: None,
-            },
-        ),
-        body: Some(
-            Node {
-                node: Node {
-                    token: SpannedToken(
-                        59,
-                        Number(
-                            "0.3",
-                        ),
-                        62,
-                    ),
-                    leading_trivia: None,
-                },
-            },
-        ),
-        terminator: Some(
-            Node {
-                token: SpannedToken(
-                    62,
-                    SemiColon,
-                    63,
-                ),
-                leading_trivia: None,
-            },
-        ),
-    },
     Assignment {
         left: Node {
             token: SpannedToken(
-                65,
+                48,
                 StaticTokenIdentifier(
                     "PrimaryColor",
                 ),
-                79,
+                62,
             ),
             leading_trivia: None,
         },
         middle: Some(
             Node {
                 token: SpannedToken(
-                    80,
+                    63,
                     Equals,
-                    81,
+                    64,
                 ),
                 leading_trivia: None,
             },
@@ -176,9 +142,55 @@ expression: parsed.ast
             Node {
                 node: Node {
                     token: SpannedToken(
-                        82,
+                        65,
                         ColorHex(
                             "#3498db",
+                        ),
+                        72,
+                    ),
+                    leading_trivia: None,
+                },
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    72,
+                    SemiColon,
+                    73,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+    Assignment {
+        left: Node {
+            token: SpannedToken(
+                74,
+                TokenIdentifier(
+                    "Padding",
+                ),
+                82,
+            ),
+            leading_trivia: None,
+        },
+        middle: Some(
+            Node {
+                token: SpannedToken(
+                    83,
+                    Equals,
+                    84,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        right: Some(
+            Node {
+                node: Node {
+                    token: SpannedToken(
+                        85,
+                        NumberOffset(
+                            "10px",
                         ),
                         89,
                     ),
@@ -197,69 +209,23 @@ expression: parsed.ast
             },
         ),
     },
-    Assignment {
-        left: Node {
-            token: SpannedToken(
-                91,
-                TokenIdentifier(
-                    "Padding",
-                ),
-                99,
-            ),
-            leading_trivia: None,
-        },
-        middle: Some(
-            Node {
-                token: SpannedToken(
-                    100,
-                    Equals,
-                    101,
-                ),
-                leading_trivia: None,
-            },
-        ),
-        right: Some(
-            Node {
-                node: Node {
-                    token: SpannedToken(
-                        102,
-                        NumberOffset(
-                            "10px",
-                        ),
-                        106,
-                    ),
-                    leading_trivia: None,
-                },
-            },
-        ),
-        terminator: Some(
-            Node {
-                token: SpannedToken(
-                    106,
-                    SemiColon,
-                    107,
-                ),
-                leading_trivia: None,
-            },
-        ),
-    },
     Macro {
         declaration: Node {
             token: SpannedToken(
-                109,
+                92,
                 MacroDeclaration,
-                115,
+                98,
             ),
             leading_trivia: None,
         },
         name: Some(
             Node {
                 token: SpannedToken(
-                    116,
+                    99,
                     Identifier(
                         "Highlight",
                     ),
-                    125,
+                    108,
                 ),
                 leading_trivia: None,
             },
@@ -268,9 +234,9 @@ expression: parsed.ast
             Delimited {
                 left: Node {
                     token: SpannedToken(
-                        125,
+                        108,
                         ParensOpen,
-                        126,
+                        109,
                     ),
                     leading_trivia: None,
                 },
@@ -279,13 +245,13 @@ expression: parsed.ast
                         Node {
                             node: Node {
                                 token: SpannedToken(
-                                    126,
+                                    109,
                                     MacroArgIdentifier(
                                         Some(
                                             "color",
                                         ),
                                     ),
-                                    132,
+                                    115,
                                 ),
                                 leading_trivia: None,
                             },
@@ -295,9 +261,9 @@ expression: parsed.ast
                 right: Some(
                     Node {
                         token: SpannedToken(
-                            132,
+                            115,
                             ParensClose,
-                            133,
+                            116,
                         ),
                         leading_trivia: None,
                     },
@@ -308,20 +274,20 @@ expression: parsed.ast
             (
                 Node {
                     token: SpannedToken(
-                        134,
+                        117,
                         ReturnArrow,
-                        136,
+                        119,
                     ),
                     leading_trivia: None,
                 },
                 Some(
                     Node {
                         token: SpannedToken(
-                            137,
+                            120,
                             Identifier(
                                 "Construct",
                             ),
-                            146,
+                            129,
                         ),
                         leading_trivia: None,
                     },
@@ -332,9 +298,9 @@ expression: parsed.ast
             MacroBody {
                 open: Node {
                     token: SpannedToken(
-                        147,
+                        130,
                         ScopeOpen,
-                        148,
+                        131,
                     ),
                     leading_trivia: None,
                 },
@@ -344,20 +310,20 @@ expression: parsed.ast
                             Assignment {
                                 left: Node {
                                     token: SpannedToken(
-                                        153,
+                                        136,
                                         Identifier(
                                             "BackgroundColor3",
                                         ),
-                                        169,
+                                        152,
                                     ),
                                     leading_trivia: None,
                                 },
                                 middle: Some(
                                     Node {
                                         token: SpannedToken(
-                                            170,
+                                            153,
                                             Equals,
-                                            171,
+                                            154,
                                         ),
                                         leading_trivia: None,
                                     },
@@ -366,13 +332,13 @@ expression: parsed.ast
                                     Node {
                                         node: Node {
                                             token: SpannedToken(
-                                                172,
+                                                155,
                                                 MacroArgIdentifier(
                                                     Some(
                                                         "color",
                                                     ),
                                                 ),
-                                                178,
+                                                161,
                                             ),
                                             leading_trivia: None,
                                         },
@@ -381,9 +347,9 @@ expression: parsed.ast
                                 terminator: Some(
                                     Node {
                                         token: SpannedToken(
-                                            178,
+                                            161,
                                             SemiColon,
-                                            179,
+                                            162,
                                         ),
                                         leading_trivia: None,
                                     },
@@ -395,9 +361,9 @@ expression: parsed.ast
                 close: Some(
                     Node {
                         token: SpannedToken(
-                            180,
+                            163,
                             ScopeClose,
-                            181,
+                            164,
                         ),
                         leading_trivia: None,
                     },
@@ -411,11 +377,11 @@ expression: parsed.ast
                 Token(
                     Node {
                         token: SpannedToken(
-                            183,
+                            166,
                             Identifier(
                                 "Frame",
                             ),
-                            188,
+                            171,
                         ),
                         leading_trivia: None,
                     },
@@ -426,9 +392,9 @@ expression: parsed.ast
             Delimited {
                 left: Node {
                     token: SpannedToken(
-                        189,
+                        172,
                         ScopeOpen,
-                        190,
+                        173,
                     ),
                     leading_trivia: None,
                 },
@@ -437,20 +403,20 @@ expression: parsed.ast
                         Assignment {
                             left: Node {
                                 token: SpannedToken(
-                                    195,
+                                    178,
                                     Identifier(
                                         "BackgroundColor3",
                                     ),
-                                    211,
+                                    194,
                                 ),
                                 leading_trivia: None,
                             },
                             middle: Some(
                                 Node {
                                     token: SpannedToken(
-                                        212,
+                                        195,
                                         Equals,
-                                        213,
+                                        196,
                                     ),
                                     leading_trivia: None,
                                 },
@@ -459,11 +425,11 @@ expression: parsed.ast
                                 Node {
                                     node: Node {
                                         token: SpannedToken(
-                                            214,
+                                            197,
                                             StaticTokenIdentifier(
                                                 "PrimaryColor",
                                             ),
-                                            228,
+                                            211,
                                         ),
                                         leading_trivia: None,
                                     },
@@ -472,9 +438,9 @@ expression: parsed.ast
                             terminator: Some(
                                 Node {
                                     token: SpannedToken(
-                                        228,
+                                        211,
                                         SemiColon,
-                                        229,
+                                        212,
                                     ),
                                     leading_trivia: None,
                                 },
@@ -483,20 +449,20 @@ expression: parsed.ast
                         Assignment {
                             left: Node {
                                 token: SpannedToken(
-                                    234,
+                                    217,
                                     Identifier(
                                         "Size",
                                     ),
-                                    238,
+                                    221,
                                 ),
                                 leading_trivia: None,
                             },
                             middle: Some(
                                 Node {
                                     token: SpannedToken(
-                                        239,
+                                        222,
                                         Equals,
-                                        240,
+                                        223,
                                     ),
                                     leading_trivia: None,
                                 },
@@ -505,11 +471,11 @@ expression: parsed.ast
                                 AnnotatedTable {
                                     annotation: Node {
                                         token: SpannedToken(
-                                            241,
+                                            224,
                                             Identifier(
                                                 "udim2",
                                             ),
-                                            246,
+                                            229,
                                         ),
                                         leading_trivia: None,
                                     },
@@ -517,9 +483,9 @@ expression: parsed.ast
                                         Delimited {
                                             left: Node {
                                                 token: SpannedToken(
-                                                    246,
+                                                    229,
                                                     ParensOpen,
-                                                    247,
+                                                    230,
                                                 ),
                                                 leading_trivia: None,
                                             },
@@ -528,11 +494,11 @@ expression: parsed.ast
                                                     Node {
                                                         node: Node {
                                                             token: SpannedToken(
-                                                                247,
+                                                                230,
                                                                 Number(
                                                                     "1",
                                                                 ),
-                                                                248,
+                                                                231,
                                                             ),
                                                             leading_trivia: None,
                                                         },
@@ -540,9 +506,9 @@ expression: parsed.ast
                                                     Node {
                                                         node: Node {
                                                             token: SpannedToken(
-                                                                248,
+                                                                231,
                                                                 Comma,
-                                                                249,
+                                                                232,
                                                             ),
                                                             leading_trivia: None,
                                                         },
@@ -551,20 +517,20 @@ expression: parsed.ast
                                                         left: UnaryMinus {
                                                             operator: Node {
                                                                 token: SpannedToken(
-                                                                    250,
+                                                                    233,
                                                                     OpSub,
-                                                                    251,
+                                                                    234,
                                                                 ),
                                                                 leading_trivia: None,
                                                             },
                                                             operand: Node {
                                                                 node: Node {
                                                                     token: SpannedToken(
-                                                                        251,
+                                                                        234,
                                                                         TokenIdentifier(
                                                                             "Padding",
                                                                         ),
-                                                                        259,
+                                                                        242,
                                                                     ),
                                                                     leading_trivia: None,
                                                                 },
@@ -573,9 +539,9 @@ expression: parsed.ast
                                                         operators: [
                                                             Node {
                                                                 token: SpannedToken(
-                                                                    260,
+                                                                    243,
                                                                     OpMult,
-                                                                    261,
+                                                                    244,
                                                                 ),
                                                                 leading_trivia: None,
                                                             },
@@ -584,11 +550,11 @@ expression: parsed.ast
                                                             Node {
                                                                 node: Node {
                                                                     token: SpannedToken(
-                                                                        262,
+                                                                        245,
                                                                         Number(
                                                                             "2",
                                                                         ),
-                                                                        263,
+                                                                        246,
                                                                     ),
                                                                     leading_trivia: None,
                                                                 },
@@ -598,9 +564,9 @@ expression: parsed.ast
                                                     Node {
                                                         node: Node {
                                                             token: SpannedToken(
-                                                                263,
+                                                                246,
                                                                 Comma,
-                                                                264,
+                                                                247,
                                                             ),
                                                             leading_trivia: None,
                                                         },
@@ -608,11 +574,11 @@ expression: parsed.ast
                                                     Node {
                                                         node: Node {
                                                             token: SpannedToken(
-                                                                265,
+                                                                248,
                                                                 Number(
                                                                     "1",
                                                                 ),
-                                                                266,
+                                                                249,
                                                             ),
                                                             leading_trivia: None,
                                                         },
@@ -620,9 +586,9 @@ expression: parsed.ast
                                                     Node {
                                                         node: Node {
                                                             token: SpannedToken(
-                                                                266,
+                                                                249,
                                                                 Comma,
-                                                                267,
+                                                                250,
                                                             ),
                                                             leading_trivia: None,
                                                         },
@@ -631,20 +597,20 @@ expression: parsed.ast
                                                         left: UnaryMinus {
                                                             operator: Node {
                                                                 token: SpannedToken(
-                                                                    268,
+                                                                    251,
                                                                     OpSub,
-                                                                    269,
+                                                                    252,
                                                                 ),
                                                                 leading_trivia: None,
                                                             },
                                                             operand: Node {
                                                                 node: Node {
                                                                     token: SpannedToken(
-                                                                        269,
+                                                                        252,
                                                                         TokenIdentifier(
                                                                             "Padding",
                                                                         ),
-                                                                        277,
+                                                                        260,
                                                                     ),
                                                                     leading_trivia: None,
                                                                 },
@@ -653,9 +619,9 @@ expression: parsed.ast
                                                         operators: [
                                                             Node {
                                                                 token: SpannedToken(
-                                                                    278,
+                                                                    261,
                                                                     OpMult,
-                                                                    279,
+                                                                    262,
                                                                 ),
                                                                 leading_trivia: None,
                                                             },
@@ -664,11 +630,11 @@ expression: parsed.ast
                                                             Node {
                                                                 node: Node {
                                                                     token: SpannedToken(
-                                                                        280,
+                                                                        263,
                                                                         Number(
                                                                             "2",
                                                                         ),
-                                                                        281,
+                                                                        264,
                                                                     ),
                                                                     leading_trivia: None,
                                                                 },
@@ -680,9 +646,9 @@ expression: parsed.ast
                                             right: Some(
                                                 Node {
                                                     token: SpannedToken(
-                                                        281,
+                                                        264,
                                                         ParensClose,
-                                                        282,
+                                                        265,
                                                     ),
                                                     leading_trivia: None,
                                                 },
@@ -694,9 +660,9 @@ expression: parsed.ast
                             terminator: Some(
                                 Node {
                                     token: SpannedToken(
-                                        282,
+                                        265,
                                         SemiColon,
-                                        283,
+                                        266,
                                     ),
                                     leading_trivia: None,
                                 },
@@ -708,11 +674,11 @@ expression: parsed.ast
                                     Token(
                                         Node {
                                             token: SpannedToken(
-                                                289,
+                                                272,
                                                 Identifier(
                                                     "TextLabel",
                                                 ),
-                                                298,
+                                                281,
                                             ),
                                             leading_trivia: None,
                                         },
@@ -723,9 +689,9 @@ expression: parsed.ast
                                 Delimited {
                                     left: Node {
                                         token: SpannedToken(
-                                            299,
+                                            282,
                                             ScopeOpen,
-                                            300,
+                                            283,
                                         ),
                                         leading_trivia: None,
                                     },
@@ -734,20 +700,20 @@ expression: parsed.ast
                                             Assignment {
                                                 left: Node {
                                                     token: SpannedToken(
-                                                        309,
+                                                        292,
                                                         Identifier(
                                                             "Text",
                                                         ),
-                                                        313,
+                                                        296,
                                                     ),
                                                     leading_trivia: None,
                                                 },
                                                 middle: Some(
                                                     Node {
                                                         token: SpannedToken(
-                                                            314,
+                                                            297,
                                                             Equals,
-                                                            315,
+                                                            298,
                                                         ),
                                                         leading_trivia: None,
                                                     },
@@ -756,11 +722,11 @@ expression: parsed.ast
                                                     Node {
                                                         node: Node {
                                                             token: SpannedToken(
-                                                                316,
+                                                                299,
                                                                 StringSingle(
                                                                     "Hello",
                                                                 ),
-                                                                323,
+                                                                306,
                                                             ),
                                                             leading_trivia: None,
                                                         },
@@ -769,9 +735,9 @@ expression: parsed.ast
                                                 terminator: Some(
                                                     Node {
                                                         token: SpannedToken(
-                                                            323,
+                                                            306,
                                                             SemiColon,
-                                                            324,
+                                                            307,
                                                         ),
                                                         leading_trivia: None,
                                                     },
@@ -780,20 +746,20 @@ expression: parsed.ast
                                             Assignment {
                                                 left: Node {
                                                     token: SpannedToken(
-                                                        333,
+                                                        316,
                                                         Identifier(
                                                             "TextColor3",
                                                         ),
-                                                        343,
+                                                        326,
                                                     ),
                                                     leading_trivia: None,
                                                 },
                                                 middle: Some(
                                                     Node {
                                                         token: SpannedToken(
-                                                            344,
+                                                            327,
                                                             Equals,
-                                                            345,
+                                                            328,
                                                         ),
                                                         leading_trivia: None,
                                                     },
@@ -802,11 +768,11 @@ expression: parsed.ast
                                                     Node {
                                                         node: Node {
                                                             token: SpannedToken(
-                                                                346,
+                                                                329,
                                                                 ColorCss(
                                                                     "css:white",
                                                                 ),
-                                                                355,
+                                                                338,
                                                             ),
                                                             leading_trivia: None,
                                                         },
@@ -815,9 +781,9 @@ expression: parsed.ast
                                                 terminator: Some(
                                                     Node {
                                                         token: SpannedToken(
-                                                            355,
+                                                            338,
                                                             SemiColon,
-                                                            356,
+                                                            339,
                                                         ),
                                                         leading_trivia: None,
                                                     },
@@ -828,9 +794,9 @@ expression: parsed.ast
                                     right: Some(
                                         Node {
                                             token: SpannedToken(
-                                                361,
+                                                344,
                                                 ScopeClose,
-                                                362,
+                                                345,
                                             ),
                                             leading_trivia: None,
                                         },
@@ -844,13 +810,13 @@ expression: parsed.ast
                                     Token(
                                         Node {
                                             token: SpannedToken(
-                                                368,
+                                                351,
                                                 StateSelectorOrEnumPart(
                                                     Some(
                                                         "hover",
                                                     ),
                                                 ),
-                                                374,
+                                                357,
                                             ),
                                             leading_trivia: None,
                                         },
@@ -861,9 +827,9 @@ expression: parsed.ast
                                 Delimited {
                                     left: Node {
                                         token: SpannedToken(
-                                            375,
+                                            358,
                                             ScopeOpen,
-                                            376,
+                                            359,
                                         ),
                                         leading_trivia: None,
                                     },
@@ -872,20 +838,20 @@ expression: parsed.ast
                                             Assignment {
                                                 left: Node {
                                                     token: SpannedToken(
-                                                        385,
+                                                        368,
                                                         Identifier(
                                                             "BackgroundColor3",
                                                         ),
-                                                        401,
+                                                        384,
                                                     ),
                                                     leading_trivia: None,
                                                 },
                                                 middle: Some(
                                                     Node {
                                                         token: SpannedToken(
-                                                            402,
+                                                            385,
                                                             Equals,
-                                                            403,
+                                                            386,
                                                         ),
                                                         leading_trivia: None,
                                                     },
@@ -894,11 +860,11 @@ expression: parsed.ast
                                                     Node {
                                                         node: Node {
                                                             token: SpannedToken(
-                                                                404,
+                                                                387,
                                                                 ColorTailwind(
                                                                     "tw:blue:600",
                                                                 ),
-                                                                415,
+                                                                398,
                                                             ),
                                                             leading_trivia: None,
                                                         },
@@ -907,9 +873,9 @@ expression: parsed.ast
                                                 terminator: Some(
                                                     Node {
                                                         token: SpannedToken(
-                                                            415,
+                                                            398,
                                                             SemiColon,
-                                                            416,
+                                                            399,
                                                         ),
                                                         leading_trivia: None,
                                                     },
@@ -920,9 +886,9 @@ expression: parsed.ast
                                     right: Some(
                                         Node {
                                             token: SpannedToken(
-                                                421,
+                                                404,
                                                 ScopeClose,
-                                                422,
+                                                405,
                                             ),
                                             leading_trivia: None,
                                         },
@@ -935,9 +901,9 @@ expression: parsed.ast
                 right: Some(
                     Node {
                         token: SpannedToken(
-                            423,
+                            406,
                             ScopeClose,
-                            424,
+                            407,
                         ),
                         leading_trivia: None,
                     },
@@ -951,11 +917,11 @@ expression: parsed.ast
                 Token(
                     Node {
                         token: SpannedToken(
-                            426,
+                            409,
                             NameSelector(
                                 "Sidebar",
                             ),
-                            434,
+                            417,
                         ),
                         leading_trivia: None,
                     },
@@ -963,9 +929,9 @@ expression: parsed.ast
                 Token(
                     Node {
                         token: SpannedToken(
-                            434,
+                            417,
                             Comma,
-                            435,
+                            418,
                         ),
                         leading_trivia: None,
                     },
@@ -973,13 +939,13 @@ expression: parsed.ast
                 Token(
                     Node {
                         token: SpannedToken(
-                            436,
+                            419,
                             TagSelectorOrEnumPart(
                                 Some(
                                     "panel",
                                 ),
                             ),
-                            442,
+                            425,
                         ),
                         leading_trivia: None,
                     },
@@ -990,9 +956,9 @@ expression: parsed.ast
             Delimited {
                 left: Node {
                     token: SpannedToken(
-                        443,
+                        426,
                         ScopeOpen,
-                        444,
+                        427,
                     ),
                     leading_trivia: None,
                 },
@@ -1001,20 +967,20 @@ expression: parsed.ast
                         Assignment {
                             left: Node {
                                 token: SpannedToken(
-                                    449,
+                                    432,
                                     Identifier(
                                         "Size",
                                     ),
-                                    453,
+                                    436,
                                 ),
                                 leading_trivia: None,
                             },
                             middle: Some(
                                 Node {
                                     token: SpannedToken(
-                                        454,
+                                        437,
                                         Equals,
-                                        455,
+                                        438,
                                     ),
                                     leading_trivia: None,
                                 },
@@ -1023,11 +989,11 @@ expression: parsed.ast
                                 AnnotatedTable {
                                     annotation: Node {
                                         token: SpannedToken(
-                                            456,
+                                            439,
                                             Identifier(
                                                 "udim2",
                                             ),
-                                            461,
+                                            444,
                                         ),
                                         leading_trivia: None,
                                     },
@@ -1035,9 +1001,9 @@ expression: parsed.ast
                                         Delimited {
                                             left: Node {
                                                 token: SpannedToken(
-                                                    461,
+                                                    444,
                                                     ParensOpen,
-                                                    462,
+                                                    445,
                                                 ),
                                                 leading_trivia: None,
                                             },
@@ -1046,11 +1012,11 @@ expression: parsed.ast
                                                     Node {
                                                         node: Node {
                                                             token: SpannedToken(
-                                                                462,
+                                                                445,
                                                                 Number(
                                                                     "0",
                                                                 ),
-                                                                463,
+                                                                446,
                                                             ),
                                                             leading_trivia: None,
                                                         },
@@ -1058,9 +1024,9 @@ expression: parsed.ast
                                                     Node {
                                                         node: Node {
                                                             token: SpannedToken(
-                                                                463,
+                                                                446,
                                                                 Comma,
-                                                                464,
+                                                                447,
                                                             ),
                                                             leading_trivia: None,
                                                         },
@@ -1068,11 +1034,11 @@ expression: parsed.ast
                                                     Node {
                                                         node: Node {
                                                             token: SpannedToken(
-                                                                465,
+                                                                448,
                                                                 NumberOffset(
                                                                     "200px",
                                                                 ),
-                                                                470,
+                                                                453,
                                                             ),
                                                             leading_trivia: None,
                                                         },
@@ -1080,9 +1046,9 @@ expression: parsed.ast
                                                     Node {
                                                         node: Node {
                                                             token: SpannedToken(
-                                                                470,
+                                                                453,
                                                                 Comma,
-                                                                471,
+                                                                454,
                                                             ),
                                                             leading_trivia: None,
                                                         },
@@ -1090,11 +1056,11 @@ expression: parsed.ast
                                                     Node {
                                                         node: Node {
                                                             token: SpannedToken(
-                                                                472,
+                                                                455,
                                                                 Number(
                                                                     "1",
                                                                 ),
-                                                                473,
+                                                                456,
                                                             ),
                                                             leading_trivia: None,
                                                         },
@@ -1102,9 +1068,9 @@ expression: parsed.ast
                                                     Node {
                                                         node: Node {
                                                             token: SpannedToken(
-                                                                473,
+                                                                456,
                                                                 Comma,
-                                                                474,
+                                                                457,
                                                             ),
                                                             leading_trivia: None,
                                                         },
@@ -1112,11 +1078,11 @@ expression: parsed.ast
                                                     Node {
                                                         node: Node {
                                                             token: SpannedToken(
-                                                                475,
+                                                                458,
                                                                 Number(
                                                                     "0",
                                                                 ),
-                                                                476,
+                                                                459,
                                                             ),
                                                             leading_trivia: None,
                                                         },
@@ -1126,9 +1092,9 @@ expression: parsed.ast
                                             right: Some(
                                                 Node {
                                                     token: SpannedToken(
-                                                        476,
+                                                        459,
                                                         ParensClose,
-                                                        477,
+                                                        460,
                                                     ),
                                                     leading_trivia: None,
                                                 },
@@ -1140,9 +1106,9 @@ expression: parsed.ast
                             terminator: Some(
                                 Node {
                                     token: SpannedToken(
-                                        477,
+                                        460,
                                         SemiColon,
-                                        478,
+                                        461,
                                     ),
                                     leading_trivia: None,
                                 },
@@ -1153,9 +1119,9 @@ expression: parsed.ast
                 right: Some(
                     Node {
                         token: SpannedToken(
-                            479,
+                            462,
                             ScopeClose,
-                            480,
+                            463,
                         ),
                         leading_trivia: None,
                     },

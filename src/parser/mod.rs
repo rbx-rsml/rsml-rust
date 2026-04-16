@@ -70,8 +70,6 @@ impl<'a> Parser<'a> {
                 .parse_priority(node)
                 .handle_construct(&mut parser.ast)?;
 
-            node = parser.parse_name(node).handle_construct(&mut parser.ast)?;
-
             node = parser.parse_tween(node).handle_construct(&mut parser.ast)?;
 
             node = parser
@@ -360,6 +358,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::compiler::Compiler;
 
     macro_rules! parser_test {
         ($name:ident, $source:expr) => {
@@ -367,6 +366,15 @@ mod tests {
             fn $name() {
                 let parsed = Parser::parse_source($source);
                 insta::assert_debug_snapshot!(parsed.ast);
+            }
+
+            paste::paste! {
+                #[test]
+                fn [<compiler_ $name>]() {
+                    let parsed = Parser::parse_source($source);
+                    let compiled = Compiler::new(parsed);
+                    insta::assert_debug_snapshot!(compiled.tree_nodes);
+                }
             }
         };
     }
@@ -389,9 +397,6 @@ mod tests {
     parser_test!(derive_missing_body, r#"@derive"#);
     parser_test!(priority_number, r#"@priority 10;"#);
     parser_test!(priority_missing_semicolon, r#"@priority 10"#);
-    parser_test!(name_string, r#"@name "MySheet";"#);
-    parser_test!(name_identifier, r#"@name MySheet;"#);
-    parser_test!(name_missing_semicolon, r#"@name "test""#);
     parser_test!(tween_simple, r#"@tween MyTween 0.5;"#);
     parser_test!(tween_string_value, r#"@tween Slide "ease-in";"#);
     parser_test!(tween_missing_name, r#"@tween ;"#);
@@ -515,9 +520,8 @@ mod tests {
     // ── K. Integration / Edge Cases ─────────────────────────────────
 
     parser_test!(empty_source, r#""#);
-    parser_test!(multiple_top_level, "@name \"T\";\n@priority 5;\nFrame { Size = 100; }");
+    parser_test!(multiple_top_level, "@priority 5;\nFrame { Size = 100; }");
     parser_test!(full_stylesheet, r#"
-@name "MySheet";
 @derive "base";
 @priority 5;
 @tween Fade 0.3;

@@ -1,0 +1,25 @@
+---
+source: src/parser/mod.rs
+expression: compiled.tree_nodes
+---
+TreeNodeGroup {
+    root: Some(
+        RootTreeNode {
+            attributes: Attributes {
+                data: {},
+            },
+            static_attributes: {
+                "Padding": Variant(
+                    UDim(
+                        UDim {
+                            scale: 0.0,
+                            offset: 10,
+                        },
+                    ),
+                ),
+            },
+            child_rules: [],
+        },
+    ),
+    nodes: [],
+}

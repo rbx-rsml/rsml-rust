@@ -1,0 +1,41 @@
+---
+source: src/parser/mod.rs
+expression: compiled.tree_nodes
+---
+TreeNodeGroup {
+    root: Some(
+        RootTreeNode {
+            attributes: Attributes {
+                data: {},
+            },
+            static_attributes: {},
+            child_rules: [
+                0,
+            ],
+        },
+    ),
+    nodes: [
+        Some(
+            TreeNode {
+                selector: Some(
+                    "sel!()",
+                ),
+                priority: None,
+                tweens: {},
+                attributes: Attributes {
+                    data: {},
+                },
+                static_attributes: {},
+                properties: Attributes {
+                    data: {
+                        "Size": Float32(
+                            100.0,
+                        ),
+                    },
+                },
+                child_rules: [],
+                parent: Root,
+            },
+        ),
+    ],
+}

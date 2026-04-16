@@ -1,0 +1,20 @@
+---
+source: src/parser/mod.rs
+expression: compiled.tree_nodes
+---
+TreeNodeGroup {
+    root: Some(
+        RootTreeNode {
+            attributes: Attributes {
+                data: {
+                    "Val": Float32(
+                        7.0,
+                    ),
+                },
+            },
+            static_attributes: {},
+            child_rules: [],
+        },
+    ),
+    nodes: [],
+}

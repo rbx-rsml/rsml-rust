@@ -1,0 +1,168 @@
+---
+source: src/parser/mod.rs
+expression: compiled.tree_nodes
+---
+TreeNodeGroup {
+    root: Some(
+        RootTreeNode {
+            attributes: Attributes {
+                data: {
+                    "Padding": UDim(
+                        UDim {
+                            scale: 0.0,
+                            offset: 10,
+                        },
+                    ),
+                },
+            },
+            static_attributes: {
+                "PrimaryColor": Variant(
+                    Color3(
+                        Color3 {
+                            r: 0.20392157,
+                            g: 0.59607846,
+                            b: 0.85882354,
+                        },
+                    ),
+                ),
+            },
+            child_rules: [
+                0,
+                3,
+            ],
+        },
+    ),
+    nodes: [
+        Some(
+            TreeNode {
+                selector: Some(
+                    "Frame",
+                ),
+                priority: None,
+                tweens: {},
+                attributes: Attributes {
+                    data: {},
+                },
+                static_attributes: {},
+                properties: Attributes {
+                    data: {
+                        "BackgroundColor3": Color3(
+                            Color3 {
+                                r: 0.20392157,
+                                g: 0.59607846,
+                                b: 0.85882354,
+                            },
+                        ),
+                        "Size": UDim2(
+                            UDim2 {
+                                x: UDim {
+                                    scale: 1.0,
+                                    offset: 0,
+                                },
+                                y: UDim {
+                                    scale: 1.0,
+                                    offset: 0,
+                                },
+                            },
+                        ),
+                    },
+                },
+                child_rules: [
+                    1,
+                    2,
+                ],
+                parent: Root,
+            },
+        ),
+        Some(
+            TreeNode {
+                selector: Some(
+                    "TextLabel",
+                ),
+                priority: None,
+                tweens: {},
+                attributes: Attributes {
+                    data: {},
+                },
+                static_attributes: {},
+                properties: Attributes {
+                    data: {
+                        "Text": String(
+                            "Hello",
+                        ),
+                        "TextColor3": Color3(
+                            Color3 {
+                                r: 0.99999994,
+                                g: 0.99999994,
+                                b: 0.9999997,
+                            },
+                        ),
+                    },
+                },
+                child_rules: [],
+                parent: Node(
+                    0,
+                ),
+            },
+        ),
+        Some(
+            TreeNode {
+                selector: Some(
+                    ":hover",
+                ),
+                priority: None,
+                tweens: {},
+                attributes: Attributes {
+                    data: {},
+                },
+                static_attributes: {},
+                properties: Attributes {
+                    data: {
+                        "BackgroundColor3": Color3(
+                            Color3 {
+                                r: 0.14509812,
+                                g: 0.38823524,
+                                b: 0.9215684,
+                            },
+                        ),
+                    },
+                },
+                child_rules: [],
+                parent: Node(
+                    0,
+                ),
+            },
+        ),
+        Some(
+            TreeNode {
+                selector: Some(
+                    "#Sidebar, .panel",
+                ),
+                priority: None,
+                tweens: {},
+                attributes: Attributes {
+                    data: {},
+                },
+                static_attributes: {},
+                properties: Attributes {
+                    data: {
+                        "Size": UDim2(
+                            UDim2 {
+                                x: UDim {
+                                    scale: 0.0,
+                                    offset: 0,
+                                },
+                                y: UDim {
+                                    scale: 1.0,
+                                    offset: 0,
+                                },
+                            },
+                        ),
+                    },
+                },
+                child_rules: [],
+                parent: Root,
+            },
+        ),
+    ],
+}

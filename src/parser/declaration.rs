@@ -118,18 +118,6 @@ impl<'a> Parser<'a> {
         )
     }
 
-    pub(crate) fn parse_name(&mut self, node: Node<'a>) -> Parsed<'a> {
-        self.parse_declaration_with_datatype(
-            node,
-            TokenKind::NameDeclaration,
-            |declaration, body, terminator| Construct::Name {
-                declaration,
-                body,
-                terminator,
-            },
-        )
-    }
-
     pub(crate) fn parse_tween(&mut self, node: Node<'a>) -> Parsed<'a> {
         if !node_token_matches!(node, TweenDeclaration) {
             return Parsed(Some(node), None);
@@ -1013,10 +1001,6 @@ impl<'a> Parser<'a> {
             node = parser
                 .parse_priority(node)
                 .handle_construct(&mut body_content)?;
-            node = parser
-                .parse_name(node)
-                .handle_construct(&mut body_content)?;
-
             node = parser
                 .parse_tween(node)
                 .handle_construct(&mut body_content)?;

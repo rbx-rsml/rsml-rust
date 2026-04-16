@@ -1,0 +1,67 @@
+---
+source: src/parser/mod.rs
+expression: compiled.tree_nodes
+---
+TreeNodeGroup {
+    root: Some(
+        RootTreeNode {
+            attributes: Attributes {
+                data: {},
+            },
+            static_attributes: {},
+            child_rules: [
+                0,
+            ],
+        },
+    ),
+    nodes: [
+        Some(
+            TreeNode {
+                selector: Some(
+                    ".tag",
+                ),
+                priority: None,
+                tweens: {},
+                attributes: Attributes {
+                    data: {},
+                },
+                static_attributes: {},
+                properties: Attributes {
+                    data: {},
+                },
+                child_rules: [
+                    1,
+                ],
+                parent: Root,
+            },
+        ),
+        Some(
+            TreeNode {
+                selector: Some(
+                    ":hover",
+                ),
+                priority: None,
+                tweens: {},
+                attributes: Attributes {
+                    data: {},
+                },
+                static_attributes: {},
+                properties: Attributes {
+                    data: {
+                        "Color": Color3(
+                            Color3 {
+                                r: 1.0,
+                                g: 0.0,
+                                b: 0.0,
+                            },
+                        ),
+                    },
+                },
+                child_rules: [],
+                parent: Node(
+                    0,
+                ),
+            },
+        ),
+    ],
+}

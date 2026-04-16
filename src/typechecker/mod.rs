@@ -247,7 +247,7 @@ impl<'a> Typechecker<'a> {
                     }
                 }
 
-                Construct::Priority { .. } | Construct::Name { .. } => {
+                Construct::Priority { .. } => {
                     ast_errors.push(
                         TypeError::NotAllowedInContext {
                             name: construct.name_plural(),

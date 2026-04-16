@@ -181,12 +181,6 @@ pub enum Construct<'a> {
         terminator: Option<Node<'a>>,
     },
 
-    Name {
-        declaration: Node<'a>,
-        body: Option<Box<Construct<'a>>>,
-        terminator: Option<Node<'a>>,
-    },
-
     Tween {
         declaration: Node<'a>,
         name: Option<Node<'a>>,
@@ -255,7 +249,6 @@ impl<'a> Construct<'a> {
             Self::MacroCall { .. } => "Macro calls",
             Self::Derive { .. } => "Derives",
             Self::Priority { .. } => "Priorities",
-            Self::Name { .. } => "Names",
             Self::Tween { .. } => "Tweens",
             Self::Rule { .. } => "Rules",
             Self::Assignment { left, .. } => match left.token.value() {
@@ -278,7 +271,6 @@ impl<'a> Construct<'a> {
 
             Self::Derive { declaration, .. }
             | Self::Priority { declaration, .. }
-            | Self::Name { declaration, .. }
             | Self::Tween { declaration, .. } => declaration.token.start(),
 
             Self::Rule { selectors, body } => {
@@ -360,11 +352,7 @@ impl<'a> SpanEnd for Construct<'a> {
                 body,
                 terminator,
             }
-            | Self::Name {
-                declaration,
-                body,
-                terminator,
-            } => {
+            => {
                 if let Some(x) = terminator {
                     return x.token.end();
                 }
