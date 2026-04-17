@@ -7,6 +7,7 @@ pub mod types;
 mod macros;
 
 pub mod compiler;
+pub mod datatype;
 pub mod lexer;
 pub mod list;
 pub mod parser;

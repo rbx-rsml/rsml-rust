@@ -1,6 +1,6 @@
 use rbx_types::{Content, Variant};
 
-use crate::compiler::datatype::Datatype;
+use crate::datatype::Datatype;
 
 pub fn content_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     let content = match datatypes.get(0) {

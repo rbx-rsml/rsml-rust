@@ -5,11 +5,13 @@ use std::{
 };
 
 use crate::{
+    datatype::{Datatype, StaticLookup, evaluate_construct},
     lexer::Token,
-    parser::{AstErrors, Construct, ParsedRsml},
+    parser::{AstErrors, Construct, Delimited, ParsedRsml},
     range_from_span::RangeFromSpan,
     types::{Diagnostic, Range},
 };
+
 
 use self::luaurc::Luaurc;
 use macro_check::{
@@ -92,7 +94,19 @@ pub enum DefinitionKind {
     FilteredEnumName {
         enum_name: String,
     },
+    Token {
+        name: String,
+        is_static: bool,
+    },
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TokenKey {
+    pub name: String,
+    pub is_static: bool,
+}
+
+pub type TokenTypes = HashMap<TokenKey, Datatype>;
 
 impl DefinitionKind {
     fn selector_hint(classes: &Vec<String>) -> String {
@@ -113,11 +127,33 @@ pub struct TypecheckedRsml {
     pub derives: HashMap<PathBuf, RangeInclusive<usize>>,
     pub dependencies: HashSet<PathBuf>,
     pub definitions: Definitions,
+    pub token_types: TokenTypes,
 }
 
 pub struct Typechecker<'a> {
     pub parsed: &'a ParsedRsml<'a>,
     macro_registry: MacroRegistry<'a>,
+    pub(crate) static_scopes: Vec<HashMap<String, Datatype>>,
+    pub(crate) declared_tokens: Vec<HashSet<TokenKey>>,
+}
+
+pub(crate) struct TypecheckerLookup<'a> {
+    pub scopes: &'a [HashMap<String, Datatype>],
+}
+
+impl<'a> StaticLookup for TypecheckerLookup<'a> {
+    fn resolve_static(&self, name: &str) -> Datatype {
+        for scope in self.scopes.iter().rev() {
+            if let Some(dt) = scope.get(name) {
+                return dt.clone();
+            }
+        }
+        Datatype::None
+    }
+
+    fn resolve_dynamic(&self, _name: &str) -> Datatype {
+        Datatype::None
+    }
 }
 
 impl<'a> Typechecker<'a> {
@@ -129,6 +165,8 @@ impl<'a> Typechecker<'a> {
         let mut typechecker: Typechecker<'a> = Self {
             parsed,
             macro_registry: HashMap::new(),
+            static_scopes: vec![HashMap::new()],
+            declared_tokens: vec![HashSet::new()],
         };
 
         // We need to use a different ast errors
@@ -137,6 +175,7 @@ impl<'a> Typechecker<'a> {
 
         let mut derives: HashMap<PathBuf, RangeInclusive<usize>> = HashMap::new();
         let mut definitions = Definitions::new();
+        let mut token_types: TokenTypes = HashMap::new();
         let mut dependencies = HashSet::new();
 
         for construct in &typechecker.parsed.ast {
@@ -176,6 +215,7 @@ impl<'a> Typechecker<'a> {
                         &vec![],
                         &mut ast_errors,
                         &mut definitions,
+                        &mut token_types,
                     );
                 }
 
@@ -237,6 +277,7 @@ impl<'a> Typechecker<'a> {
                             Range::from_span(&typechecker.parsed.rope, construct.span()),
                         );
                     }
+                    typechecker.validate_token_refs(right, &mut ast_errors);
                     typechecker.validate_macro_arg_refs(right, None, &mut ast_errors);
                     typechecker.validate_annotation(right, &mut ast_errors);
                     if let Construct::MacroCall { name, body, .. } = right.as_ref() {
@@ -247,6 +288,7 @@ impl<'a> Typechecker<'a> {
                             &mut ast_errors,
                         );
                     }
+                    typechecker.resolve_token_assignment(left, right, &mut definitions, &mut token_types);
                 }
 
                 Construct::Priority { .. } => {
@@ -268,6 +310,136 @@ impl<'a> Typechecker<'a> {
             derives,
             dependencies,
             definitions,
+            token_types,
+        }
+    }
+
+    pub(crate) fn resolve_token_assignment(
+        &mut self,
+        left: &crate::parser::Node<'a>,
+        right: &Construct<'a>,
+        definitions: &mut Definitions,
+        token_types: &mut TokenTypes,
+    ) {
+        let (name, is_static) = match left.token.value() {
+            Token::TokenIdentifier(name) => (*name, false),
+            Token::StaticTokenIdentifier(name) => (*name, true),
+            _ => return,
+        };
+
+        let lookup = TypecheckerLookup { scopes: &self.static_scopes };
+
+        let evaluated = if let Construct::Node { node } = right {
+            if let Token::StateSelectorOrEnumPart(Some(value)) = node.token.value() {
+                Some(Datatype::IncompleteEnumShorthand(value.to_string()))
+            } else {
+                evaluate_construct(right, Some(name), &lookup)
+            }
+        } else {
+            evaluate_construct(right, Some(name), &lookup)
+        };
+
+        let resolved_type = match evaluated {
+            Some(Datatype::IncompleteEnumShorthand(variant)) => {
+                Datatype::IncompleteEnumShorthand(variant)
+            }
+            Some(d) if is_static => d,
+            Some(d) => d
+                .coerce_to_variant(Some(name))
+                .map(Datatype::Variant)
+                .unwrap_or(Datatype::None),
+            None => Datatype::None,
+        };
+
+        if is_static {
+            if let Some(frame) = self.static_scopes.last_mut() {
+                frame.insert(name.to_string(), resolved_type.clone());
+            }
+        }
+
+        token_types.insert(
+            TokenKey { name: name.to_string(), is_static },
+            resolved_type,
+        );
+
+        if let Some(frame) = self.declared_tokens.last_mut() {
+            frame.insert(TokenKey { name: name.to_string(), is_static });
+        }
+
+        let (start, end) = left.token.span();
+        definitions.insert(
+            start..=end,
+            DefinitionKind::Token {
+                name: name.to_string(),
+                is_static,
+            },
+        );
+    }
+
+    pub(crate) fn validate_token_refs(
+        &self,
+        construct: &Construct<'a>,
+        ast_errors: &mut AstErrors,
+    ) {
+        match construct {
+            Construct::Node { node } => {
+                let (name, is_static) = match node.token.value() {
+                    Token::TokenIdentifier(n) => (*n, false),
+                    Token::StaticTokenIdentifier(n) => (*n, true),
+                    _ => return,
+                };
+                let key = TokenKey {
+                    name: name.to_string(),
+                    is_static,
+                };
+                let in_scope = self
+                    .declared_tokens
+                    .iter()
+                    .rev()
+                    .any(|frame| frame.contains(&key));
+                if !in_scope {
+                    ast_errors.push(
+                        TypeError::UndefinedToken { name, is_static },
+                        self.parsed.range_from_span(node.token.span()),
+                    );
+                }
+            }
+            Construct::MathOperation { left, right, .. } => {
+                self.validate_token_refs(left, ast_errors);
+                if let Some(right) = right {
+                    self.validate_token_refs(right, ast_errors);
+                }
+            }
+            Construct::UnaryMinus { operand, .. } => {
+                self.validate_token_refs(operand, ast_errors);
+            }
+            Construct::Table { body } => {
+                self.validate_token_refs_delimited(body, ast_errors);
+            }
+            Construct::AnnotatedTable {
+                body: Some(body), ..
+            } => {
+                self.validate_token_refs_delimited(body, ast_errors);
+            }
+            Construct::MacroCall {
+                body: Some(body), ..
+            } => {
+                self.validate_token_refs_delimited(body, ast_errors);
+            }
+            _ => {}
+        }
+    }
+
+    fn validate_token_refs_delimited(
+        &self,
+        delim: &Delimited<'a>,
+        ast_errors: &mut AstErrors,
+    ) {
+        let Some(content) = delim.content.as_ref() else {
+            return;
+        };
+        for item in content {
+            self.validate_token_refs(item, ast_errors);
         }
     }
 }
@@ -282,6 +454,7 @@ mod tests {
     struct TypecheckResult {
         selectors: Vec<(usize, usize, Vec<String>)>,
         scopes: Vec<(usize, usize, Vec<String>)>,
+        tokens: Vec<(usize, usize, String, bool, Datatype)>,
         errors: Vec<String>,
     }
 
@@ -295,6 +468,7 @@ mod tests {
             derives: _derives,
             definitions,
             dependencies: _dependencies,
+            token_types,
         } = Typechecker::new(&parsed, &dummy_path, None).await;
 
         let selectors: Vec<(usize, usize, Vec<String>)> = definitions
@@ -325,6 +499,30 @@ mod tests {
             })
             .collect();
 
+        let tokens: Vec<(usize, usize, String, bool, Datatype)> = definitions
+            .iter()
+            .filter_map(|(range, kind)| {
+                if let DefinitionKind::Token { name, is_static } = kind {
+                    let resolved_type = token_types
+                        .get(&TokenKey {
+                            name: name.clone(),
+                            is_static: *is_static,
+                        })
+                        .cloned()
+                        .unwrap_or(Datatype::None);
+                    Some((
+                        *range.start(),
+                        *range.end(),
+                        name.clone(),
+                        *is_static,
+                        resolved_type,
+                    ))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         let errors: Vec<String> = ast_errors
             .0
             .iter()
@@ -334,6 +532,7 @@ mod tests {
         TypecheckResult {
             selectors,
             scopes,
+            tokens,
             errors,
         }
     }
@@ -1408,6 +1607,496 @@ mod tests {
             token_errors.is_empty(),
             "unexpected static-token error: {:?}",
             token_errors
+        );
+    }
+
+    fn annotation_arg_type_errors(result: &TypecheckResult) -> Vec<&String> {
+        result
+            .errors
+            .iter()
+            .filter(|err| err.contains("must be"))
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn annotation_static_token_measurement_valid() {
+        let result = typecheck("$!W = 100; Frame { Size = udim2($!W, 0%); }").await;
+        let errs = annotation_arg_type_errors(&result);
+        assert!(errs.is_empty(), "unexpected arg-type errors: {:?}", errs);
+    }
+
+    #[tokio::test]
+    async fn annotation_static_token_scale_measurement_valid() {
+        let result = typecheck("$!Hello = 50%; Frame { Hello = udim2(50%, $!Hello); }").await;
+        let errs = annotation_arg_type_errors(&result);
+        assert!(errs.is_empty(), "unexpected arg-type errors: {:?}", errs);
+    }
+
+    #[tokio::test]
+    async fn annotation_static_token_number_valid() {
+        let result = typecheck("$!N = 10; Frame { Size = vec3($!N, $!N, $!N); }").await;
+        let errs = annotation_arg_type_errors(&result);
+        assert!(errs.is_empty(), "unexpected arg-type errors: {:?}", errs);
+    }
+
+    #[tokio::test]
+    async fn annotation_static_token_color_valid() {
+        let result =
+            typecheck("$!C = #ff0000; Frame { BackgroundColor3 = color3($!C); }").await;
+        let errs = annotation_arg_type_errors(&result);
+        assert!(errs.is_empty(), "unexpected arg-type errors: {:?}", errs);
+    }
+
+    #[tokio::test]
+    async fn annotation_static_token_oklab_color_valid() {
+        let result =
+            typecheck("$!C = tw:red:500; Frame { BackgroundColor3 = color3($!C); }").await;
+        let errs = annotation_arg_type_errors(&result);
+        assert!(errs.is_empty(), "unexpected arg-type errors: {:?}", errs);
+    }
+
+    #[tokio::test]
+    async fn annotation_static_token_wrong_type_errors() {
+        let result = typecheck("$!S = \"hi\"; Frame { Size = udim2($!S, 0%); }").await;
+        let errs = annotation_arg_type_errors(&result);
+        assert!(
+            !errs.is_empty(),
+            "expected a Wrong Annotation Argument Type error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_static_token_unresolved_permissive() {
+        let result = typecheck("Frame { Size = udim2($!Unknown, 0%); }").await;
+        let errs = annotation_arg_type_errors(&result);
+        let token_errs: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Tokens are not allowed"))
+            .collect();
+        assert!(errs.is_empty(), "unexpected arg-type errors: {:?}", errs);
+        assert!(token_errs.is_empty(), "unexpected token errors: {:?}", token_errs);
+    }
+
+    #[tokio::test]
+    async fn annotation_regular_token_still_errors() {
+        let result = typecheck("$W = 10; Frame { Size = udim2($W, 0, 1, 0); }").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Tokens are not allowed")),
+            "expected token-in-annotation error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_static_token_in_math_permissive() {
+        let result = typecheck("$!W = 10; Frame { Size = udim2($!W + 5, 0%); }").await;
+        let errs = annotation_arg_type_errors(&result);
+        assert!(errs.is_empty(), "unexpected arg-type errors: {:?}", errs);
+    }
+
+    #[tokio::test]
+    async fn annotation_static_token_enum_valid() {
+        let result = typecheck(
+            "$!B = Enum.FontWeight.Bold; Frame { FontFace = font(\"rbxasset://fonts/arial.ttf\", $!B); }",
+        )
+        .await;
+        let errs = annotation_arg_type_errors(&result);
+        assert!(errs.is_empty(), "unexpected arg-type errors: {:?}", errs);
+    }
+
+    #[tokio::test]
+    async fn annotation_static_token_enum_wrong_type_errors() {
+        let result =
+            typecheck("$!B = Enum.FontWeight.Bold; Frame { Size = udim2($!B, 0%); }").await;
+        let errs = annotation_arg_type_errors(&result);
+        assert!(
+            !errs.is_empty(),
+            "expected a Wrong Annotation Argument Type error, got: {:?}",
+            result.errors
+        );
+    }
+
+    fn find_token<'a>(
+        result: &'a TypecheckResult,
+        name: &str,
+        is_static: bool,
+    ) -> &'a Datatype {
+        result
+            .tokens
+            .iter()
+            .find(|(_, _, n, s, _)| n == name && *s == is_static)
+            .map(|(_, _, _, _, dt)| dt)
+            .unwrap_or_else(|| {
+                panic!(
+                    "no token `{}` (static={}) found; tokens={:?}",
+                    name,
+                    is_static,
+                    result.tokens.iter().map(|(_, _, n, s, _)| (n, s)).collect::<Vec<_>>()
+                )
+            })
+    }
+
+    #[tokio::test]
+    async fn token_number_type() {
+        let result = typecheck("$X = 10;").await;
+        let dt = find_token(&result, "X", false);
+        assert!(
+            matches!(dt, Datatype::Variant(rbx_types::Variant::Float32(n)) if *n == 10.0),
+            "got {:?}",
+            dt
+        );
+    }
+
+    #[tokio::test]
+    async fn token_color_hex_coerces_for_regular() {
+        let result = typecheck("$X = #ff0000;").await;
+        let dt = find_token(&result, "X", false);
+        assert!(
+            matches!(dt, Datatype::Variant(rbx_types::Variant::Color3(_))),
+            "got {:?}",
+            dt
+        );
+    }
+
+    #[tokio::test]
+    async fn token_color_tailwind_coerces_to_color3() {
+        let result = typecheck("$X = tw:red:500;").await;
+        let dt = find_token(&result, "X", false);
+        assert!(
+            matches!(dt, Datatype::Variant(rbx_types::Variant::Color3(_))),
+            "got {:?}",
+            dt
+        );
+    }
+
+    #[tokio::test]
+    async fn static_token_keeps_oklab() {
+        let result = typecheck("$!X = tw:red:500;").await;
+        let dt = find_token(&result, "X", true);
+        assert!(matches!(dt, Datatype::Oklab(_)), "got {:?}", dt);
+    }
+
+    #[tokio::test]
+    async fn token_udim2() {
+        let result = typecheck("$X = udim2(1, 0, 1, 0);").await;
+        let dt = find_token(&result, "X", false);
+        assert!(
+            matches!(dt, Datatype::Variant(rbx_types::Variant::UDim2(_))),
+            "got {:?}",
+            dt
+        );
+    }
+
+    #[tokio::test]
+    async fn token_string() {
+        let result = typecheck("$X = \"hi\";").await;
+        let dt = find_token(&result, "X", false);
+        assert!(
+            matches!(dt, Datatype::Variant(rbx_types::Variant::String(s)) if s == "hi"),
+            "got {:?}",
+            dt
+        );
+    }
+
+    #[tokio::test]
+    async fn static_token_cross_ref() {
+        let result = typecheck("$!A = 10; $!B = $!A;").await;
+        let a = find_token(&result, "A", true);
+        let b = find_token(&result, "B", true);
+        assert!(
+            matches!(a, Datatype::Variant(rbx_types::Variant::Float32(n)) if *n == 10.0),
+            "got A={:?}",
+            a
+        );
+        assert!(
+            matches!(b, Datatype::Variant(rbx_types::Variant::Float32(n)) if *n == 10.0),
+            "got B={:?}",
+            b
+        );
+    }
+
+    #[tokio::test]
+    async fn static_token_math() {
+        let result = typecheck("$!A = 10; $!B = $!A + 5;").await;
+        let b = find_token(&result, "B", true);
+        assert!(
+            matches!(b, Datatype::Variant(rbx_types::Variant::Float32(n)) if *n == 15.0),
+            "got {:?}",
+            b
+        );
+    }
+
+    #[tokio::test]
+    async fn token_inside_rule_body() {
+        let result = typecheck("Frame { $X = 10; }").await;
+        let dt = find_token(&result, "X", false);
+        assert!(
+            matches!(dt, Datatype::Variant(rbx_types::Variant::Float32(n)) if *n == 10.0),
+            "got {:?}",
+            dt
+        );
+    }
+
+    #[tokio::test]
+    async fn static_token_parent_scope_lookup() {
+        let result = typecheck("$!A = 10; Frame { $!B = $!A; }").await;
+        let b = find_token(&result, "B", true);
+        assert!(
+            matches!(b, Datatype::Variant(rbx_types::Variant::Float32(n)) if *n == 10.0),
+            "got {:?}",
+            b
+        );
+    }
+
+    #[tokio::test]
+    async fn regular_token_ref_is_unknown() {
+        let result = typecheck("$A = 10; $B = $A;").await;
+        let b = find_token(&result, "B", false);
+        assert!(matches!(b, Datatype::None), "got {:?}", b);
+    }
+
+    #[tokio::test]
+    async fn token_invalid_rhs() {
+        let result = typecheck("$X = ;").await;
+        if let Some((_, _, _, _, dt)) = result
+            .tokens
+            .iter()
+            .find(|(_, _, n, s, _)| n == "X" && !*s)
+        {
+            assert!(matches!(dt, Datatype::None), "got {:?}", dt);
+        }
+    }
+
+    #[tokio::test]
+    async fn token_enum_shorthand_dynamic() {
+        let result = typecheck("$X = :Hello;").await;
+        let dt = find_token(&result, "X", false);
+        assert!(
+            matches!(dt, Datatype::IncompleteEnumShorthand(value) if value == "Hello"),
+            "got {:?}",
+            dt
+        );
+    }
+
+    #[tokio::test]
+    async fn token_enum_shorthand_static() {
+        let result = typecheck("$!X = :Hello;").await;
+        let dt = find_token(&result, "X", true);
+        assert!(
+            matches!(dt, Datatype::IncompleteEnumShorthand(value) if value == "Hello"),
+            "got {:?}",
+            dt
+        );
+    }
+
+    #[tokio::test]
+    async fn token_full_enum_valid_dynamic() {
+        let result = typecheck("$X = Enum.Material.Plastic;").await;
+        let dt = find_token(&result, "X", false);
+        assert!(
+            matches!(
+                dt,
+                Datatype::Variant(rbx_types::Variant::EnumItem(item)) if item.ty == "Material"
+            ),
+            "got {:?}",
+            dt
+        );
+    }
+
+    #[tokio::test]
+    async fn token_full_enum_valid_static() {
+        let result = typecheck("$!X = Enum.Material.Plastic;").await;
+        let dt = find_token(&result, "X", true);
+        assert!(
+            matches!(
+                dt,
+                Datatype::Variant(rbx_types::Variant::EnumItem(item)) if item.ty == "Material"
+            ),
+            "got {:?}",
+            dt
+        );
+    }
+
+    #[tokio::test]
+    async fn token_full_enum_unresolvable_dynamic() {
+        let result = typecheck("$X = Enum.NotReal.xyz;").await;
+        let dt = find_token(&result, "X", false);
+        assert!(matches!(dt, Datatype::None), "got {:?}", dt);
+    }
+
+    #[tokio::test]
+    async fn token_full_enum_unresolvable_static() {
+        let result = typecheck("$!X = Enum.NotReal.xyz;").await;
+        let dt = find_token(&result, "X", true);
+        assert!(matches!(dt, Datatype::None), "got {:?}", dt);
+    }
+
+    #[tokio::test]
+    async fn token_boolean_dynamic() {
+        let result = typecheck("$X = true;").await;
+        let dt = find_token(&result, "X", false);
+        assert!(
+            matches!(dt, Datatype::Variant(rbx_types::Variant::Bool(true))),
+            "got {:?}",
+            dt
+        );
+    }
+
+    #[tokio::test]
+    async fn static_token_oklch_not_coerced() {
+        let result = typecheck("$!X = oklch(0.5, 0.1, 180);").await;
+        let dt = find_token(&result, "X", true);
+        assert!(matches!(dt, Datatype::Oklch(_)), "got {:?}", dt);
+    }
+
+    fn has_undefined_token_error(result: &TypecheckResult) -> bool {
+        result.errors.iter().any(|err| err.contains("Undefined Token"))
+    }
+
+    #[tokio::test]
+    async fn undefined_dynamic_token_direct() {
+        let result = typecheck("$A = $nope;").await;
+        assert!(
+            has_undefined_token_error(&result),
+            "expected Undefined Token error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn undefined_static_token_direct() {
+        let result = typecheck("$!A = $!nope;").await;
+        assert!(
+            has_undefined_token_error(&result),
+            "expected Undefined Token error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn undefined_token_in_property_assignment() {
+        let result = typecheck("Frame { Size = $nope; }").await;
+        assert!(
+            has_undefined_token_error(&result),
+            "expected Undefined Token error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn undefined_token_in_annotated_tuple() {
+        let result = typecheck("Frame { Size = udim2(0%, $!Hello, 0%, 0%); }").await;
+        assert!(
+            has_undefined_token_error(&result),
+            "expected Undefined Token error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn undefined_token_in_math() {
+        let result = typecheck("$!A = 10; $!B = $!A + $!nope;").await;
+        assert!(
+            has_undefined_token_error(&result),
+            "expected Undefined Token error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn undefined_token_in_table() {
+        let result = typecheck("$A = { $nope };").await;
+        assert!(
+            has_undefined_token_error(&result),
+            "expected Undefined Token error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn same_statement_self_ref_errors() {
+        let result = typecheck("$A = $A;").await;
+        assert!(
+            has_undefined_token_error(&result),
+            "expected Undefined Token error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn dynamic_and_static_distinct_keys() {
+        let result = typecheck("$A = 10; $B = $!A;").await;
+        assert!(
+            has_undefined_token_error(&result),
+            "expected Undefined Token error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn defined_static_token_no_error() {
+        let result = typecheck("$!A = 10; $!B = $!A;").await;
+        assert!(
+            !has_undefined_token_error(&result),
+            "unexpected Undefined Token error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn defined_dynamic_token_no_error() {
+        let result = typecheck("$A = 10; Frame { Size = $A; }").await;
+        assert!(
+            !has_undefined_token_error(&result),
+            "unexpected Undefined Token error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn nested_rule_inherits_outer_token() {
+        let result = typecheck("$!A = 10; Frame { $!B = $!A; }").await;
+        assert!(
+            !has_undefined_token_error(&result),
+            "unexpected Undefined Token error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn inner_shadow_resolves_to_outer_in_same_rhs() {
+        let result = typecheck("$!A = 10; Frame { $!A = $!A; }").await;
+        assert!(
+            !has_undefined_token_error(&result),
+            "unexpected Undefined Token error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn declared_unknown_static_token_errors_in_annotation_arg() {
+        let result =
+            typecheck("$!Hello = Enum.Hello.world; Frame { Size = udim2(50%, $!Hello); }").await;
+        let errs = annotation_arg_type_errors(&result);
+        assert!(
+            !errs.is_empty(),
+            "expected a Wrong Annotation Argument Type error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn same_scope_redeclaration_still_declared() {
+        let result = typecheck("$A = 10; $A = 20; Frame { Size = $A; }").await;
+        assert!(
+            !has_undefined_token_error(&result),
+            "unexpected Undefined Token error, got: {:?}",
+            result.errors
         );
     }
 }

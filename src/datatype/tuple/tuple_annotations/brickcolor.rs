@@ -1,6 +1,6 @@
 use rbx_types::{BrickColor, Variant};
 
-use crate::compiler::datatype::Datatype;
+use crate::datatype::Datatype;
 
 pub fn brickcolor_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     if let Some(Datatype::Variant(Variant::String(string))) = datatypes.get(0) {

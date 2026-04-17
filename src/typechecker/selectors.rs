@@ -14,16 +14,17 @@ use phf_macros::phf_set;
 use ropey::Rope;
 use crate::types::Range;
 
-use super::{DefinitionKind, PushTypeError, Typechecker, type_error::*};
+use super::{DefinitionKind, PushTypeError, TokenTypes, Typechecker, type_error::*};
 use super::macro_check::{MacroRegistry, MacroReturnContext};
 
 impl<'a> Typechecker<'a> {
     pub(super) fn typecheck_rule(
-        &self,
+        &mut self,
         (selectors, body): (&Option<Vec<SelectorNode<'a>>>, &Option<Delimited<'a>>),
         parent_classes: &Vec<String>,
         ast_errors: &mut AstErrors,
         definitions: &mut super::Definitions,
+        token_types: &mut TokenTypes,
     ) {
         let current_classes = if let Some(selectors) = selectors {
             self.typecheck_selectors(selectors, parent_classes, ast_errors, definitions)
@@ -50,22 +51,28 @@ impl<'a> Typechecker<'a> {
             return;
         };
 
+        self.static_scopes.push(std::collections::HashMap::new());
+        self.declared_tokens.push(std::collections::HashSet::new());
+
         for construct in content {
             match construct {
                 Construct::Rule { selectors, body } => {
-                    self.typecheck_rule((selectors, body), &current_classes, ast_errors, definitions)
+                    self.typecheck_rule((selectors, body), &current_classes, ast_errors, definitions, token_types)
                 }
 
                 Construct::Assignment {
+                    left,
                     right,
                     ..
                 } => {
                     if let Some(right) = right {
+                        self.validate_token_refs(right, ast_errors);
                         self.validate_macro_arg_refs(right, None, ast_errors);
                         self.validate_annotation(right, ast_errors);
                         if let Construct::MacroCall { name, body, .. } = right.as_ref() {
                             self.validate_macro_call(name, body, MacroReturnContext::Assignment, ast_errors);
                         }
+                        self.resolve_token_assignment(left, right, definitions, token_types);
                     }
                 }
 
@@ -98,6 +105,9 @@ impl<'a> Typechecker<'a> {
                 _ => (),
             }
         }
+
+        self.static_scopes.pop();
+        self.declared_tokens.pop();
     }
 
     fn typecheck_selectors(

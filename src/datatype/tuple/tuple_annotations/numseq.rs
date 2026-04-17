@@ -1,4 +1,4 @@
-use crate::compiler::datatype::Datatype;
+use crate::datatype::Datatype;
 use rbx_types::{NumberSequence, NumberSequenceKeypoint, Variant};
 use std::cmp::Ordering;
 

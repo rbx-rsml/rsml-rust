@@ -1,7 +1,7 @@
 mod tuple_annotations;
 use tuple_annotations::TUPLE_ANNOTATIONS;
 
-use super::datatype::Datatype;
+use super::Datatype;
 
 pub struct Tuple {
     pub name: Option<String>,

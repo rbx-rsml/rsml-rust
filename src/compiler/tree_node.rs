@@ -4,7 +4,7 @@ use std::ops::{Index, IndexMut};
 
 use rbx_types::Attributes;
 
-use super::datatype::Datatype;
+use crate::datatype::Datatype;
 
 #[derive(Clone, PartialEq, Copy, Eq, Debug, Hash)]
 pub enum TreeNodeType {

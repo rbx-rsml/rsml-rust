@@ -2,7 +2,7 @@ use palette::{IntoColor, Mix};
 use rbx_types::Variant;
 use rbx_types_ops::Lerp;
 
-use crate::compiler::datatype::Datatype;
+use crate::datatype::Datatype;
 
 use super::coerce_datatype_to_f32;
 

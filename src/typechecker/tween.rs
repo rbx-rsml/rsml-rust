@@ -115,7 +115,7 @@ impl<'a> Typechecker<'a> {
 
                 if args.is_empty() {
                     ast_errors.push(
-                        TypeError::InvalidType { expected: Some(Datatype::Tween) },
+                        TypeError::InvalidType { expected: Some(ExpectedDatatype::Tween) },
                         self.parsed.range_from_span(body.span()),
                     );
                     return;
@@ -162,7 +162,7 @@ impl<'a> Typechecker<'a> {
 
                 for arg in args.iter().skip(3) {
                     ast_errors.push(
-                        TypeError::InvalidType { expected: Some(Datatype::Tween) },
+                        TypeError::InvalidType { expected: Some(ExpectedDatatype::Tween) },
                         self.parsed.range_from_span(arg.span()),
                     );
                 }
@@ -170,7 +170,7 @@ impl<'a> Typechecker<'a> {
 
             _ => {
                 ast_errors.push(
-                    TypeError::InvalidType { expected: Some(Datatype::Tween) },
+                    TypeError::InvalidType { expected: Some(ExpectedDatatype::Tween) },
                     self.parsed.range_from_span(body.span()),
                 );
             }

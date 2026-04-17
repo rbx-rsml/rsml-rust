@@ -1,6 +1,6 @@
 use rbx_types::{NumberRange, Variant};
 
-use crate::compiler::datatype::Datatype;
+use crate::datatype::Datatype;
 
 use super::coerce_datatype_to_f32;
 

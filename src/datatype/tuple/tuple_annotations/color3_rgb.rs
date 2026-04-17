@@ -1,7 +1,7 @@
 use palette::{FromColor, Srgb};
 use rbx_types::{Color3, Color3uint8, Variant};
 
-use crate::compiler::datatype::Datatype;
+use crate::datatype::Datatype;
 
 use super::coerce_datatype_to_f32;
 

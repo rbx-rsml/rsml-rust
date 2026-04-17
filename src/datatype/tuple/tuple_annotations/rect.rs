@@ -1,6 +1,6 @@
 use rbx_types::{Rect, Variant, Vector2};
 
-use crate::compiler::datatype::Datatype;
+use crate::datatype::Datatype;
 
 use super::coerce_datatype_to_f32;
 

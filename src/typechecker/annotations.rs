@@ -1,11 +1,14 @@
 use phf_macros::phf_map;
+use rbx_types::Variant;
 
 use crate::{
+    datatype::Datatype,
     lexer::{SpannedToken, Token},
     parser::{AstErrors, Construct, Node},
 };
 
-use super::{PushTypeError, Typechecker, type_error::*};
+use super::{PushTypeError, TokenKey, Typechecker, TypecheckerLookup, type_error::*};
+use crate::datatype::StaticLookup;
 
 #[derive(Clone, Copy)]
 pub enum AnnotationArgType {
@@ -340,102 +343,70 @@ fn matches_enum(construct: &Construct, expected_enum: &str) -> bool {
     validate_enum_variant(actual_variant, expected_enum)
 }
 
-fn matches_tuple(construct: &Construct, signature: &[&[AnnotationArgType]]) -> bool {
-    let Construct::Table { body } = construct else { return false };
-    let Some(content) = &body.content else { return false };
-
-    let inner_args: Vec<&Construct> =
-        content.iter().filter(|item| !is_comma(item)).collect();
-
-    if inner_args.len() != signature.len() {
-        return false;
-    }
-
-    signature
-        .iter()
-        .zip(inner_args.iter())
-        .all(|(allowed, arg)| matches_any_type(arg, allowed))
-}
-
-fn matches_type(construct: &Construct, arg_type: &AnnotationArgType) -> bool {
-    // Math/unary expressions are accepted for numeric arg types since their
-    // result type can't be statically determined without full type inference.
-    let is_arithmetic =
-        matches!(construct, Construct::MathOperation { .. } | Construct::UnaryMinus { .. });
-
+fn datatype_matches_arg_type(dt: &Datatype, arg_type: &AnnotationArgType) -> bool {
     match arg_type {
-        Arg::Any => true,
+        Arg::Any => !matches!(dt, Datatype::None),
 
-        Arg::Number => {
-            token_matches(construct, |token| matches!(token, Token::Number(_))) || is_arithmetic
-        }
+        Arg::Number => matches!(dt, Datatype::Variant(Variant::Float32(_))),
 
-        Arg::Scale => token_matches(construct, |token| matches!(token, Token::NumberScale(_))),
+        Arg::Scale => matches!(
+            dt,
+            Datatype::Variant(Variant::UDim(_)) | Datatype::Variant(Variant::Float32(_))
+        ),
 
-        Arg::Measurement => {
-            let matches_token = token_matches(construct, |token| {
-                matches!(
-                    token,
-                    Token::Number(_) | Token::NumberScale(_) | Token::NumberOffset(_)
-                )
-            });
+        Arg::Measurement => matches!(
+            dt,
+            Datatype::Variant(Variant::Float32(_)) | Datatype::Variant(Variant::UDim(_))
+        ),
 
-            matches_token || is_arithmetic
-        }
+        Arg::String => matches!(dt, Datatype::Variant(Variant::String(_))),
 
-        Arg::String => token_matches(construct, |token| {
-            matches!(token, Token::StringSingle(_) | Token::StringMulti(_))
-        }),
+        Arg::Color => matches!(
+            dt,
+            Datatype::Variant(Variant::Color3(_))
+                | Datatype::Variant(Variant::BrickColor(_))
+                | Datatype::Oklab(_)
+                | Datatype::Oklch(_)
+        ),
 
-        Arg::Color => {
-            let matches_token = token_matches(construct, |token| {
-                matches!(
-                    token,
-                    Token::ColorHex(_)
-                        | Token::ColorTailwind(_)
-                        | Token::ColorSkin(_)
-                        | Token::ColorBrick(_)
-                        | Token::ColorCss(_)
-                )
-            });
+        Arg::Asset => matches!(
+            dt,
+            Datatype::Variant(Variant::String(_))
+                | Datatype::Variant(Variant::Content(_))
+                | Datatype::Variant(Variant::Float32(_))
+        ),
 
-            let matches_annotation = annotation_name(construct).is_some_and(|name| {
-                matches!(
-                    name.to_ascii_lowercase().as_str(),
-                    "color3" | "rgb" | "oklab" | "oklch" | "brickcolor"
-                )
-            });
+        Arg::Vector2 => matches!(
+            dt,
+            Datatype::Variant(Variant::Vector2(_)) | Datatype::Variant(Variant::Vector2int16(_))
+        ),
 
-            matches_token || matches_annotation
-        }
+        Arg::Vector3 => matches!(
+            dt,
+            Datatype::Variant(Variant::Vector3(_)) | Datatype::Variant(Variant::Vector3int16(_))
+        ),
 
-        Arg::Asset => token_matches(construct, |token| {
-            matches!(
-                token,
-                Token::RbxAsset(_)
-                    | Token::RbxContent(_)
-                    | Token::Number(_)
-                    | Token::StringSingle(_)
-                    | Token::StringMulti(_)
-            )
-        }),
+        Arg::Enum(name) => match dt {
+            Datatype::Variant(Variant::EnumItem(item)) => item.ty == *name,
+            Datatype::IncompleteEnumShorthand(_) => true,
+            _ => false,
+        },
 
-        Arg::Vector2 => annotation_name(construct).is_some_and(|name| {
-            matches!(name.to_ascii_lowercase().as_str(), "vec2" | "vec2i16")
-        }),
-
-        Arg::Vector3 => annotation_name(construct).is_some_and(|name| {
-            matches!(name.to_ascii_lowercase().as_str(), "vec3" | "vec3i16")
-        }),
-
-        Arg::Tuple(signature) => matches_tuple(construct, signature),
-
-        Arg::Enum(expected_name) => matches_enum(construct, expected_name),
+        Arg::Tuple(sig) => match dt {
+            Datatype::TupleData(vec) => {
+                vec.len() == sig.len()
+                    && vec
+                        .iter()
+                        .zip(sig.iter())
+                        .all(|(elem, allowed)| datatype_matches_any_arg_type(elem, allowed))
+            }
+            _ => false,
+        },
     }
 }
 
-fn matches_any_type(construct: &Construct, allowed_types: &[AnnotationArgType]) -> bool {
-    allowed_types.iter().any(|arg_type| matches_type(construct, arg_type))
+fn datatype_matches_any_arg_type(dt: &Datatype, allowed: &[AnnotationArgType]) -> bool {
+    allowed.iter().any(|t| datatype_matches_arg_type(dt, t))
 }
 
 fn validate_enum_variant(variant: &str, enum_name: &str) -> bool {
@@ -487,28 +458,155 @@ fn signature_accepts_count(signature: &AnnotationSignature, arg_count: usize) ->
     }
 }
 
-fn signature_fully_matches(signature: &AnnotationSignature, args: &[&Construct]) -> bool {
-    if !signature_accepts_count(signature, args.len()) {
-        return false;
-    }
-
-    let head_matches = args
-        .iter()
-        .zip(signature.head.iter())
-        .all(|(arg, allowed)| matches_any_type(arg, allowed));
-
-    if !head_matches {
-        return false;
-    }
-
-    let Some(tail_types) = signature.tail else { return true };
-
-    args[signature.head.len()..]
-        .iter()
-        .all(|arg| matches_any_type(arg, tail_types))
-}
-
 impl<'a> Typechecker<'a> {
+    fn matches_tuple(
+        &self,
+        construct: &Construct<'a>,
+        signature: &[&[AnnotationArgType]],
+    ) -> bool {
+        let Construct::Table { body } = construct else { return false };
+        let Some(content) = &body.content else { return false };
+
+        let inner_args: Vec<&Construct> =
+            content.iter().filter(|item| !is_comma(item)).collect();
+
+        if inner_args.len() != signature.len() {
+            return false;
+        }
+
+        signature
+            .iter()
+            .zip(inner_args.iter())
+            .all(|(allowed, arg)| self.matches_any_type(arg, allowed))
+    }
+
+    fn matches_type(&self, construct: &Construct<'a>, arg_type: &AnnotationArgType) -> bool {
+        if let Construct::Node {
+            node: Node { token: SpannedToken(_, Token::StaticTokenIdentifier(name), _), .. },
+        } = construct
+        {
+            let key = TokenKey { name: name.to_string(), is_static: true };
+            let declared = self.declared_tokens.iter().rev().any(|frame| frame.contains(&key));
+            if !declared {
+                return true;
+            }
+            let lookup = TypecheckerLookup { scopes: &self.static_scopes };
+            let resolved = lookup.resolve_static(name);
+            return datatype_matches_arg_type(&resolved, arg_type);
+        }
+
+        // Math/unary expressions are accepted for numeric arg types since their
+        // result type can't be statically determined without full type inference.
+        let is_arithmetic =
+            matches!(construct, Construct::MathOperation { .. } | Construct::UnaryMinus { .. });
+
+        match arg_type {
+            Arg::Any => true,
+
+            Arg::Number => {
+                token_matches(construct, |token| matches!(token, Token::Number(_)))
+                    || is_arithmetic
+            }
+
+            Arg::Scale => {
+                token_matches(construct, |token| matches!(token, Token::NumberScale(_)))
+            }
+
+            Arg::Measurement => {
+                let matches_token = token_matches(construct, |token| {
+                    matches!(
+                        token,
+                        Token::Number(_) | Token::NumberScale(_) | Token::NumberOffset(_)
+                    )
+                });
+
+                matches_token || is_arithmetic
+            }
+
+            Arg::String => token_matches(construct, |token| {
+                matches!(token, Token::StringSingle(_) | Token::StringMulti(_))
+            }),
+
+            Arg::Color => {
+                let matches_token = token_matches(construct, |token| {
+                    matches!(
+                        token,
+                        Token::ColorHex(_)
+                            | Token::ColorTailwind(_)
+                            | Token::ColorSkin(_)
+                            | Token::ColorBrick(_)
+                            | Token::ColorCss(_)
+                    )
+                });
+
+                let matches_annotation = annotation_name(construct).is_some_and(|name| {
+                    matches!(
+                        name.to_ascii_lowercase().as_str(),
+                        "color3" | "rgb" | "oklab" | "oklch" | "brickcolor"
+                    )
+                });
+
+                matches_token || matches_annotation
+            }
+
+            Arg::Asset => token_matches(construct, |token| {
+                matches!(
+                    token,
+                    Token::RbxAsset(_)
+                        | Token::RbxContent(_)
+                        | Token::Number(_)
+                        | Token::StringSingle(_)
+                        | Token::StringMulti(_)
+                )
+            }),
+
+            Arg::Vector2 => annotation_name(construct).is_some_and(|name| {
+                matches!(name.to_ascii_lowercase().as_str(), "vec2" | "vec2i16")
+            }),
+
+            Arg::Vector3 => annotation_name(construct).is_some_and(|name| {
+                matches!(name.to_ascii_lowercase().as_str(), "vec3" | "vec3i16")
+            }),
+
+            Arg::Tuple(signature) => self.matches_tuple(construct, signature),
+
+            Arg::Enum(expected_name) => matches_enum(construct, expected_name),
+        }
+    }
+
+    fn matches_any_type(
+        &self,
+        construct: &Construct<'a>,
+        allowed_types: &[AnnotationArgType],
+    ) -> bool {
+        allowed_types.iter().any(|arg_type| self.matches_type(construct, arg_type))
+    }
+
+    fn signature_fully_matches(
+        &self,
+        signature: &AnnotationSignature,
+        args: &[&Construct<'a>],
+    ) -> bool {
+        if !signature_accepts_count(signature, args.len()) {
+            return false;
+        }
+
+        let head_matches = args
+            .iter()
+            .zip(signature.head.iter())
+            .all(|(arg, allowed)| self.matches_any_type(arg, allowed));
+
+        if !head_matches {
+            return false;
+        }
+
+        let Some(tail_types) = signature.tail else { return true };
+
+        args[signature.head.len()..]
+            .iter()
+            .all(|arg| self.matches_any_type(arg, tail_types))
+    }
+
     pub(super) fn validate_annotation(
         &self,
         construct: &Construct<'a>,
@@ -579,7 +677,7 @@ impl<'a> Typechecker<'a> {
         ast_errors: &mut AstErrors,
     ) {
         // If any signature matches fully, no error.
-        if spec.signatures.iter().any(|signature| signature_fully_matches(signature, args)) {
+        if spec.signatures.iter().any(|signature| self.signature_fully_matches(signature, args)) {
             return;
         }
 
@@ -616,14 +714,13 @@ impl<'a> Typechecker<'a> {
                 signature.tail.unwrap_or(&[])
             };
 
-            if matches_any_type(arg, allowed_types) {
+            if self.matches_any_type(arg, allowed_types) {
                 continue;
             }
 
             let expected_description = describe_types(allowed_types);
             ast_errors.push(
                 TypeError::WrongAnnotationArgType {
-                    name,
                     arg_index: index,
                     expected: &expected_description,
                 },

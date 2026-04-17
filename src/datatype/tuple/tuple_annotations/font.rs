@@ -1,6 +1,6 @@
 use rbx_types::{Font, FontStyle, FontWeight, Variant};
 
-use crate::compiler::datatype::Datatype;
+use crate::datatype::Datatype;
 
 pub fn font_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     let font_name = if let Some(component) = datatypes.get(0) {

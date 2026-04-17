@@ -1,6 +1,6 @@
 use rbx_types::{UDim, UDim2, Variant};
 
-use crate::compiler::datatype::Datatype;
+use crate::datatype::Datatype;
 
 use super::{coerce_datatype_to_f32, coerce_datatype_to_i32};
 

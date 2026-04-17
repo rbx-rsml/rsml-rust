@@ -96,7 +96,7 @@ impl<'a> Typechecker<'a> {
 
                 _ => ast_errors.push(
                     TypeError::InvalidType {
-                        expected: Some(Datatype::String),
+                        expected: Some(ExpectedDatatype::String),
                     },
                     self.parsed.range_from_span(body.span()),
                 ),

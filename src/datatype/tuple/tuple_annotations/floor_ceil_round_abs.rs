@@ -1,6 +1,6 @@
 use rbx_types_ops::{Abs, Ceil, Floor, Round};
 
-use crate::compiler::datatype::Datatype;
+use crate::datatype::Datatype;
 
 pub fn floor_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     let Some(datatype) = datatypes.get(0) else {

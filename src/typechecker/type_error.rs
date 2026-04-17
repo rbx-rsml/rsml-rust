@@ -3,13 +3,13 @@ use std::path::PathBuf;
 use crate::types::Severity;
 use super::normalize_path::NormalizePath;
 
-pub enum Datatype {
+pub enum ExpectedDatatype {
     String,
     Number,
     Tween
 }
 
-impl ToString for Datatype {
+impl ToString for ExpectedDatatype {
     fn to_string(&self) -> String {
         match self {
             Self::String => "string",
@@ -27,7 +27,7 @@ pub enum CyclicKind<'a> {
 pub enum TypeError<'a> {
     UnknownDerive { path: Option<&'a str> },
     CyclicDerive { kind: CyclicKind<'a> },
-    InvalidType { expected: Option<Datatype> },
+    InvalidType { expected: Option<ExpectedDatatype> },
     InvalidTweenArg { expected: &'a str },
     InvalidSelector { msg: Option<&'a str> },
     InvalidMacroArg { msg: &'a str },
@@ -38,7 +38,8 @@ pub enum TypeError<'a> {
     NotAllowedInContext { name: &'a str, context: &'a str },
     UnknownAnnotation { name: &'a str },
     WrongAnnotationArgCount { name: &'a str, expected: Vec<usize>, got: usize },
-    WrongAnnotationArgType { name: &'a str, arg_index: usize, expected: &'a str },
+    WrongAnnotationArgType { arg_index: usize, expected: &'a str },
+    UndefinedToken { name: &'a str, is_static: bool },
 }
 
 impl<'a> TypeError<'a> {
@@ -57,7 +58,8 @@ impl<'a> TypeError<'a> {
             Self::NotAllowedInContext { .. } |
             Self::UnknownAnnotation { .. } |
             Self::WrongAnnotationArgCount { .. } |
-            Self::WrongAnnotationArgType { .. } => Severity::Error
+            Self::WrongAnnotationArgType { .. } |
+            Self::UndefinedToken { .. } => Severity::Error
         }
     }
 
@@ -152,11 +154,19 @@ impl<'a> TypeError<'a> {
                 )
             }
 
-            Self::WrongAnnotationArgType { name, arg_index, expected } =>
+            Self::WrongAnnotationArgType { arg_index, expected } =>
                 format!(
-                    "Type Error (Wrong Annotation Argument Type): Argument {} to annotation `{}` must be `{}`.",
-                    arg_index + 1, name, expected
+                    "Type Error (Wrong Annotation Argument Type): Argument {} must be of type `{}`.",
+                    arg_index + 1, expected
                 ),
+
+            Self::UndefinedToken { name, is_static } => {
+                let sigil = if *is_static { "$!" } else { "$" };
+                format!(
+                    "Type Error (Undefined Token): Token `{}{}` is not defined.",
+                    sigil, name
+                )
+            }
         }
     }
 
@@ -182,6 +192,7 @@ impl<'a> ToString for TypeError<'a> {
             Self::UnknownAnnotation { .. } => "UNKNOWN_ANNOTATION",
             Self::WrongAnnotationArgCount { .. } => "WRONG_ANNOTATION_ARG_COUNT",
             Self::WrongAnnotationArgType { .. } => "WRONG_ANNOTATION_ARG_TYPE",
+            Self::UndefinedToken { .. } => "UNDEFINED_TOKEN",
         })
     }
 }

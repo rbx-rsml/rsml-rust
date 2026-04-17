@@ -1,5 +1,5 @@
 use phf_macros::phf_map;
-use crate::compiler::datatype::Datatype;
+use crate::datatype::Datatype;
 use rbx_types::Variant;
 
 mod udim_udim2;
