@@ -7,9 +7,10 @@ pub trait NormalizePath {
 impl<T: AsRef<Path>> NormalizePath for T {
     fn normalize(&self) -> PathBuf {
         let mut components = self.as_ref().components().peekable();
-        let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+
+        let mut normalized = if let Some(prefix @ Component::Prefix(..)) = components.peek().cloned() {
             components.next();
-            PathBuf::from(c.as_os_str())
+            PathBuf::from(prefix.as_os_str())
         } else {
             PathBuf::new()
         };
@@ -17,25 +18,31 @@ impl<T: AsRef<Path>> NormalizePath for T {
         for component in components {
             match component {
                 Component::Prefix(..) => unreachable!(),
+
                 Component::RootDir => {
-                    ret.push(std::path::MAIN_SEPARATOR.to_string()); // RootDir handling
+                    normalized.push(std::path::MAIN_SEPARATOR.to_string());
                 }
+
                 Component::CurDir => {}
+
                 Component::ParentDir => {
-                    if ret.ends_with("..") {
-                        ret.push("..");
-                    } else {
-                        let popped = ret.pop();
-                        if !popped && !ret.has_root() {
-                            ret.push("..");
-                        }
+                    if normalized.ends_with("..") {
+                        normalized.push("..");
+                        continue;
+                    }
+
+                    let popped = normalized.pop();
+                    if !popped && !normalized.has_root() {
+                        normalized.push("..");
                     }
                 }
-                Component::Normal(c) => {
-                    ret.push(c);
+
+                Component::Normal(segment) => {
+                    normalized.push(segment);
                 }
             }
         }
-        ret
+
+        normalized
     }
 }

@@ -338,8 +338,6 @@ mod tests {
         }
     }
 
-    // ── Top-level selectors ────────────────────────────────────────
-
     #[tokio::test]
     async fn simple_class_selector() {
         let result = typecheck("Frame {}").await;
@@ -483,8 +481,6 @@ mod tests {
         assert!(result.errors.is_empty());
     }
 
-    // ── Top-level combinator class resolution ──────────────────────
-
     #[tokio::test]
     async fn top_level_child_selector_resolves_to_child() {
         let result = typecheck("Frame > TextButton {}").await;
@@ -508,8 +504,6 @@ mod tests {
         assert_eq!(result.selectors[0].2, vec!["TextButton"]);
         assert!(result.errors.is_empty());
     }
-
-    // ── Name selector coerces to Instance ──────────────────────────
 
     #[tokio::test]
     async fn top_level_chain_with_name_selector_coerces_to_instance() {
@@ -560,8 +554,6 @@ mod tests {
         assert_eq!(result.selectors[1].2, vec!["Instance", "TextButton"]);
         assert!(result.errors.is_empty());
     }
-
-    // ── Deduplication ─────────────────────────────────────────────
 
     #[tokio::test]
     async fn duplicate_comma_selectors_are_deduplicated() {
@@ -675,8 +667,6 @@ mod tests {
         assert_eq!(result.scopes[0].2, vec!["UIPadding"]);
     }
 
-    // ── Top-level state selectors ────────────────────────────────
-
     #[tokio::test]
     async fn top_level_state_selector_resolves_to_instance() {
         let result = typecheck(":hover {}").await;
@@ -706,8 +696,6 @@ mod tests {
         assert_eq!(result.selectors[1].2, vec!["Frame"]);
         assert!(result.errors.is_empty());
     }
-
-    // ── Standalone pseudo selectors (::ClassName) ───────────────
 
     #[tokio::test]
     async fn top_level_pseudo_selector_resolves_instance_type() {
@@ -757,8 +745,6 @@ mod tests {
         assert_eq!(result.selectors[0].2, vec!["UIPadding", "UICorner"]);
         assert!(result.errors.is_empty());
     }
-
-    // ── Comma after state/pseudo selectors ────────────────────────
 
     #[tokio::test]
     async fn comma_after_state_selector_continues() {
@@ -856,8 +842,6 @@ mod tests {
                 .any(|err| err.contains("No macro argument named \"all\" exists."))
         );
     }
-
-    // ── Macro call typechecking ───────────────────────────────────
 
     #[tokio::test]
     async fn macro_call_after_definition_no_error() {
@@ -1145,8 +1129,6 @@ mod tests {
             macro_errors
         );
     }
-
-    // ── Tuple annotation typechecking ─────────────────────────────
 
     #[tokio::test]
     async fn annotation_unknown_name_errors() {

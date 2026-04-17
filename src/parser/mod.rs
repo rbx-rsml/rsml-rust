@@ -379,8 +379,6 @@ mod tests {
         };
     }
 
-    // ── Existing test (kept as-is) ──────────────────────────────────
-
     #[test]
     fn unary_minus_in_udim2_expression() {
         let source = r#"$Size = udim2(-20px + 100%, -20px + 100%);"#;
@@ -389,8 +387,6 @@ mod tests {
         assert!(parsed.ast_errors.0.is_empty(), "Expected no parse errors, got: {:?}", parsed.ast_errors.0);
         insta::assert_debug_snapshot!(parsed.ast);
     }
-
-    // ── A. Declarations ─────────────────────────────────────────────
 
     parser_test!(derive_string, r#"@derive "some-module";"#);
     parser_test!(derive_missing_semicolon, r#"@derive "module""#);
@@ -401,8 +397,6 @@ mod tests {
     parser_test!(tween_string_value, r#"@tween Slide "ease-in";"#);
     parser_test!(tween_missing_name, r#"@tween ;"#);
     parser_test!(tween_missing_semicolon, r#"@tween MyTween 0.5"#);
-
-    // ── B. Assignments ──────────────────────────────────────────────
 
     parser_test!(assign_property_string, r#"Text = "hello";"#);
     parser_test!(assign_property_number, r#"Size = 42;"#);
@@ -415,8 +409,6 @@ mod tests {
     parser_test!(assign_token_missing_semicolon, r#"$Size = 100"#);
     parser_test!(assign_static_token, r#"$!Padding = 10px;"#);
     parser_test!(assign_static_token_missing_value, r#"$!Padding = ;"#);
-
-    // ── C. Datatype Values ──────────────────────────────────────────
 
     parser_test!(value_number_scale, r#"Size = 100%;"#);
     parser_test!(value_number_offset, r#"Size = 20px;"#);
@@ -432,8 +424,6 @@ mod tests {
     parser_test!(value_enum, r#"SortOrder = Enum.SortOrder.LayoutOrder;"#);
     parser_test!(value_enum_missing_variant, r#"SortOrder = Enum.SortOrder;"#);
 
-    // ── D. Tables ───────────────────────────────────────────────────
-
     parser_test!(annotated_table_udim2, r#"$Size = udim2(1, 0, 1, 0);"#);
     parser_test!(annotated_table_no_args, r#"$Val = empty();"#);
     parser_test!(annotated_table_nested, r#"$Val = outer(inner(1, 2));"#);
@@ -442,8 +432,6 @@ mod tests {
     parser_test!(table_empty, r#"$Val = ();"#);
     parser_test!(table_nested, r#"$Val = ((1, 2), (3, 4));"#);
     parser_test!(table_missing_close, r#"$Val = (1, 2"#);
-
-    // ── E. Math Operations ──────────────────────────────────────────
 
     parser_test!(math_add, r#"$Val = 10 + 20;"#);
     parser_test!(math_sub, r#"$Val = 10 - 5;"#);
@@ -459,8 +447,6 @@ mod tests {
     parser_test!(unary_minus_in_expression, r#"$Val = -10 + 20;"#);
     parser_test!(math_udim_mixed, r#"$Size = 50% + 10px;"#);
     parser_test!(math_missing_right_operand, r#"$Val = 10 +;"#);
-
-    // ── F. Rules & Selectors ────────────────────────────────────────
 
     parser_test!(rule_identifier, r#"Frame { }"#);
     parser_test!(rule_name_selector, r#"#MyFrame { }"#);
@@ -481,8 +467,6 @@ mod tests {
     parser_test!(rule_macro_call_selector, r#"sel!(arg) { Size = 100; }"#);
     parser_test!(rule_macro_call_comma, r#"sel!(a), Frame { }"#);
 
-    // ── G. Macros ───────────────────────────────────────────────────
-
     parser_test!(macro_construct_return, r#"@macro MyMacro -> Construct { Size = 100; }"#);
     parser_test!(macro_args_construct_return, r#"@macro MyMacro(&v) -> Construct { Size = &v; }"#);
     parser_test!(macro_assignment_return, r#"@macro MyColor -> Assignment { #ff0000 }"#);
@@ -497,27 +481,19 @@ mod tests {
     parser_test!(macro_invalid_return_type, r#"@macro M -> Invalid { }"#);
     parser_test!(macro_args_missing_comma, r#"@macro M(&a &b) -> Construct { }"#);
 
-    // ── H. Macro Calls ──────────────────────────────────────────────
-
     parser_test!(macro_call_no_args, r#"MyMacro!();"#);
     parser_test!(macro_call_with_args, r#"MyMacro!(arg1, arg2);"#);
     parser_test!(macro_call_complex_args, r#"Apply!(#ff0000, 10px, "hello");"#);
     parser_test!(macro_call_missing_semicolon, r#"MyMacro!()"#);
     parser_test!(macro_call_missing_close_paren, r#"MyMacro!(arg1;"#);
 
-    // ── I. Comments ─────────────────────────────────────────────────
-
     parser_test!(comment_before_assign, "-- comment\nSize = 100;");
     parser_test!(comment_multi_before_assign, r#"--[[comment]] Size = 100;"#);
     parser_test!(comment_multi_nested, r#"--[==[comment]==] Size = 100;"#);
     parser_test!(comment_leading_trivia, "-- a\n-- b\nSize = 100;");
 
-    // ── J. Query Selectors ────────────────────────────────────────────
-
     parser_test!(query_selector, r#"@media { }"#);
     parser_test!(query_selector_unknown, r#"@foobar { }"#);
-
-    // ── K. Integration / Edge Cases ─────────────────────────────────
 
     parser_test!(empty_source, r#""#);
     parser_test!(multiple_top_level, "@priority 5;\nFrame { Size = 100; }");

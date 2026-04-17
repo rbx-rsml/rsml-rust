@@ -1,1 +1,0 @@
-$Size = udim2($Hello, -20px + 100%);

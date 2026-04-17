@@ -8,8 +8,6 @@ use crate::{
 
 use super::{PushTypeError, Typechecker, type_error::*};
 
-// ── Macro Registry ──────────────────────────────────────────────────
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum MacroReturnContext {
     Construct,
@@ -34,8 +32,6 @@ pub(super) struct MacroSignature {
 }
 
 pub(super) type MacroRegistry<'a> = HashMap<&'a str, Vec<MacroSignature>>;
-
-// ── Helpers ─────────────────────────────────────────────────────────
 
 pub(super) fn count_macro_def_args(args: &Option<Delimited>) -> usize {
     let Some(args) = args else { return 0 };
@@ -82,8 +78,6 @@ pub(super) fn macro_return_context(
         MacroReturnContext::Construct
     }
 }
-
-// ── Typechecker impl ────────────────────────────────────────────────
 
 impl<'a> Typechecker<'a> {
     pub(super) fn typecheck_macro(

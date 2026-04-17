@@ -121,7 +121,6 @@ impl<'a> Typechecker<'a> {
                     return;
                 }
 
-                // Arg 0: must be a number
                 if !is_number(args[0]) {
                     ast_errors.push(
                         TypeError::InvalidTweenArg { expected: "number" },
@@ -129,7 +128,6 @@ impl<'a> Typechecker<'a> {
                     );
                 }
 
-                // Arg 1: optional, must be Enum.EasingStyle
                 if let Some(arg) = args.get(1) {
                     if !is_enum(arg, "EasingStyle") {
                         ast_errors.push(
@@ -146,7 +144,6 @@ impl<'a> Typechecker<'a> {
                     }
                 }
 
-                // Arg 2: optional, must be Enum.EasingDirection
                 if let Some(arg) = args.get(2) {
                     if !is_enum(arg, "EasingDirection") {
                         ast_errors.push(
@@ -163,7 +160,6 @@ impl<'a> Typechecker<'a> {
                     }
                 }
 
-                // Too many args
                 for arg in args.iter().skip(3) {
                     ast_errors.push(
                         TypeError::InvalidType { expected: Some(Datatype::Tween) },
@@ -172,7 +168,6 @@ impl<'a> Typechecker<'a> {
                 }
             }
 
-            // Anything else is invalid
             _ => {
                 ast_errors.push(
                     TypeError::InvalidType { expected: Some(Datatype::Tween) },
