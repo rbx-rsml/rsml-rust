@@ -62,6 +62,7 @@ impl<'a> Typechecker<'a> {
                 } => {
                     if let Some(right) = right {
                         self.validate_macro_arg_refs(right, None, ast_errors);
+                        self.validate_annotation(right, ast_errors);
                         if let Construct::MacroCall { name, body, .. } = right.as_ref() {
                             self.validate_macro_call(name, body, MacroReturnContext::Assignment, ast_errors);
                         }

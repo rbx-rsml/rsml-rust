@@ -36,6 +36,9 @@ pub enum TypeError<'a> {
     WrongMacroContext { name: &'a str, expected: &'a str, got: &'a str },
     DuplicateMacro { name: &'a str, arg_count: usize },
     NotAllowedInContext { name: &'a str, context: &'a str },
+    UnknownAnnotation { name: &'a str },
+    WrongAnnotationArgCount { name: &'a str, expected: Vec<usize>, got: usize },
+    WrongAnnotationArgType { name: &'a str, arg_index: usize, expected: &'a str },
 }
 
 impl<'a> TypeError<'a> {
@@ -51,7 +54,10 @@ impl<'a> TypeError<'a> {
             Self::WrongMacroArgCount { .. } |
             Self::WrongMacroContext { .. } |
             Self::DuplicateMacro { .. } |
-            Self::NotAllowedInContext { .. } => Severity::Error
+            Self::NotAllowedInContext { .. } |
+            Self::UnknownAnnotation { .. } |
+            Self::WrongAnnotationArgCount { .. } |
+            Self::WrongAnnotationArgType { .. } => Severity::Error
         }
     }
 
@@ -125,6 +131,32 @@ impl<'a> TypeError<'a> {
 
             Self::NotAllowedInContext { name, context } =>
                 format!("{} are not allowed in {}.", name, context),
+
+            Self::UnknownAnnotation { name } =>
+                format!("Type Error (Unknown Annotation): No annotation named `{}` exists.", name),
+
+            Self::WrongAnnotationArgCount { name, expected, got } => {
+                let expected_str = match expected.len() {
+                    0 => String::from("no arguments"),
+                    1 => format!("{} argument{}", expected[0], if expected[0] == 1 { "" } else { "s" }),
+                    _ => {
+                        let mut sorted = expected.clone();
+                        sorted.sort();
+                        let parts: Vec<String> = sorted.iter().map(|n| n.to_string()).collect();
+                        format!("{} arguments", parts.join(" or "))
+                    }
+                };
+                format!(
+                    "Type Error (Wrong Annotation Argument Count): Annotation `{}` expects {}, but {} {} provided.",
+                    name, expected_str, got, if *got == 1 { "was" } else { "were" }
+                )
+            }
+
+            Self::WrongAnnotationArgType { name, arg_index, expected } =>
+                format!(
+                    "Type Error (Wrong Annotation Argument Type): Argument {} to annotation `{}` must be `{}`.",
+                    arg_index + 1, name, expected
+                ),
         }
     }
 
@@ -147,6 +179,9 @@ impl<'a> ToString for TypeError<'a> {
             Self::WrongMacroContext { .. } => "WRONG_MACRO_CONTEXT",
             Self::DuplicateMacro { .. } => "DUPLICATE_MACRO",
             Self::NotAllowedInContext { .. } => "NOT_ALLOWED_IN_CONTEXT",
+            Self::UnknownAnnotation { .. } => "UNKNOWN_ANNOTATION",
+            Self::WrongAnnotationArgCount { .. } => "WRONG_ANNOTATION_ARG_COUNT",
+            Self::WrongAnnotationArgType { .. } => "WRONG_ANNOTATION_ARG_TYPE",
         })
     }
 }

@@ -18,6 +18,7 @@ use macro_check::{
 
 use rangemap::RangeInclusiveMap;
 
+mod annotations;
 mod derive;
 pub mod luaurc;
 mod macro_check;
@@ -237,6 +238,7 @@ impl<'a> Typechecker<'a> {
                         );
                     }
                     typechecker.validate_macro_arg_refs(right, None, &mut ast_errors);
+                    typechecker.validate_annotation(right, &mut ast_errors);
                     if let Construct::MacroCall { name, body, .. } = right.as_ref() {
                         typechecker.validate_macro_call(
                             name,
@@ -1141,6 +1143,248 @@ mod tests {
             macro_errors.is_empty(),
             "unexpected errors: {:?}",
             macro_errors
+        );
+    }
+
+    // ── Tuple annotation typechecking ─────────────────────────────
+
+    #[tokio::test]
+    async fn annotation_unknown_name_errors() {
+        let result = typecheck("Frame { Size = notareal(1, 2); }").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Unknown Annotation") && err.contains("notareal")),
+            "expected unknown annotation error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_valid_udim2_no_error() {
+        let result = typecheck("Frame { Size = udim2(1, 0, 1, 0); }").await;
+        let annotation_errors: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Annotation"))
+            .collect();
+        assert!(
+            annotation_errors.is_empty(),
+            "unexpected errors: {:?}",
+            annotation_errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_valid_vec3_no_error() {
+        let result = typecheck("Frame { Position = vec3(1, 2, 3); }").await;
+        let annotation_errors: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Annotation"))
+            .collect();
+        assert!(
+            annotation_errors.is_empty(),
+            "unexpected errors: {:?}",
+            annotation_errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_too_many_args_errors() {
+        let result = typecheck("Frame { Size = vec2(1, 2, 3); }").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Wrong Annotation Argument Count")),
+            "expected arg count error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_too_few_args_errors() {
+        let result = typecheck("Frame { Size = lerp(); }").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Wrong Annotation Argument Count")),
+            "expected arg count error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_wrong_arg_type_errors() {
+        let result = typecheck("Frame { Size = vec2(\"hello\", \"world\"); }").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Wrong Annotation Argument Type")),
+            "expected arg type error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_variadic_colorseq_many_args() {
+        let result = typecheck("Frame { Color = colorseq(#ff0000, #00ff00, #0000ff); }").await;
+        let annotation_errors: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Annotation"))
+            .collect();
+        assert!(
+            annotation_errors.is_empty(),
+            "unexpected errors: {:?}",
+            annotation_errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_variadic_colorseq_empty_errors() {
+        let result = typecheck("Frame { Color = colorseq(); }").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Wrong Annotation Argument Count")),
+            "expected arg count error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_nested_annotation_validated() {
+        let result = typecheck("Frame { Size = udim2(vec2(1, 2, 3), 0); }").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Wrong Annotation Argument Count")),
+            "expected nested vec2 arg count error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_case_insensitive_matching() {
+        let result = typecheck("Frame { Size = UDim2(1, 0, 1, 0); }").await;
+        let annotation_errors: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Annotation"))
+            .collect();
+        assert!(
+            annotation_errors.is_empty(),
+            "unexpected errors: {:?}",
+            annotation_errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_zero_args_errors() {
+        let result = typecheck("Frame { Color = brickcolor(); }").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Wrong Annotation Argument Count")),
+            "expected arg count error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_color3_accepts_color_arg() {
+        let result = typecheck("Frame { BackgroundColor3 = color3(#ff0000); }").await;
+        let annotation_errors: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Annotation"))
+            .collect();
+        assert!(
+            annotation_errors.is_empty(),
+            "unexpected errors: {:?}",
+            annotation_errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_color3_three_numbers() {
+        let result = typecheck("Frame { BackgroundColor3 = color3(1, 0, 0); }").await;
+        let annotation_errors: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Annotation"))
+            .collect();
+        assert!(
+            annotation_errors.is_empty(),
+            "unexpected errors: {:?}",
+            annotation_errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_udim2_with_percent_scale() {
+        let result = typecheck("Frame { Size = udim2(50%, 50%); }").await;
+        let annotation_errors: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Annotation"))
+            .collect();
+        assert!(
+            annotation_errors.is_empty(),
+            "unexpected errors: {:?}",
+            annotation_errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_font_with_enum() {
+        let result =
+            typecheck("Frame { FontFace = font(\"rbxasset://fonts/arial.ttf\", Enum.FontWeight.Bold); }")
+                .await;
+        let annotation_errors: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Annotation"))
+            .collect();
+        assert!(
+            annotation_errors.is_empty(),
+            "unexpected errors: {:?}",
+            annotation_errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_at_top_level_is_validated() {
+        let result = typecheck("$Size = vec2(1, 2, 3);").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Wrong Annotation Argument Count")),
+            "expected arg count error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_in_macro_body_is_validated() {
+        let result =
+            typecheck("@macro Foo () { Frame { Size = vec2(1, 2, 3); } }").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Wrong Annotation Argument Count")),
+            "expected arg count error, got: {:?}",
+            result.errors
         );
     }
 }

@@ -101,6 +101,7 @@ impl<'a> Typechecker<'a> {
             }
             MacroBodyContent::Assignment(Some(content)) => {
                 self.validate_macro_arg_refs(content, Some(&macro_args), ast_errors);
+                self.validate_annotation(content, ast_errors);
                 if let Construct::MacroCall { name, body, .. } = content.as_ref() {
                     self.validate_macro_call(name, body, MacroReturnContext::Assignment, ast_errors);
                 }
@@ -132,6 +133,7 @@ impl<'a> Typechecker<'a> {
                 Construct::Assignment { right, .. } => {
                     if let Some(right) = right {
                         self.validate_macro_arg_refs(right, Some(macro_args), ast_errors);
+                        self.validate_annotation(right, ast_errors);
                         if let Construct::MacroCall { name, body, .. } = right.as_ref() {
                             self.validate_macro_call(
                                 name,
