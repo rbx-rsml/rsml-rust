@@ -4,6 +4,7 @@
     - The parsing step now generates an AST.
     - Added a new compilation step which turns the parsed AST into StyleSheet nodes (effectively what the parsing step in the old version did).
 - Removed the `@name` declaration.
+- Added a ypechecker component to the library.
 
 # 0.1.14
 - Added query selector support to the lexer and parser.

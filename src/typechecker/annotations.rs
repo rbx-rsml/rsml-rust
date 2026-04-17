@@ -525,6 +525,7 @@ impl<'a> Typechecker<'a> {
                 // Validate arguments first so nested annotations still get checked
                 // even when the outer annotation is unknown or has a bad arg count.
                 for arg in &args {
+                    self.report_tokens_in_annotation(arg, ast_errors);
                     self.validate_annotation(arg, ast_errors);
                 }
 
@@ -628,6 +629,57 @@ impl<'a> Typechecker<'a> {
                 },
                 self.parsed.range_from_span(arg.span()),
             );
+        }
+    }
+
+    /// Walks an annotation argument and emits an error for every token
+    /// reference (`$Token`) it finds. Static tokens (`$!Token`) are allowed
+    /// since they resolve at compile time.
+    /// Stops at nested `AnnotatedTable` boundaries — those get their own walk
+    /// when `validate_annotation` recurses into them.
+    fn report_tokens_in_annotation(
+        &self,
+        construct: &Construct<'a>,
+        ast_errors: &mut AstErrors,
+    ) {
+        match construct {
+            Construct::Node { node } => {
+                let token = node.token.value();
+
+                if !matches!(token, Token::TokenIdentifier(_)) {
+                    return;
+                }
+
+                ast_errors.push(
+                    TypeError::NotAllowedInContext {
+                        name: "Tokens",
+                        context: "tuple annotations",
+                    },
+                    self.parsed.range_from_span(node.token.span()),
+                );
+            }
+
+            Construct::Table { body } => {
+                let Some(content) = &body.content else { return };
+
+                for item in content {
+                    self.report_tokens_in_annotation(item, ast_errors);
+                }
+            }
+
+            Construct::MathOperation { left, right, .. } => {
+                self.report_tokens_in_annotation(left, ast_errors);
+
+                if let Some(right) = right {
+                    self.report_tokens_in_annotation(right, ast_errors);
+                }
+            }
+
+            Construct::UnaryMinus { operand, .. } => {
+                self.report_tokens_in_annotation(operand, ast_errors);
+            }
+
+            _ => (),
         }
     }
 }

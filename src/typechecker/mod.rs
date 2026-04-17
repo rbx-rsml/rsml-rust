@@ -1369,4 +1369,45 @@ mod tests {
             result.errors
         );
     }
+
+    #[tokio::test]
+    async fn annotation_token_arg_errors() {
+        let result = typecheck("Frame { Size = udim2($Width, 0, 1, 0); }").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Tokens are not allowed in tuple annotations")),
+            "expected token-in-annotation error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_token_nested_inside_math_errors() {
+        let result = typecheck("Frame { Size = udim2($Width + 10, 0, 1, 0); }").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Tokens are not allowed in tuple annotations")),
+            "expected token-in-annotation error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn annotation_static_token_arg_allowed() {
+        let result = typecheck("Frame { Size = udim2($!Width, 0, 1, 0); }").await;
+        let token_errors: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Tokens are not allowed"))
+            .collect();
+        assert!(
+            token_errors.is_empty(),
+            "unexpected static-token error: {:?}",
+            token_errors
+        );
+    }
 }
