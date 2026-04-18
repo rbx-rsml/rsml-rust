@@ -40,6 +40,8 @@ pub enum TypeError<'a> {
     WrongAnnotationArgCount { name: &'a str, expected: Vec<usize>, got: usize },
     WrongAnnotationArgType { arg_index: usize, expected: &'a str },
     UndefinedToken { name: &'a str, is_static: bool },
+    UnknownEnum { name: String },
+    UnknownEnumVariant { enum_name: String, variant: String },
 }
 
 impl<'a> TypeError<'a> {
@@ -59,7 +61,9 @@ impl<'a> TypeError<'a> {
             Self::UnknownAnnotation { .. } |
             Self::WrongAnnotationArgCount { .. } |
             Self::WrongAnnotationArgType { .. } |
-            Self::UndefinedToken { .. } => Severity::Error
+            Self::UndefinedToken { .. } |
+            Self::UnknownEnum { .. } |
+            Self::UnknownEnumVariant { .. } => Severity::Error
         }
     }
 
@@ -167,6 +171,15 @@ impl<'a> TypeError<'a> {
                     sigil, name
                 )
             }
+
+            Self::UnknownEnum { name } =>
+                format!("Type Error (Unknown Enum): No enum named `{}` exists.", name),
+
+            Self::UnknownEnumVariant { enum_name, variant } =>
+                format!(
+                    "Type Error (Unknown Enum Variant): Enum `{}` has no variant `{}`.",
+                    enum_name, variant
+                ),
         }
     }
 
@@ -193,6 +206,8 @@ impl<'a> ToString for TypeError<'a> {
             Self::WrongAnnotationArgCount { .. } => "WRONG_ANNOTATION_ARG_COUNT",
             Self::WrongAnnotationArgType { .. } => "WRONG_ANNOTATION_ARG_TYPE",
             Self::UndefinedToken { .. } => "UNDEFINED_TOKEN",
+            Self::UnknownEnum { .. } => "UNKNOWN_ENUM",
+            Self::UnknownEnumVariant { .. } => "UNKNOWN_ENUM_VARIANT",
         })
     }
 }

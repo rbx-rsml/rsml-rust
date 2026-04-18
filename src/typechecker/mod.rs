@@ -5,9 +5,9 @@ use std::{
 };
 
 use crate::{
-    datatype::{Datatype, StaticLookup, evaluate_construct},
+    datatype::{Datatype, StaticLookup, evaluate_construct, shorthand_rebind},
     lexer::Token,
-    parser::{AstErrors, Construct, Delimited, ParsedRsml},
+    parser::{AstErrors, Construct, Delimited, Node, ParsedRsml},
     range_from_span::RangeFromSpan,
     types::{Diagnostic, Range},
 };
@@ -101,12 +101,34 @@ pub enum DefinitionKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TokenKey {
-    pub name: String,
-    pub is_static: bool,
+pub enum ResolvedTypeKey {
+    Token { name: String, is_static: bool },
+    Property { start: usize },
 }
 
-pub type TokenTypes = HashMap<TokenKey, Datatype>;
+pub type ResolvedTypes = HashMap<ResolvedTypeKey, Datatype>;
+
+#[derive(Clone, Copy)]
+enum LhsKind<'a> {
+    Token { name: &'a str, is_static: bool },
+    Property { name: &'a str },
+}
+
+impl<'a> LhsKind<'a> {
+    fn name(&self) -> &'a str {
+        match *self {
+            LhsKind::Token { name, .. } | LhsKind::Property { name } => name,
+        }
+    }
+}
+
+/// Tokens like `StateSelectorOrEnumPart` and `TagSelectorOrEnumPart` span the
+/// leading `:` or `.` sigil alongside the identifier. Diagnostics that point
+/// at just the name should skip that single byte prefix.
+fn strip_sigil_span(span: (usize, usize)) -> (usize, usize) {
+    let (start, end) = span;
+    (start.saturating_add(1).min(end), end)
+}
 
 impl DefinitionKind {
     fn selector_hint(classes: &Vec<String>) -> String {
@@ -127,14 +149,14 @@ pub struct TypecheckedRsml {
     pub derives: HashMap<PathBuf, RangeInclusive<usize>>,
     pub dependencies: HashSet<PathBuf>,
     pub definitions: Definitions,
-    pub token_types: TokenTypes,
+    pub resolved_types: ResolvedTypes,
 }
 
 pub struct Typechecker<'a> {
     pub parsed: &'a ParsedRsml<'a>,
     macro_registry: MacroRegistry<'a>,
     pub(crate) static_scopes: Vec<HashMap<String, Datatype>>,
-    pub(crate) declared_tokens: Vec<HashSet<TokenKey>>,
+    pub(crate) declared_tokens: Vec<HashSet<ResolvedTypeKey>>,
 }
 
 pub(crate) struct TypecheckerLookup<'a> {
@@ -175,7 +197,7 @@ impl<'a> Typechecker<'a> {
 
         let mut derives: HashMap<PathBuf, RangeInclusive<usize>> = HashMap::new();
         let mut definitions = Definitions::new();
-        let mut token_types: TokenTypes = HashMap::new();
+        let mut resolved_types: ResolvedTypes = HashMap::new();
         let mut dependencies = HashSet::new();
 
         for construct in &typechecker.parsed.ast {
@@ -215,7 +237,7 @@ impl<'a> Typechecker<'a> {
                         &vec![],
                         &mut ast_errors,
                         &mut definitions,
-                        &mut token_types,
+                        &mut resolved_types,
                     );
                 }
 
@@ -288,7 +310,7 @@ impl<'a> Typechecker<'a> {
                             &mut ast_errors,
                         );
                     }
-                    typechecker.resolve_token_assignment(left, right, &mut definitions, &mut token_types);
+                    typechecker.resolve_token_assignment(left, right, &mut ast_errors, &mut definitions, &mut resolved_types);
                 }
 
                 Construct::Priority { .. } => {
@@ -310,70 +332,248 @@ impl<'a> Typechecker<'a> {
             derives,
             dependencies,
             definitions,
-            token_types,
+            resolved_types,
         }
     }
 
     pub(crate) fn resolve_token_assignment(
         &mut self,
-        left: &crate::parser::Node<'a>,
+        left: &Node<'a>,
         right: &Construct<'a>,
+        ast_errors: &mut AstErrors,
         definitions: &mut Definitions,
-        token_types: &mut TokenTypes,
+        resolved_types: &mut ResolvedTypes,
     ) {
-        let (name, is_static) = match left.token.value() {
-            Token::TokenIdentifier(name) => (*name, false),
-            Token::StaticTokenIdentifier(name) => (*name, true),
+        let lhs_kind = match left.token.value() {
+            Token::TokenIdentifier(name) => LhsKind::Token { name: *name, is_static: false },
+            Token::StaticTokenIdentifier(name) => LhsKind::Token { name: *name, is_static: true },
+            Token::Identifier(name) => LhsKind::Property { name: *name },
             _ => return,
         };
 
-        let lookup = TypecheckerLookup { scopes: &self.static_scopes };
+        let name = lhs_kind.name();
 
-        let evaluated = if let Construct::Node { node } = right {
-            if let Token::StateSelectorOrEnumPart(Some(value)) = node.token.value() {
-                Some(Datatype::IncompleteEnumShorthand(value.to_string()))
-            } else {
-                evaluate_construct(right, Some(name), &lookup)
-            }
+        // Validate any enum references on the RHS. If invalid, the LHS type
+        // collapses to `unknown`.
+        let enum_valid = self.validate_enum_refs(left, right, ast_errors);
+
+        let resolved_type = if !enum_valid {
+            Datatype::None
         } else {
-            evaluate_construct(right, Some(name), &lookup)
-        };
+            let lookup = TypecheckerLookup { scopes: &self.static_scopes };
 
-        let resolved_type = match evaluated {
-            Some(Datatype::IncompleteEnumShorthand(variant)) => {
-                Datatype::IncompleteEnumShorthand(variant)
+            let evaluated = match lhs_kind {
+                LhsKind::Token { .. } => {
+                    if let Construct::Node { node } = right {
+                        if let Token::StateSelectorOrEnumPart(Some(value)) = node.token.value() {
+                            Some(Datatype::IncompleteEnumShorthand(value.to_string()))
+                        } else {
+                            evaluate_construct(right, Some(name), &lookup)
+                        }
+                    } else {
+                        evaluate_construct(right, Some(name), &lookup)
+                    }
+                }
+                LhsKind::Property { .. } => evaluate_construct(right, Some(name), &lookup),
+            };
+
+            match lhs_kind {
+                LhsKind::Token { is_static, .. } => match evaluated {
+                    Some(Datatype::IncompleteEnumShorthand(variant)) => {
+                        Datatype::IncompleteEnumShorthand(variant)
+                    }
+                    Some(d) if is_static => d,
+                    Some(d) => d
+                        .coerce_to_variant(Some(name))
+                        .map(Datatype::Variant)
+                        .unwrap_or(Datatype::None),
+                    None => Datatype::None,
+                },
+                LhsKind::Property { .. } => match evaluated {
+                    Some(d) => d
+                        .coerce_to_variant(Some(name))
+                        .map(Datatype::Variant)
+                        .unwrap_or(Datatype::None),
+                    None => Datatype::None,
+                },
             }
-            Some(d) if is_static => d,
-            Some(d) => d
-                .coerce_to_variant(Some(name))
-                .map(Datatype::Variant)
-                .unwrap_or(Datatype::None),
-            None => Datatype::None,
         };
-
-        if is_static {
-            if let Some(frame) = self.static_scopes.last_mut() {
-                frame.insert(name.to_string(), resolved_type.clone());
-            }
-        }
-
-        token_types.insert(
-            TokenKey { name: name.to_string(), is_static },
-            resolved_type,
-        );
-
-        if let Some(frame) = self.declared_tokens.last_mut() {
-            frame.insert(TokenKey { name: name.to_string(), is_static });
-        }
 
         let (start, end) = left.token.span();
-        definitions.insert(
-            start..=end,
-            DefinitionKind::Token {
-                name: name.to_string(),
-                is_static,
-            },
-        );
+
+        match lhs_kind {
+            LhsKind::Token { is_static, .. } => {
+                if is_static {
+                    if let Some(frame) = self.static_scopes.last_mut() {
+                        frame.insert(name.to_string(), resolved_type.clone());
+                    }
+                }
+
+                let key = ResolvedTypeKey::Token { name: name.to_string(), is_static };
+                resolved_types.insert(key.clone(), resolved_type);
+
+                if let Some(frame) = self.declared_tokens.last_mut() {
+                    frame.insert(key);
+                }
+
+                definitions.insert(
+                    start..=end,
+                    DefinitionKind::Token { name: name.to_string(), is_static },
+                );
+            }
+            LhsKind::Property { .. } => {
+                let type_definition = vec![resolved_type.type_name()];
+                resolved_types.insert(
+                    ResolvedTypeKey::Property { start },
+                    resolved_type,
+                );
+                definitions.insert(
+                    start..=end,
+                    DefinitionKind::Assignment {
+                        property_name: name.to_string(),
+                        type_definition,
+                    },
+                );
+            }
+        }
+    }
+
+    /// Validates every enum reference on the RHS of an assignment against the
+    /// reflection DB. The `left` node supplies the implicit enum name used by
+    /// a top-level shorthand form (`:Variant`) — its name is rebinded via
+    /// [`shorthand_rebind`] to match runtime evaluator behavior. Returns
+    /// `false` when any error was pushed.
+    pub(crate) fn validate_enum_refs(
+        &self,
+        left: &Node<'a>,
+        right: &Construct<'a>,
+        ast_errors: &mut AstErrors,
+    ) -> bool {
+        let mut ok = true;
+
+        // Top-level shorthand `:Variant` — derive enum name from the LHS.
+        if let Construct::Node { node } = right {
+            if let Token::StateSelectorOrEnumPart(Some(variant)) = node.token.value() {
+                let lhs_name = match left.token.value() {
+                    Token::Identifier(n)
+                    | Token::TokenIdentifier(n)
+                    | Token::StaticTokenIdentifier(n) => Some(*n),
+                    _ => None,
+                };
+
+                if let Some(lhs_name) = lhs_name {
+                    let enum_name = shorthand_rebind(lhs_name);
+                    let variant_span = strip_sigil_span(node.token.span());
+                    ok &= self.check_enum_name_and_variant(
+                        enum_name,
+                        variant,
+                        variant_span,
+                        variant_span,
+                        ast_errors,
+                    );
+                }
+
+                return ok;
+            }
+        }
+
+        ok &= self.validate_enum_refs_inner(right, ast_errors);
+        ok
+    }
+
+    fn validate_enum_refs_inner(
+        &self,
+        construct: &Construct<'a>,
+        ast_errors: &mut AstErrors,
+    ) -> bool {
+        let mut ok = true;
+        match construct {
+            Construct::Enum { name: Some(name_node), variant: Some(variant_node), .. } => {
+                let enum_name = annotations::enum_identifier(name_node.token.value());
+                let variant = annotations::enum_identifier(variant_node.token.value());
+
+                if let Some(enum_name) = enum_name {
+                    let name_span = strip_sigil_span(name_node.token.span());
+                    let variant_span = strip_sigil_span(variant_node.token.span());
+                    ok &= self.check_enum_name_and_variant(
+                        enum_name,
+                        variant.unwrap_or(""),
+                        name_span,
+                        variant_span,
+                        ast_errors,
+                    );
+                }
+            }
+            Construct::MathOperation { left, right, .. } => {
+                ok &= self.validate_enum_refs_inner(left, ast_errors);
+                if let Some(right) = right {
+                    ok &= self.validate_enum_refs_inner(right, ast_errors);
+                }
+            }
+            Construct::UnaryMinus { operand, .. } => {
+                ok &= self.validate_enum_refs_inner(operand, ast_errors);
+            }
+            Construct::Table { body } => {
+                ok &= self.validate_enum_refs_delimited(body, ast_errors);
+            }
+            Construct::AnnotatedTable { body: Some(body), .. } => {
+                ok &= self.validate_enum_refs_delimited(body, ast_errors);
+            }
+            Construct::MacroCall { body: Some(body), .. } => {
+                ok &= self.validate_enum_refs_delimited(body, ast_errors);
+            }
+            _ => {}
+        }
+        ok
+    }
+
+    fn validate_enum_refs_delimited(
+        &self,
+        delim: &Delimited<'a>,
+        ast_errors: &mut AstErrors,
+    ) -> bool {
+        let Some(content) = delim.content.as_ref() else {
+            return true;
+        };
+        let mut ok = true;
+        for item in content {
+            ok &= self.validate_enum_refs_inner(item, ast_errors);
+        }
+        ok
+    }
+
+    fn check_enum_name_and_variant(
+        &self,
+        enum_name: &str,
+        variant: &str,
+        name_span: (usize, usize),
+        variant_span: (usize, usize),
+        ast_errors: &mut AstErrors,
+    ) -> bool {
+        if !annotations::enum_exists(enum_name) {
+            ast_errors.push(
+                TypeError::UnknownEnum { name: enum_name.to_string() },
+                self.parsed.range_from_span(name_span),
+            );
+            return false;
+        }
+
+        if variant.is_empty() {
+            return true;
+        }
+
+        if !annotations::validate_enum_variant(variant, enum_name) {
+            ast_errors.push(
+                TypeError::UnknownEnumVariant {
+                    enum_name: enum_name.to_string(),
+                    variant: variant.to_string(),
+                },
+                self.parsed.range_from_span(variant_span),
+            );
+            return false;
+        }
+
+        true
     }
 
     pub(crate) fn validate_token_refs(
@@ -388,7 +588,7 @@ impl<'a> Typechecker<'a> {
                     Token::StaticTokenIdentifier(n) => (*n, true),
                     _ => return,
                 };
-                let key = TokenKey {
+                let key = ResolvedTypeKey::Token {
                     name: name.to_string(),
                     is_static,
                 };
@@ -455,6 +655,7 @@ mod tests {
         selectors: Vec<(usize, usize, Vec<String>)>,
         scopes: Vec<(usize, usize, Vec<String>)>,
         tokens: Vec<(usize, usize, String, bool, Datatype)>,
+        properties: Vec<(usize, usize, String, Datatype)>,
         errors: Vec<String>,
     }
 
@@ -468,7 +669,7 @@ mod tests {
             derives: _derives,
             definitions,
             dependencies: _dependencies,
-            token_types,
+            resolved_types,
         } = Typechecker::new(&parsed, &dummy_path, None).await;
 
         let selectors: Vec<(usize, usize, Vec<String>)> = definitions
@@ -503,8 +704,8 @@ mod tests {
             .iter()
             .filter_map(|(range, kind)| {
                 if let DefinitionKind::Token { name, is_static } = kind {
-                    let resolved_type = token_types
-                        .get(&TokenKey {
+                    let resolved_type = resolved_types
+                        .get(&ResolvedTypeKey::Token {
                             name: name.clone(),
                             is_static: *is_static,
                         })
@@ -523,6 +724,26 @@ mod tests {
             })
             .collect();
 
+        let properties: Vec<(usize, usize, String, Datatype)> = definitions
+            .iter()
+            .filter_map(|(range, kind)| {
+                if let DefinitionKind::Assignment { property_name, .. } = kind {
+                    let resolved_type = resolved_types
+                        .get(&ResolvedTypeKey::Property { start: *range.start() })
+                        .cloned()
+                        .unwrap_or(Datatype::None);
+                    Some((
+                        *range.start(),
+                        *range.end(),
+                        property_name.clone(),
+                        resolved_type,
+                    ))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         let errors: Vec<String> = ast_errors
             .0
             .iter()
@@ -533,6 +754,7 @@ mod tests {
             selectors,
             scopes,
             tokens,
+            properties,
             errors,
         }
     }
@@ -1741,6 +1963,21 @@ mod tests {
             })
     }
 
+    fn find_property<'a>(result: &'a TypecheckResult, name: &str) -> &'a Datatype {
+        result
+            .properties
+            .iter()
+            .find(|(_, _, n, _)| n == name)
+            .map(|(_, _, _, dt)| dt)
+            .unwrap_or_else(|| {
+                panic!(
+                    "no property `{}` found; properties={:?}",
+                    name,
+                    result.properties.iter().map(|(_, _, n, _)| n).collect::<Vec<_>>()
+                )
+            })
+    }
+
     #[tokio::test]
     async fn token_number_type() {
         let result = typecheck("$X = 10;").await;
@@ -1873,24 +2110,26 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn token_enum_shorthand_dynamic() {
+    async fn token_enum_shorthand_dynamic_unknown_enum() {
         let result = typecheck("$X = :Hello;").await;
         let dt = find_token(&result, "X", false);
+        assert!(matches!(dt, Datatype::None), "got {:?}", dt);
         assert!(
-            matches!(dt, Datatype::IncompleteEnumShorthand(value) if value == "Hello"),
-            "got {:?}",
-            dt
+            result.errors.iter().any(|err| err.contains("Unknown Enum")),
+            "expected Unknown Enum error, got: {:?}",
+            result.errors
         );
     }
 
     #[tokio::test]
-    async fn token_enum_shorthand_static() {
+    async fn token_enum_shorthand_static_unknown_enum() {
         let result = typecheck("$!X = :Hello;").await;
         let dt = find_token(&result, "X", true);
+        assert!(matches!(dt, Datatype::None), "got {:?}", dt);
         assert!(
-            matches!(dt, Datatype::IncompleteEnumShorthand(value) if value == "Hello"),
-            "got {:?}",
-            dt
+            result.errors.iter().any(|err| err.contains("Unknown Enum")),
+            "expected Unknown Enum error, got: {:?}",
+            result.errors
         );
     }
 
@@ -1927,6 +2166,11 @@ mod tests {
         let result = typecheck("$X = Enum.NotReal.xyz;").await;
         let dt = find_token(&result, "X", false);
         assert!(matches!(dt, Datatype::None), "got {:?}", dt);
+        assert!(
+            result.errors.iter().any(|err| err.contains("Unknown Enum")),
+            "expected Unknown Enum error, got: {:?}",
+            result.errors
+        );
     }
 
     #[tokio::test]
@@ -1934,6 +2178,11 @@ mod tests {
         let result = typecheck("$!X = Enum.NotReal.xyz;").await;
         let dt = find_token(&result, "X", true);
         assert!(matches!(dt, Datatype::None), "got {:?}", dt);
+        assert!(
+            result.errors.iter().any(|err| err.contains("Unknown Enum")),
+            "expected Unknown Enum error, got: {:?}",
+            result.errors
+        );
     }
 
     #[tokio::test]
@@ -2097,6 +2346,68 @@ mod tests {
             !has_undefined_token_error(&result),
             "unexpected Undefined Token error, got: {:?}",
             result.errors
+        );
+    }
+
+    fn has_unknown_enum_error(result: &TypecheckResult) -> bool {
+        result.errors.iter().any(|err| err.contains("Unknown Enum"))
+    }
+
+    #[tokio::test]
+    async fn property_shorthand_unknown_enum_name() {
+        let result = typecheck("Frame { Hello = :World; }").await;
+        assert!(
+            has_unknown_enum_error(&result),
+            "expected Unknown Enum error, got: {:?}",
+            result.errors
+        );
+        let dt = find_property(&result, "Hello");
+        assert!(matches!(dt, Datatype::None), "got {:?}", dt);
+    }
+
+    #[tokio::test]
+    async fn property_full_enum_unknown_name() {
+        let result = typecheck("Frame { Foo = Enum.Hello.World; }").await;
+        assert!(
+            has_unknown_enum_error(&result),
+            "expected Unknown Enum error, got: {:?}",
+            result.errors
+        );
+        let dt = find_property(&result, "Foo");
+        assert!(matches!(dt, Datatype::None), "got {:?}", dt);
+    }
+
+    #[tokio::test]
+    async fn token_full_enum_unknown_variant() {
+        let result = typecheck("$X = Enum.Material.NotAVariant;").await;
+        let dt = find_token(&result, "X", false);
+        assert!(matches!(dt, Datatype::None), "got {:?}", dt);
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Unknown Enum Variant")),
+            "expected Unknown Enum Variant error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn property_full_enum_valid() {
+        let result = typecheck("Frame { Material = Enum.Material.Plastic; }").await;
+        assert!(
+            !has_unknown_enum_error(&result),
+            "unexpected Unknown Enum error, got: {:?}",
+            result.errors
+        );
+        let dt = find_property(&result, "Material");
+        assert!(
+            matches!(
+                dt,
+                Datatype::Variant(rbx_types::Variant::EnumItem(item)) if item.ty == "Material"
+            ),
+            "got {:?}",
+            dt
         );
     }
 }

@@ -7,7 +7,7 @@ use crate::{
     parser::{AstErrors, Construct, Node},
 };
 
-use super::{PushTypeError, TokenKey, Typechecker, TypecheckerLookup, type_error::*};
+use super::{PushTypeError, ResolvedTypeKey, Typechecker, TypecheckerLookup, type_error::*};
 use crate::datatype::StaticLookup;
 
 #[derive(Clone, Copy)]
@@ -297,7 +297,7 @@ fn token_matches(construct: &Construct, check: impl Fn(&Token) -> bool) -> bool 
 
 /// Enum names/variants are lexed as either `TagSelectorOrEnumPart` or
 /// `StateSelectorOrEnumPart` depending on the preceding token, so both must be accepted.
-fn enum_identifier<'a>(token: &Token<'a>) -> Option<&'a str> {
+pub(crate) fn enum_identifier<'a>(token: &Token<'a>) -> Option<&'a str> {
     match token {
         Token::TagSelectorOrEnumPart(Some(name))
         | Token::StateSelectorOrEnumPart(Some(name)) => Some(*name),
@@ -409,7 +409,7 @@ fn datatype_matches_any_arg_type(dt: &Datatype, allowed: &[AnnotationArgType]) -
     allowed.iter().any(|t| datatype_matches_arg_type(dt, t))
 }
 
-fn validate_enum_variant(variant: &str, enum_name: &str) -> bool {
+pub(crate) fn validate_enum_variant(variant: &str, enum_name: &str) -> bool {
     // If reflection data is unavailable, fall back to accepting — this matches
     // how `typechecker/tween.rs` handles the same situation.
     let Ok(db) = rbx_reflection_database::get() else {
@@ -421,6 +421,16 @@ fn validate_enum_variant(variant: &str, enum_name: &str) -> bool {
     };
 
     enum_descriptor.items.contains_key(variant)
+}
+
+/// Returns `true` if the reflection DB knows about this enum. Falls back to
+/// `true` when the DB is unavailable, matching `validate_enum_variant`.
+pub(crate) fn enum_exists(enum_name: &str) -> bool {
+    let Ok(db) = rbx_reflection_database::get() else {
+        return true;
+    };
+
+    db.enums.contains_key(enum_name)
 }
 
 fn describe_types(allowed_types: &[AnnotationArgType]) -> String {
@@ -485,7 +495,7 @@ impl<'a> Typechecker<'a> {
             node: Node { token: SpannedToken(_, Token::StaticTokenIdentifier(name), _), .. },
         } = construct
         {
-            let key = TokenKey { name: name.to_string(), is_static: true };
+            let key = ResolvedTypeKey::Token { name: name.to_string(), is_static: true };
             let declared = self.declared_tokens.iter().rev().any(|frame| frame.contains(&key));
             if !declared {
                 return true;

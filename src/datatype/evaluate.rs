@@ -257,7 +257,7 @@ const SHORTHAND_REBINDS: phf::Map<&'static str, &'static str> = phf_macros::phf_
     "VerticalFlex" => "UIFlexAlignment",
 };
 
-fn shorthand_rebind<'a>(key: &'a str) -> &'a str {
+pub(crate) fn shorthand_rebind<'a>(key: &'a str) -> &'a str {
     SHORTHAND_REBINDS.get(key).copied().unwrap_or(key)
 }
 

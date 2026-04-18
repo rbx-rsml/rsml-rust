@@ -14,7 +14,7 @@ use phf_macros::phf_set;
 use ropey::Rope;
 use crate::types::Range;
 
-use super::{DefinitionKind, PushTypeError, TokenTypes, Typechecker, type_error::*};
+use super::{DefinitionKind, PushTypeError, ResolvedTypes, Typechecker, type_error::*};
 use super::macro_check::{MacroRegistry, MacroReturnContext};
 
 impl<'a> Typechecker<'a> {
@@ -24,7 +24,7 @@ impl<'a> Typechecker<'a> {
         parent_classes: &Vec<String>,
         ast_errors: &mut AstErrors,
         definitions: &mut super::Definitions,
-        token_types: &mut TokenTypes,
+        resolved_types: &mut ResolvedTypes,
     ) {
         let current_classes = if let Some(selectors) = selectors {
             self.typecheck_selectors(selectors, parent_classes, ast_errors, definitions)
@@ -57,7 +57,7 @@ impl<'a> Typechecker<'a> {
         for construct in content {
             match construct {
                 Construct::Rule { selectors, body } => {
-                    self.typecheck_rule((selectors, body), &current_classes, ast_errors, definitions, token_types)
+                    self.typecheck_rule((selectors, body), &current_classes, ast_errors, definitions, resolved_types)
                 }
 
                 Construct::Assignment {
@@ -72,7 +72,7 @@ impl<'a> Typechecker<'a> {
                         if let Construct::MacroCall { name, body, .. } = right.as_ref() {
                             self.validate_macro_call(name, body, MacroReturnContext::Assignment, ast_errors);
                         }
-                        self.resolve_token_assignment(left, right, definitions, token_types);
+                        self.resolve_token_assignment(left, right, ast_errors, definitions, resolved_types);
                     }
                 }
 

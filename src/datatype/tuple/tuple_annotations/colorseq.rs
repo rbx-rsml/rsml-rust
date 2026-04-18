@@ -77,6 +77,10 @@ fn colorseq_get_end_time(
 }
 
 pub fn colorseq_annotation(datatypes: &Vec<Datatype>) -> Datatype {
+    if datatypes.is_empty() {
+        return Datatype::None;
+    }
+
     if datatypes.len() == 1 {
         let (color, _) = colorseq_get_color_and_time(&datatypes[0]);
         return Datatype::Variant(Variant::ColorSequence(ColorSequence {
