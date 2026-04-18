@@ -166,7 +166,7 @@ struct TypecheckSelectors<'a> {
 
     rope: &'a Rope,
     ast_errors: &'a mut AstErrors,
-    macro_registry: &'a MacroRegistry<'a>,
+    macro_registry: &'a MacroRegistry,
 }
 
 impl<'a> TypecheckSelectors<'a> {
@@ -176,7 +176,7 @@ impl<'a> TypecheckSelectors<'a> {
         rope: &'a Rope,
         ast_errors: &'a mut AstErrors,
         definitions: &mut super::Definitions,
-        macro_registry: &'a MacroRegistry<'a>,
+        macro_registry: &'a MacroRegistry,
     ) -> Self {
         let mut typecheck_selectors = Self {
             iter: selectors.iter(),
@@ -529,7 +529,7 @@ impl<'a> TypecheckSelectors<'a> {
             return;
         };
 
-        let Some(signatures) = self.macro_registry.get(macro_name) else {
+        let Some(signatures) = self.macro_registry.get(*macro_name) else {
             self.ast_errors.push(
                 TypeError::UndefinedMacro { name: macro_name },
                 self.range_from_span(name.token.span()),

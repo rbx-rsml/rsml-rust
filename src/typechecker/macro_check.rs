@@ -9,7 +9,7 @@ use crate::{
 use super::{PushTypeError, Typechecker, type_error::*};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum MacroReturnContext {
+pub enum MacroReturnContext {
     Construct,
     Assignment,
     Selector,
@@ -26,14 +26,14 @@ impl MacroReturnContext {
 }
 
 #[derive(Debug, Clone)]
-pub(super) struct MacroSignature {
+pub struct MacroSignature {
     pub arg_count: usize,
     pub return_context: MacroReturnContext,
 }
 
-pub(super) type MacroRegistry<'a> = HashMap<&'a str, Vec<MacroSignature>>;
+pub type MacroRegistry = HashMap<String, Vec<MacroSignature>>;
 
-pub(super) fn count_macro_def_args(args: &Option<Delimited>) -> usize {
+pub fn count_macro_def_args(args: &Option<Delimited>) -> usize {
     let Some(args) = args else { return 0 };
     let Some(content) = &args.content else { return 0 };
     content
@@ -65,7 +65,7 @@ pub(super) fn count_macro_call_args(body: &Option<Delimited>) -> usize {
         + 1
 }
 
-pub(super) fn macro_return_context(
+pub fn macro_return_context(
     return_type: &Option<(Node, Option<Node>)>,
 ) -> MacroReturnContext {
     if let Some((_, Some(ident))) = return_type {
@@ -187,7 +187,7 @@ impl<'a> Typechecker<'a> {
             return;
         };
 
-        let Some(signatures) = self.macro_registry.get(macro_name) else {
+        let Some(signatures) = self.macro_registry.get(*macro_name) else {
             ast_errors.push(
                 TypeError::UndefinedMacro { name: macro_name },
                 self.range_from_span(name.token.span()),

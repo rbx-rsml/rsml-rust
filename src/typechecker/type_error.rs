@@ -110,11 +110,21 @@ impl<'a> TypeError<'a> {
                 let expected_str = match expected.len() {
                     0 => String::from("no arguments"),
                     1 => format!("{} argument{}", expected[0], if expected[0] == 1 { "" } else { "s" }),
+                    2 => {
+                        let mut sorted = expected.clone();
+                        sorted.sort();
+                        format!("{} or {} arguments", sorted[0], sorted[1])
+                    }
                     _ => {
                         let mut sorted = expected.clone();
                         sorted.sort();
-                        let parts: Vec<String> = sorted.iter().map(|n| n.to_string()).collect();
-                        format!("{} arguments", parts.join(" or "))
+                        let (last, leading) = sorted.split_last().unwrap();
+                        let leading_str = leading
+                            .iter()
+                            .map(|n| n.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        format!("{}, or {} arguments", leading_str, last)
                     }
                 };
                 format!(

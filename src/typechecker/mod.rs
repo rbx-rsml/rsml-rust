@@ -2,21 +2,49 @@ use std::{
     collections::{HashMap, HashSet},
     ops::{Deref, DerefMut, RangeInclusive},
     path::{Path, PathBuf},
+    sync::LazyLock,
 };
 
 use crate::{
     datatype::{Datatype, StaticLookup, evaluate_construct, shorthand_rebind},
-    lexer::Token,
-    parser::{AstErrors, Construct, Delimited, Node, ParsedRsml},
+    lexer::{Lexer, Token},
+    parser::{AstErrors, Construct, Delimited, Node, ParsedRsml, Parser},
     range_from_span::RangeFromSpan,
     types::{Diagnostic, Range},
 };
 
 
 use self::luaurc::Luaurc;
-use macro_check::{
+pub use macro_check::{
     MacroRegistry, MacroReturnContext, MacroSignature, count_macro_def_args, macro_return_context,
 };
+
+const BUILTINS_SOURCE: &str = include_str!("../../builtins.rsml");
+
+pub static BUILTIN_MACROS: LazyLock<MacroRegistry> = LazyLock::new(|| {
+    let parsed = Parser::new(Lexer::new(BUILTINS_SOURCE));
+    let mut registry = MacroRegistry::new();
+    for construct in &parsed.ast {
+        if let Construct::Macro {
+            name: Some(name_node),
+            args,
+            return_type,
+            ..
+        } = construct
+        {
+            if let Token::Identifier(name_str) = name_node.token.value() {
+                registry
+                    .entry(name_str.to_string())
+                    .or_insert_with(Vec::new)
+                    .push(MacroSignature {
+                        arg_count: count_macro_def_args(args),
+                        return_context: macro_return_context(return_type),
+                    });
+            }
+        }
+    }
+    registry
+});
 
 use rangemap::RangeInclusiveMap;
 
@@ -154,7 +182,7 @@ pub struct TypecheckedRsml {
 
 pub struct Typechecker<'a> {
     pub parsed: &'a ParsedRsml<'a>,
-    macro_registry: MacroRegistry<'a>,
+    macro_registry: MacroRegistry,
     pub(crate) static_scopes: Vec<HashMap<String, Datatype>>,
     pub(crate) declared_tokens: Vec<HashSet<ResolvedTypeKey>>,
 }
@@ -186,7 +214,7 @@ impl<'a> Typechecker<'a> {
     ) -> TypecheckedRsml {
         let mut typechecker: Typechecker<'a> = Self {
             parsed,
-            macro_registry: HashMap::new(),
+            macro_registry: (*BUILTIN_MACROS).clone(),
             static_scopes: vec![HashMap::new()],
             declared_tokens: vec![HashSet::new()],
         };
@@ -254,7 +282,7 @@ impl<'a> Typechecker<'a> {
                             let context = macro_return_context(return_type);
                             let signatures = typechecker
                                 .macro_registry
-                                .entry(name_str)
+                                .entry(name_str.to_string())
                                 .or_insert_with(Vec::new);
 
                             if signatures.iter().any(|sig| sig.arg_count == arg_count) {
@@ -1240,7 +1268,7 @@ mod tests {
     #[tokio::test]
     async fn macro_arg_valid_no_error() {
         let result =
-            typecheck("@macro Padding (&all) { ::UIPadding { PaddingTop = &all; } }").await;
+            typecheck("@macro MyPadding (&all) { ::UIPadding { PaddingTop = &all; } }").await;
         let macro_errors: Vec<_> = result
             .errors
             .iter()
@@ -1281,12 +1309,12 @@ mod tests {
 
     #[tokio::test]
     async fn macro_call_before_definition_errors() {
-        let result = typecheck("Padding!();\n@macro Padding () { ::UIPadding {} }").await;
+        let result = typecheck("MyPadding!();\n@macro MyPadding () { ::UIPadding {} }").await;
         assert!(
             result
                 .errors
                 .iter()
-                .any(|err| err.contains("No macro named `Padding` has been defined"))
+                .any(|err| err.contains("No macro named `MyPadding` has been defined"))
         );
     }
 
@@ -1347,7 +1375,7 @@ mod tests {
     #[tokio::test]
     async fn macro_call_overloaded_wrong_arg_count() {
         let result = typecheck(
-            "@macro Padding (&all) { ::UIPadding {} }\n@macro Padding (&x, &y) { ::UIPadding {} }\nPadding!(1, 2, 3);"
+            "@macro MyPadding (&all) { ::UIPadding {} }\n@macro MyPadding (&x, &y) { ::UIPadding {} }\nMyPadding!(1, 2, 3);"
         ).await;
         assert!(
             result
