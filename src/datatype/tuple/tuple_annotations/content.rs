@@ -5,8 +5,8 @@ use crate::datatype::Datatype;
 pub fn content_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     let content = match datatypes.get(0) {
         Some(Datatype::Variant(Variant::String(string))) => Content::from(string.to_string()),
-        Some(Datatype::Variant(Variant::Float32(float32))) => {
-            Content::from(format!("rbxassetid://{float32}"))
+        Some(Datatype::Variant(Variant::Float64(float64))) => {
+            Content::from(format!("rbxassetid://{float64}"))
         }
         _ => Content::default(),
     };

@@ -7,7 +7,7 @@ CompiledRsml {
         RootTreeNode {
             attributes: Attributes {
                 data: {
-                    "Val": Float32(
+                    "Val": Float64(
                         10.0,
                     ),
                 },

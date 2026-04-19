@@ -2,8 +2,8 @@ use rbx_rsml::RsmlCompiler;
 
 fn main() {
     let source = r#"
-        Foo!(), Frame {
-            Padding!(0% + .5);
+        TextLabel {
+            FontFace = font (16777217, :SemiBold, "Italic");
         }
     "#;
 

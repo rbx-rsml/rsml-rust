@@ -627,7 +627,7 @@ dependencies = [
  "rangemap",
  "rbx_reflection",
  "rbx_reflection_database",
- "rbx_types 2.0.0",
+ "rbx_types",
  "rbx_types_ops",
  "ropey",
  "serde",
@@ -641,7 +641,7 @@ version = "6.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "84f635e79d5d710c82e9049faa57d32945e76a6b041280dc6274f732c0dd78dc"
 dependencies = [
- "rbx_types 3.1.0",
+ "rbx_types",
  "serde",
  "thiserror",
 ]
@@ -657,21 +657,6 @@ dependencies = [
  "rbx_reflection",
  "rmp-serde",
  "serde",
-]
-
-[[package]]
-name = "rbx_types"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78e4fdde46493def107e5f923d82e813dec9b3eef52c2f75fbad3a716023eda2"
-dependencies = [
- "base64",
- "bitflags 1.3.2",
- "blake3",
- "lazy_static",
- "rand",
- "serde",
- "thiserror",
 ]
 
 [[package]]
@@ -696,7 +681,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ac83f2c269bbe1ca0b07e626284b9b6f076ea0474ef7247162f11cd54a28419"
 dependencies = [
  "num-traits",
- "rbx_types 3.1.0",
+ "rbx_types",
 ]
 
 [[package]]

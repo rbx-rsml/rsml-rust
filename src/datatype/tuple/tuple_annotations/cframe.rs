@@ -2,7 +2,7 @@ use rbx_types::{CFrame, Matrix3, Variant, Vector3};
 
 use crate::datatype::Datatype;
 
-use crate::datatype::tuple::tuple_annotations::coerce_datatype_to_f32;
+use crate::datatype::tuple::tuple_annotations::coerce_datatype_to_f64;
 
 fn coerce_datatype_to_vec3(datatype: Option<&Datatype>, default: Vector3) -> Vector3 {
     if let Some(datatype) = datatype {
@@ -20,28 +20,44 @@ fn coerce_datatype_to_vec3(datatype: Option<&Datatype>, default: Vector3) -> Vec
 pub fn cframe_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     let first_datatype = datatypes.get(0);
 
-    if let Some(Datatype::Variant(Variant::Float32(pos_x_component))) = first_datatype {
-        let pos_y_component = coerce_datatype_to_f32(datatypes.get(1), *pos_x_component);
-        let pos_z_component = coerce_datatype_to_f32(datatypes.get(2), pos_y_component);
+    if let Some(Datatype::Variant(Variant::Float64(pos_x_component))) = first_datatype {
+        let pos_y_component = coerce_datatype_to_f64(datatypes.get(1), *pos_x_component);
+        let pos_z_component = coerce_datatype_to_f64(datatypes.get(2), pos_y_component);
 
-        let orien_x_x_component = coerce_datatype_to_f32(datatypes.get(3), 0.0);
-        let orien_x_y_component = coerce_datatype_to_f32(datatypes.get(4), orien_x_x_component);
-        let orien_x_z_component = coerce_datatype_to_f32(datatypes.get(5), orien_x_y_component);
+        let orien_x_x_component = coerce_datatype_to_f64(datatypes.get(3), 0.0);
+        let orien_x_y_component = coerce_datatype_to_f64(datatypes.get(4), orien_x_x_component);
+        let orien_x_z_component = coerce_datatype_to_f64(datatypes.get(5), orien_x_y_component);
 
-        let orien_y_x_component = coerce_datatype_to_f32(datatypes.get(6), 0.0);
-        let orien_y_y_component = coerce_datatype_to_f32(datatypes.get(7), orien_y_x_component);
-        let orien_y_z_component = coerce_datatype_to_f32(datatypes.get(8), orien_y_y_component);
+        let orien_y_x_component = coerce_datatype_to_f64(datatypes.get(6), 0.0);
+        let orien_y_y_component = coerce_datatype_to_f64(datatypes.get(7), orien_y_x_component);
+        let orien_y_z_component = coerce_datatype_to_f64(datatypes.get(8), orien_y_y_component);
 
-        let orien_z_x_component = coerce_datatype_to_f32(datatypes.get(9), 0.0);
-        let orien_z_y_component = coerce_datatype_to_f32(datatypes.get(10), orien_z_x_component);
-        let orien_z_z_component = coerce_datatype_to_f32(datatypes.get(11), orien_z_y_component);
+        let orien_z_x_component = coerce_datatype_to_f64(datatypes.get(9), 0.0);
+        let orien_z_y_component = coerce_datatype_to_f64(datatypes.get(10), orien_z_x_component);
+        let orien_z_z_component = coerce_datatype_to_f64(datatypes.get(11), orien_z_y_component);
 
         Datatype::Variant(Variant::CFrame(CFrame::new(
-            Vector3::new(*pos_x_component, pos_y_component, pos_z_component),
+            Vector3::new(
+                *pos_x_component as f32,
+                pos_y_component as f32,
+                pos_z_component as f32,
+            ),
             Matrix3::new(
-                Vector3::new(orien_x_x_component, orien_x_y_component, orien_x_z_component),
-                Vector3::new(orien_y_x_component, orien_y_y_component, orien_y_z_component),
-                Vector3::new(orien_z_x_component, orien_z_y_component, orien_z_z_component),
+                Vector3::new(
+                    orien_x_x_component as f32,
+                    orien_x_y_component as f32,
+                    orien_x_z_component as f32,
+                ),
+                Vector3::new(
+                    orien_y_x_component as f32,
+                    orien_y_y_component as f32,
+                    orien_y_z_component as f32,
+                ),
+                Vector3::new(
+                    orien_z_x_component as f32,
+                    orien_z_y_component as f32,
+                    orien_z_z_component as f32,
+                ),
             ),
         )))
     } else {

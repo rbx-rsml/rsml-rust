@@ -3,7 +3,7 @@ use rbx_types::{Color3, Color3uint8, Variant};
 
 use crate::datatype::Datatype;
 
-use crate::datatype::tuple::tuple_annotations::coerce_datatype_to_f32;
+use crate::datatype::tuple::tuple_annotations::coerce_datatype_to_f64;
 
 pub fn color3_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     let first = datatypes.get(0);
@@ -19,11 +19,15 @@ pub fn color3_annotation(datatypes: &Vec<Datatype>) -> Datatype {
         let color: Srgb<f32> = Srgb::from_color(*color);
         Datatype::Variant(Variant::Color3(Color3::new(color.red, color.green, color.blue)))
     } else {
-        let red = coerce_datatype_to_f32(first, 0.0);
-        let green = coerce_datatype_to_f32(datatypes.get(1), red);
-        let blue = coerce_datatype_to_f32(datatypes.get(2), green);
+        let red = coerce_datatype_to_f64(first, 0.0);
+        let green = coerce_datatype_to_f64(datatypes.get(1), red);
+        let blue = coerce_datatype_to_f64(datatypes.get(2), green);
 
-        Datatype::Variant(Variant::Color3(Color3::new(red, green, blue)))
+        Datatype::Variant(Variant::Color3(Color3::new(
+            red as f32,
+            green as f32,
+            blue as f32,
+        )))
     }
 }
 
@@ -45,9 +49,9 @@ pub fn rgb_annotation(datatypes: &Vec<Datatype>) -> Datatype {
             Color3uint8::new(color.red, color.green, color.blue).into(),
         ))
     } else {
-        let red = coerce_datatype_to_f32(datatypes.get(0), 0.0);
-        let green = coerce_datatype_to_f32(datatypes.get(1), red);
-        let blue = coerce_datatype_to_f32(datatypes.get(2), green);
+        let red = coerce_datatype_to_f64(datatypes.get(0), 0.0);
+        let green = coerce_datatype_to_f64(datatypes.get(1), red);
+        let blue = coerce_datatype_to_f64(datatypes.get(2), green);
 
         Datatype::Variant(Variant::Color3(
             Color3uint8::new(red as u8, green as u8, blue as u8).into(),

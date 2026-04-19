@@ -12,7 +12,7 @@ pub fn font_annotation(datatypes: &Vec<Datatype>) -> Datatype {
                     format!("rbxasset://fonts/families/{}.json", font_str)
                 }
             }
-            Datatype::Variant(Variant::Float32(num)) => format!("rbxassetid://{}", num),
+            Datatype::Variant(Variant::Float64(num)) => format!("rbxassetid://{}", num),
             _ => "rbxasset://fonts/families/SourceSansPro.json".to_string(),
         }
     } else {
@@ -34,7 +34,7 @@ pub fn font_annotation(datatypes: &Vec<Datatype>) -> Datatype {
                 "Heavy" | "Enum.FontWeight.Heavy" => FontWeight::Heavy,
                 _ => FontWeight::Regular,
             },
-            Datatype::Variant(Variant::Float32(float32)) => match *float32 {
+            Datatype::Variant(Variant::Float64(float64)) => match *float64 {
                 x if x == 100.0 => FontWeight::Thin,
                 x if x == 200.0 => FontWeight::ExtraLight,
                 x if x == 300.0 => FontWeight::Light,
@@ -59,7 +59,7 @@ pub fn font_annotation(datatypes: &Vec<Datatype>) -> Datatype {
                 "Italic" | "Enum.FontStyle.Italic" => FontStyle::Italic,
                 _ => FontStyle::Normal,
             },
-            Datatype::Variant(Variant::Float32(float32)) => match *float32 {
+            Datatype::Variant(Variant::Float64(float64)) => match *float64 {
                 x if x == 1.0 => FontStyle::Italic,
                 _ => FontStyle::Normal,
             },

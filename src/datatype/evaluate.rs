@@ -105,7 +105,7 @@ fn evaluate_token(
     lookup: &dyn StaticLookup,
 ) -> Option<Datatype> {
     match node.token.value() {
-        Token::Number(s) => parse_number_str(s).map(|n| Datatype::Variant(Variant::Float32(n))),
+        Token::Number(s) => parse_number_str(s).map(|n| Datatype::Variant(Variant::Float64(n))),
 
         Token::NumberOffset(s) => {
             let num_str = s.strip_suffix("px").unwrap_or(s);
@@ -116,7 +116,7 @@ fn evaluate_token(
         Token::NumberScale(s) => {
             let num_str = s.strip_suffix('%').unwrap_or(s);
             let scale = parse_number_str(num_str).unwrap_or(0.0) / 100.0;
-            Some(Datatype::Variant(Variant::UDim(UDim::new(scale, 0))))
+            Some(Datatype::Variant(Variant::UDim(UDim::new(scale as f32, 0))))
         }
 
         Token::StringSingle(s) => Some(Datatype::Variant(Variant::String(s.to_string()))),
@@ -225,13 +225,23 @@ fn coerce_tuple_data(datatypes: Vec<Datatype>, name: Option<&str>) -> Option<Dat
 
 fn negate_variant(variant: &Variant) -> Option<Variant> {
     match variant {
-        Variant::Float32(n) => Some(Variant::Float32(-n)),
+        Variant::Float64(n) => Some(Variant::Float64(-n)),
         Variant::UDim(udim) => Some(Variant::UDim(UDim::new(-udim.scale, -udim.offset))),
         _ => None,
     }
 }
 
 fn apply_operator(op_node: &Node, left: &Variant, right: &Variant) -> Option<Variant> {
+    let narrowed_right;
+    let right = match (left, right) {
+        (Variant::Float64(_), _) => right,
+        (_, Variant::Float64(n)) => {
+            narrowed_right = Variant::Float32(*n as f32);
+            &narrowed_right
+        }
+        _ => right,
+    };
+
     match op_node.token.value() {
         Token::OpAdd => left.add(right),
         Token::OpSub => left.sub(right),
@@ -263,7 +273,7 @@ pub(crate) fn shorthand_rebind<'a>(key: &'a str) -> &'a str {
     SHORTHAND_REBINDS.get(key).copied().unwrap_or(key)
 }
 
-fn parse_number_str(s: &str) -> Option<f32> {
+fn parse_number_str(s: &str) -> Option<f64> {
     let cleaned: String = s.chars().filter(|c| *c != '_').collect();
-    cleaned.parse::<f32>().ok()
+    cleaned.parse::<f64>().ok()
 }

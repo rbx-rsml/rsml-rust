@@ -2,7 +2,7 @@ use rbx_types::{Rect, Variant, Vector2};
 
 use crate::datatype::Datatype;
 
-use crate::datatype::tuple::tuple_annotations::coerce_datatype_to_f32;
+use crate::datatype::tuple::tuple_annotations::coerce_datatype_to_f64;
 
 fn coerce_datatype_to_vec2(datatype: Option<&Datatype>, default: Vector2) -> Vector2 {
     if let Some(datatype) = datatype {
@@ -24,14 +24,14 @@ pub fn rect_annotation(datatypes: &Vec<Datatype>) -> Datatype {
         let max = coerce_datatype_to_vec2(datatypes.get(1), *vec);
         Datatype::Variant(Variant::Rect(Rect::new(*vec, max)))
     } else {
-        let min_x = coerce_datatype_to_f32(first, 0.0);
-        let min_y = coerce_datatype_to_f32(datatypes.get(1), min_x);
-        let max_x = coerce_datatype_to_f32(datatypes.get(2), min_x);
-        let max_y = coerce_datatype_to_f32(datatypes.get(3), min_y);
+        let min_x = coerce_datatype_to_f64(first, 0.0);
+        let min_y = coerce_datatype_to_f64(datatypes.get(1), min_x);
+        let max_x = coerce_datatype_to_f64(datatypes.get(2), min_x);
+        let max_y = coerce_datatype_to_f64(datatypes.get(3), min_y);
 
         Datatype::Variant(Variant::Rect(Rect::new(
-            Vector2::new(min_x, min_y),
-            Vector2::new(max_x, max_y),
+            Vector2::new(min_x as f32, min_y as f32),
+            Vector2::new(max_x as f32, max_y as f32),
         )))
     }
 }

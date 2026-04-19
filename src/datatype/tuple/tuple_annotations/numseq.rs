@@ -2,21 +2,42 @@ use crate::datatype::Datatype;
 use rbx_types::{NumberSequence, NumberSequenceKeypoint, Variant};
 use std::cmp::Ordering;
 
-use crate::datatype::tuple::tuple_annotations::{coerce_datatype_to_f32, extract_datatype_f32};
+use crate::datatype::tuple::tuple_annotations::{coerce_datatype_to_f64, extract_datatype_f64};
 
-fn numseq_get_number_time_and_envelope(datatype: &Datatype) -> (f32, Option<f32>, f32) {
+struct NumberTimeAndEnvelope {
+    number: f64,
+    time: Option<f64>,
+    envelope: f64,
+}
+
+struct UntimedNumber {
+    idx: usize,
+    number: f64,
+    envelope: f64,
+}
+
+struct TimePoint {
+    idx: f64,
+    time: f64,
+}
+
+fn numseq_get_number_time_and_envelope(datatype: &Datatype) -> NumberTimeAndEnvelope {
     match datatype {
         Datatype::TupleData(tuple_data) => {
-            let time = extract_datatype_f32(tuple_data.get(0));
-            let number = coerce_datatype_to_f32(tuple_data.get(1), 0.0);
-            let envelope = coerce_datatype_to_f32(tuple_data.get(2), 0.0);
+            let time = extract_datatype_f64(tuple_data.get(0));
+            let number = coerce_datatype_to_f64(tuple_data.get(1), 0.0);
+            let envelope = coerce_datatype_to_f64(tuple_data.get(2), 0.0);
 
-            (number, time, envelope)
+            NumberTimeAndEnvelope { number, time, envelope }
         }
 
-        Datatype::Variant(Variant::Float32(float32)) => (*float32, None, 0.0),
+        Datatype::Variant(Variant::Float64(float64)) => NumberTimeAndEnvelope {
+            number: *float64,
+            time: None,
+            envelope: 0.0,
+        },
 
-        _ => (0.0, None, 0.0),
+        _ => NumberTimeAndEnvelope { number: 0.0, time: None, envelope: 0.0 },
     }
 }
 
@@ -35,61 +56,63 @@ impl Number {
     }
 }
 
-fn numseq_get_start_time(current_idx: usize, numbers: &Vec<Number>) -> (f32, f32) {
+fn numseq_get_start_time(current_idx: usize, numbers: &Vec<Number>) -> TimePoint {
     if current_idx != 0 {
         for idx in (0..current_idx).rev() {
-            let float32 = &numbers[idx];
+            let entry = &numbers[idx];
 
-            if let Number::NumberSequenceKeypoint(keypoint) = float32 {
-                return (idx as f32, keypoint.time);
+            if let Number::NumberSequenceKeypoint(keypoint) = entry {
+                return TimePoint { idx: idx as f64, time: keypoint.time as f64 };
             }
         }
     }
 
-    (0.0, 0.0)
+    TimePoint { idx: 0.0, time: 0.0 }
 }
 
 fn numseq_get_end_time(
     current_idx: usize,
     numbers: &Vec<Number>,
     numbers_len: usize,
-) -> (f32, f32) {
+) -> TimePoint {
     if current_idx != numbers_len {
         for idx in (current_idx + 1)..numbers_len {
-            let color = &numbers[idx];
+            let entry = &numbers[idx];
 
-            if let Number::NumberSequenceKeypoint(keypoint) = color {
-                return (idx as f32, keypoint.time);
+            if let Number::NumberSequenceKeypoint(keypoint) = entry {
+                return TimePoint { idx: idx as f64, time: keypoint.time as f64 };
             }
         }
     }
 
-    ((numbers_len - 1) as f32, 1.0)
+    TimePoint { idx: (numbers_len - 1) as f64, time: 1.0 }
 }
 
 pub fn numseq_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     if datatypes.len() == 1 {
-        let (number, _, envelope) = numseq_get_number_time_and_envelope(&datatypes[0]);
+        let NumberTimeAndEnvelope { number, envelope, .. } =
+            numseq_get_number_time_and_envelope(&datatypes[0]);
         return Datatype::Variant(Variant::NumberSequence(NumberSequence {
             keypoints: vec![
-                NumberSequenceKeypoint::new(0.0, number, envelope),
-                NumberSequenceKeypoint::new(1.0, number, envelope),
+                NumberSequenceKeypoint::new(0.0, number as f32, envelope as f32),
+                NumberSequenceKeypoint::new(1.0, number as f32, envelope as f32),
             ],
         }));
     }
 
     let mut numbers: Vec<Number> = vec![];
-    let mut untimed_numbers: Vec<(usize, f32, f32)> = vec![];
+    let mut untimed_numbers: Vec<UntimedNumber> = vec![];
 
     for (idx, datatype) in datatypes.iter().enumerate() {
-        let (number, time, envelope) = numseq_get_number_time_and_envelope(datatype);
+        let NumberTimeAndEnvelope { number, time, envelope } =
+            numseq_get_number_time_and_envelope(datatype);
 
         if let Some(time) = time {
             numbers.push(Number::NumberSequenceKeypoint(
-                NumberSequenceKeypoint::new(time, number, envelope),
+                NumberSequenceKeypoint::new(time as f32, number as f32, envelope as f32),
             ));
         } else {
-            untimed_numbers.push((idx, number, envelope));
+            untimed_numbers.push(UntimedNumber { idx, number, envelope });
         }
     }
 
@@ -100,21 +123,23 @@ pub fn numseq_annotation(datatypes: &Vec<Datatype>) -> Datatype {
             .unwrap_or(Ordering::Less)
     });
 
-    for (idx, _, _) in &untimed_numbers {
-        numbers.insert(*idx, Number::Empty);
+    for untimed in &untimed_numbers {
+        numbers.insert(untimed.idx, Number::Empty);
     }
 
     let numbers_len = numbers.len();
-    for (idx, number, envelope) in &untimed_numbers {
-        let idx = *idx;
-        let (start_idx, start_time) = numseq_get_start_time(idx, &numbers);
-        let (end_idx, end_time) = numseq_get_end_time(idx, &numbers, numbers_len);
+    for untimed in &untimed_numbers {
+        let idx = untimed.idx;
+        let start = numseq_get_start_time(idx, &numbers);
+        let end = numseq_get_end_time(idx, &numbers, numbers_len);
 
-        let time = start_time
-            + (end_time - start_time) * (((idx as f32) - start_idx) / (end_idx - start_idx));
+        let time = start.time
+            + (end.time - start.time) * ((idx as f64 - start.idx) / (end.idx - start.idx));
 
         numbers[idx] = Number::NumberSequenceKeypoint(NumberSequenceKeypoint::new(
-            time, *number, *envelope,
+            time as f32,
+            untimed.number as f32,
+            untimed.envelope as f32,
         ));
     }
 

@@ -2,12 +2,12 @@ use rbx_types::{UDim, UDim2, Variant};
 
 use crate::datatype::Datatype;
 
-use crate::datatype::tuple::tuple_annotations::{coerce_datatype_to_f32, coerce_datatype_to_i32};
+use crate::datatype::tuple::tuple_annotations::{coerce_datatype_to_f64, coerce_datatype_to_i32};
 
 fn coerce_datatype_to_udim(datatype: Option<&Datatype>, default: UDim) -> UDim {
     if let Some(datatype) = datatype {
         return match datatype {
-            Datatype::Variant(Variant::Float32(float32)) => UDim::new(*float32, 0),
+            Datatype::Variant(Variant::Float64(float64)) => UDim::new(*float64 as f32, 0),
             Datatype::Variant(Variant::UDim(udim)) => *udim,
             _ => default,
         };
@@ -16,10 +16,10 @@ fn coerce_datatype_to_udim(datatype: Option<&Datatype>, default: UDim) -> UDim {
 }
 
 pub fn udim_annotation(datatypes: &Vec<Datatype>) -> Datatype {
-    let scale = coerce_datatype_to_f32(datatypes.get(0), 0.0);
-    let offset = coerce_datatype_to_f32(datatypes.get(1), scale * 100.0);
+    let scale = coerce_datatype_to_f64(datatypes.get(0), 0.0);
+    let offset = coerce_datatype_to_f64(datatypes.get(1), scale * 100.0);
 
-    Datatype::Variant(Variant::UDim(UDim::new(scale, offset as i32)))
+    Datatype::Variant(Variant::UDim(UDim::new(scale as f32, offset as i32)))
 }
 
 pub fn udim2_annotation(datatypes: &Vec<Datatype>) -> Datatype {
@@ -28,14 +28,14 @@ pub fn udim2_annotation(datatypes: &Vec<Datatype>) -> Datatype {
         let y_component = coerce_datatype_to_udim(datatypes.get(1), x_component);
         Datatype::Variant(Variant::UDim2(UDim2::new(x_component, y_component)))
     } else {
-        let x_scale = coerce_datatype_to_f32(datatypes.get(0), 0.0);
+        let x_scale = coerce_datatype_to_f64(datatypes.get(0), 0.0);
         let x_offset = coerce_datatype_to_i32(datatypes.get(1), (x_scale * 100.0) as i32);
-        let y_scale = coerce_datatype_to_f32(datatypes.get(2), x_scale);
+        let y_scale = coerce_datatype_to_f64(datatypes.get(2), x_scale);
         let y_offset = coerce_datatype_to_i32(datatypes.get(3), x_offset);
 
         Datatype::Variant(Variant::UDim2(UDim2::new(
-            UDim::new(x_scale, x_offset),
-            UDim::new(y_scale, y_offset),
+            UDim::new(x_scale as f32, x_offset),
+            UDim::new(y_scale as f32, y_offset),
         )))
     }
 }

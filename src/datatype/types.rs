@@ -39,11 +39,19 @@ impl Datatype {
 
             Datatype::Oklab(color) => {
                 let color: Srgb<f32> = color.into_color();
-                Some(Variant::Color3(Color3::new(color.red, color.green, color.blue)))
+                Some(Variant::Color3(Color3::new(
+                    color.red,
+                    color.green,
+                    color.blue,
+                )))
             }
             Datatype::Oklch(color) => {
                 let color: Srgb<f32> = color.into_color();
-                Some(Variant::Color3(Color3::new(color.red, color.green, color.blue)))
+                Some(Variant::Color3(Color3::new(
+                    color.red,
+                    color.green,
+                    color.blue,
+                )))
             }
 
             Datatype::None => None,

@@ -347,16 +347,16 @@ fn datatype_matches_arg_type(dt: &Datatype, arg_type: &AnnotationArgType) -> boo
     match arg_type {
         Arg::Any => !matches!(dt, Datatype::None),
 
-        Arg::Number => matches!(dt, Datatype::Variant(Variant::Float32(_))),
+        Arg::Number => matches!(dt, Datatype::Variant(Variant::Float64(_))),
 
         Arg::Scale => matches!(
             dt,
-            Datatype::Variant(Variant::UDim(_)) | Datatype::Variant(Variant::Float32(_))
+            Datatype::Variant(Variant::UDim(_)) | Datatype::Variant(Variant::Float64(_))
         ),
 
         Arg::Measurement => matches!(
             dt,
-            Datatype::Variant(Variant::Float32(_)) | Datatype::Variant(Variant::UDim(_))
+            Datatype::Variant(Variant::Float64(_)) | Datatype::Variant(Variant::UDim(_))
         ),
 
         Arg::String => matches!(dt, Datatype::Variant(Variant::String(_))),
@@ -373,7 +373,7 @@ fn datatype_matches_arg_type(dt: &Datatype, arg_type: &AnnotationArgType) -> boo
             dt,
             Datatype::Variant(Variant::String(_))
                 | Datatype::Variant(Variant::Content(_))
-                | Datatype::Variant(Variant::Float32(_))
+                | Datatype::Variant(Variant::Float64(_))
         ),
 
         Arg::Vector2 => matches!(

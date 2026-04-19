@@ -2249,7 +2249,7 @@ mod tests {
         let result = typecheck("$X = 10;").await;
         let dt = find_token(&result, "X", false);
         assert!(
-            matches!(dt, Datatype::Variant(rbx_types::Variant::Float32(n)) if *n == 10.0),
+            matches!(dt, Datatype::Variant(rbx_types::Variant::Float64(n)) if *n == 10.0),
             "got {:?}",
             dt
         );
@@ -2312,12 +2312,12 @@ mod tests {
         let a = find_token(&result, "A", true);
         let b = find_token(&result, "B", true);
         assert!(
-            matches!(a, Datatype::Variant(rbx_types::Variant::Float32(n)) if *n == 10.0),
+            matches!(a, Datatype::Variant(rbx_types::Variant::Float64(n)) if *n == 10.0),
             "got A={:?}",
             a
         );
         assert!(
-            matches!(b, Datatype::Variant(rbx_types::Variant::Float32(n)) if *n == 10.0),
+            matches!(b, Datatype::Variant(rbx_types::Variant::Float64(n)) if *n == 10.0),
             "got B={:?}",
             b
         );
@@ -2328,7 +2328,7 @@ mod tests {
         let result = typecheck("$!A = 10; $!B = $!A + 5;").await;
         let b = find_token(&result, "B", true);
         assert!(
-            matches!(b, Datatype::Variant(rbx_types::Variant::Float32(n)) if *n == 15.0),
+            matches!(b, Datatype::Variant(rbx_types::Variant::Float64(n)) if *n == 15.0),
             "got {:?}",
             b
         );
@@ -2339,7 +2339,7 @@ mod tests {
         let result = typecheck("Frame { $X = 10; }").await;
         let dt = find_token(&result, "X", false);
         assert!(
-            matches!(dt, Datatype::Variant(rbx_types::Variant::Float32(n)) if *n == 10.0),
+            matches!(dt, Datatype::Variant(rbx_types::Variant::Float64(n)) if *n == 10.0),
             "got {:?}",
             dt
         );
@@ -2350,7 +2350,7 @@ mod tests {
         let result = typecheck("$!A = 10; Frame { $!B = $!A; }").await;
         let b = find_token(&result, "B", true);
         assert!(
-            matches!(b, Datatype::Variant(rbx_types::Variant::Float32(n)) if *n == 10.0),
+            matches!(b, Datatype::Variant(rbx_types::Variant::Float64(n)) if *n == 10.0),
             "got {:?}",
             b
         );

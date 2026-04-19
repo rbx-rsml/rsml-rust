@@ -28,7 +28,7 @@ CompiledRsml {
                 static_attributes: {},
                 properties: Attributes {
                     data: {
-                        "Size": Float32(
+                        "Size": Float64(
                             100.0,
                         ),
                         "Visible": Bool(

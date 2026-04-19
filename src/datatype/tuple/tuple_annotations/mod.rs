@@ -50,40 +50,45 @@ use lerp::lerp_annotation;
 mod floor_ceil_round_abs;
 use floor_ceil_round_abs::{abs_annotation, ceil_annotation, floor_annotation, round_annotation};
 
-pub(super) fn extract_datatype_f32(datatype: Option<&Datatype>) -> Option<f32> {
+pub(crate) fn extract_datatype_f64(datatype: Option<&Datatype>) -> Option<f64> {
     match datatype {
-        Some(Datatype::Variant(Variant::Float32(float32))) => Some(*float32),
+        Some(Datatype::Variant(Variant::Float64(float64))) => Some(*float64),
         _ => None,
     }
 }
 
-pub(super) fn coerce_datatype_to_f32(datatype: Option<&Datatype>, default: f32) -> f32 {
+pub(crate) fn coerce_datatype_to_f64(datatype: Option<&Datatype>, default: f64) -> f64 {
     if let Some(datatype) = datatype {
         return match datatype {
-            Datatype::Variant(Variant::Float32(float32)) => *float32,
+            Datatype::Variant(Variant::Float64(float64)) => *float64,
             _ => default,
         };
     }
     default
 }
 
-pub(super) fn coerce_datatype_to_i32(datatype: Option<&Datatype>, default: i32) -> i32 {
+pub(crate) fn coerce_datatype_to_i32(datatype: Option<&Datatype>, default: i32) -> i32 {
     if let Some(datatype) = datatype {
         return match datatype {
-            Datatype::Variant(Variant::Float32(float32)) => *float32 as i32,
+            Datatype::Variant(Variant::Float64(float64)) => *float64 as i32,
             _ => default,
         };
     }
     default
 }
 
-pub(super) trait Remap {
-    fn remap(self, from: (f32, f32), to: (f32, f32)) -> f32;
+pub(crate) struct RemapRange {
+    pub start: f64,
+    pub end: f64,
 }
 
-impl Remap for f32 {
-    fn remap(self, from: (f32, f32), to: (f32, f32)) -> f32 {
-        to.0 + ((self - from.0) / (from.1 - from.0)) * (to.1 - to.0)
+pub(crate) trait Remap {
+    fn remap(self, from: RemapRange, to: RemapRange) -> f64;
+}
+
+impl Remap for f64 {
+    fn remap(self, from: RemapRange, to: RemapRange) -> f64 {
+        to.start + ((self - from.start) / (from.end - from.start)) * (to.end - to.start)
     }
 }
 

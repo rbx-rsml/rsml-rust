@@ -4,7 +4,7 @@ use rbx_types_ops::Lerp;
 
 use crate::datatype::Datatype;
 
-use crate::datatype::tuple::tuple_annotations::coerce_datatype_to_f32;
+use crate::datatype::tuple::tuple_annotations::coerce_datatype_to_f64;
 
 macro_rules! op_match_between_two_variants {
     ($method_name:ident, $from:expr, $to:expr, $time:expr, [$($name:ident),*]) => {
@@ -40,10 +40,10 @@ pub fn lerp_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     let Some(to) = datatypes.get(1) else {
         return from.clone();
     };
-    let time = coerce_datatype_to_f32(datatypes.get(2), 0.5);
+    let time = coerce_datatype_to_f64(datatypes.get(2), 0.5) as f32;
 
     op_match_between_two_variants!(
         lerp, from, to, time,
-        [Float32, UDim, UDim2, Rect, Vector2, Vector2int16, Vector3, Vector3int16, CFrame, Color3, Color3uint8]
+        [Float64, UDim, UDim2, Rect, Vector2, Vector2int16, Vector3, Vector3int16, CFrame, Color3, Color3uint8]
     )
 }

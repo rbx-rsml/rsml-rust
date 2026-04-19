@@ -154,7 +154,7 @@ fn compile_construct<'a>(
                         active_scope_depth,
                     };
 
-                    if let Some(Datatype::Variant(Variant::Float32(value))) =
+                    if let Some(Datatype::Variant(Variant::Float64(value))) =
                         evaluate_construct(body, None, &lookup)
                     {
                         if let Some(node) = tree_nodes[node_idx].as_mut() {
