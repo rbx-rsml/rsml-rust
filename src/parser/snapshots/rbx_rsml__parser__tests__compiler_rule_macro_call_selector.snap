@@ -18,7 +18,7 @@ TreeNodeGroup {
         Some(
             TreeNode {
                 selector: Some(
-                    "sel!()",
+                    "",
                 ),
                 priority: None,
                 tweens: {},

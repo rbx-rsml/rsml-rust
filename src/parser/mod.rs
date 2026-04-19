@@ -547,4 +547,24 @@ Frame {
         macro_overload_by_arg_count,
         "@macro Set(&a) -> Construct { ::Inner { X = &a; } }\n@macro Set(&a, &b) -> Construct { ::Inner { Y = &b; } }\nFrame { Set!(1px); Set!(2px, 3px); }"
     );
+    parser_test!(
+        macro_selector_expansion,
+        "@macro Foo -> Selector { TextButton }\nFoo!(), Frame { }"
+    );
+    parser_test!(
+        macro_selector_overload,
+        "@macro Sel -> Selector { A }\n@macro Sel(&x) -> Selector { B }\nSel!() { }\nSel!(1) { }"
+    );
+    parser_test!(
+        macro_selector_recursion_guard,
+        "@macro Loop -> Selector { Loop!() }\nLoop!() { }"
+    );
+    parser_test!(
+        macro_selector_recursion_inline_comma,
+        "@macro Foo -> Selector { TextButton, Foo!() }\nFoo!(), Frame { }"
+    );
+    parser_test!(
+        macro_selector_undefined_dropped,
+        "Missing!(), Frame { }"
+    );
 }

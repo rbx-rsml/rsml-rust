@@ -196,13 +196,16 @@ fn compile_construct<'a>(
 }
 
 fn compile_rule<'a>(
-    selectors: &Option<Vec<SelectorNode<'a>>>,
+    selectors: &'a Option<Vec<SelectorNode<'a>>>,
     body: &'a Option<Delimited<'a>>,
     tree_nodes: &mut TreeNodeGroup,
     current_idx: &mut TreeNodeType,
     macro_ctx: &mut MacroContext<'a>,
 ) {
-    let selector_string = selectors.as_ref().map(|s| build_selector_string(s));
+    let selector_string = selectors.as_ref().map(|s| {
+        let expanded = expand_selector_macros(s, macro_ctx);
+        build_selector_string(&expanded)
+    });
 
     let new_node_idx = tree_nodes.nodes_len();
     let new_node_idx_type = TreeNodeType::Node(new_node_idx);
@@ -379,6 +382,81 @@ fn compile_macro_call<'a>(
 
     macro_ctx.expansion_stack.pop();
     macro_ctx.bindings.pop();
+}
+
+fn is_selector_comma(node: &SelectorNode) -> bool {
+    matches!(node, SelectorNode::Token(n) if matches!(n.token.value(), Token::Comma))
+}
+
+fn expand_selector_macros<'a>(
+    selectors: &'a [SelectorNode<'a>],
+    macro_ctx: &mut MacroContext<'a>,
+) -> Vec<&'a SelectorNode<'a>> {
+    let mut out: Vec<&'a SelectorNode<'a>> = Vec::with_capacity(selectors.len());
+    let mut last_was_comma = true;
+    expand_selectors_into(selectors, macro_ctx, &mut out, &mut last_was_comma);
+    if out.last().is_some_and(|n| is_selector_comma(n)) {
+        out.pop();
+    }
+    out
+}
+
+fn expand_selectors_into<'a>(
+    selectors: &'a [SelectorNode<'a>],
+    macro_ctx: &mut MacroContext<'a>,
+    out: &mut Vec<&'a SelectorNode<'a>>,
+    last_was_comma: &mut bool,
+) {
+    for selector_node in selectors {
+        if let SelectorNode::MacroCall { name, body } = selector_node {
+            let Token::MacroCallIdentifier(Some(macro_name)) = name.token.value() else {
+                continue;
+            };
+            let macro_name_str: &'a str = *macro_name;
+
+            if macro_ctx
+                .expansion_stack
+                .iter()
+                .any(|n| n == macro_name_str)
+            {
+                continue;
+            }
+
+            let arg_count = collect_call_args(body).len();
+
+            let matched_body: Option<&'a MacroBodyContent<'a>> = macro_ctx
+                .local
+                .get(macro_name_str)
+                .and_then(|defs| defs.iter().find(|d| d.arg_names.len() == arg_count))
+                .and_then(|def| def.body)
+                .or_else(|| {
+                    crate::builtins::BUILTINS
+                        .registry
+                        .get(macro_name_str)
+                        .and_then(|defs| defs.iter().find(|d| d.arg_names.len() == arg_count))
+                        .and_then(|def| def.body)
+                });
+
+            let Some(MacroBodyContent::Selector(Some(inner))) = matched_body else {
+                continue;
+            };
+
+            macro_ctx.expansion_stack.push(macro_name_str.to_string());
+            expand_selectors_into(inner, macro_ctx, out, last_was_comma);
+            macro_ctx.expansion_stack.pop();
+            continue;
+        }
+
+        if is_selector_comma(selector_node) {
+            if *last_was_comma {
+                continue;
+            }
+            *last_was_comma = true;
+        } else {
+            *last_was_comma = false;
+        }
+        out.push(selector_node);
+    }
 }
 
 fn collect_call_args<'a>(body: &'a Option<Delimited<'a>>) -> Vec<&'a Construct<'a>> {

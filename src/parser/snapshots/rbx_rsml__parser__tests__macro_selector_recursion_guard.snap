@@ -1,0 +1,154 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Macro {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                MacroDeclaration,
+                6,
+            ),
+            leading_trivia: None,
+        },
+        name: Some(
+            Node {
+                token: SpannedToken(
+                    7,
+                    Identifier(
+                        "Loop",
+                    ),
+                    11,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        args: None,
+        return_type: Some(
+            (
+                Node {
+                    token: SpannedToken(
+                        12,
+                        ReturnArrow,
+                        14,
+                    ),
+                    leading_trivia: None,
+                },
+                Some(
+                    Node {
+                        token: SpannedToken(
+                            15,
+                            Identifier(
+                                "Selector",
+                            ),
+                            23,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            ),
+        ),
+        body: Some(
+            MacroBody {
+                open: Node {
+                    token: SpannedToken(
+                        24,
+                        ScopeOpen,
+                        25,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Selector(
+                    Some(
+                        [
+                            Token(
+                                Node {
+                                    token: SpannedToken(
+                                        26,
+                                        MacroCallIdentifier(
+                                            Some(
+                                                "Loop",
+                                            ),
+                                        ),
+                                        31,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                        ],
+                    ),
+                ),
+                close: None,
+            },
+        ),
+    },
+    Rule {
+        selectors: Some(
+            [
+                MacroCall {
+                    name: Node {
+                        token: SpannedToken(
+                            36,
+                            MacroCallIdentifier(
+                                Some(
+                                    "Loop",
+                                ),
+                            ),
+                            41,
+                        ),
+                        leading_trivia: None,
+                    },
+                    body: Some(
+                        Delimited {
+                            left: Node {
+                                token: SpannedToken(
+                                    41,
+                                    ParensOpen,
+                                    42,
+                                ),
+                                leading_trivia: None,
+                            },
+                            content: Some(
+                                [],
+                            ),
+                            right: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        42,
+                                        ParensClose,
+                                        43,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                        },
+                    ),
+                },
+            ],
+        ),
+        body: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        44,
+                        ScopeOpen,
+                        45,
+                    ),
+                    leading_trivia: None,
+                },
+                content: None,
+                right: Some(
+                    Node {
+                        token: SpannedToken(
+                            46,
+                            ScopeClose,
+                            47,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+    },
+]

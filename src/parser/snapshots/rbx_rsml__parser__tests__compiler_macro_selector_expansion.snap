@@ -18,7 +18,7 @@ TreeNodeGroup {
         Some(
             TreeNode {
                 selector: Some(
-                    "Frame",
+                    "TextButton, Frame",
                 ),
                 priority: None,
                 tweens: {},
