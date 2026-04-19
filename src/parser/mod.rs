@@ -1,6 +1,6 @@
 use crate::types::Range;
 
-use crate::lexer::{Lexer, TOKEN_KIND_CONSTRUCT_DELIMITERS, Token, TokenKind};
+use crate::lexer::{RsmlLexer, TOKEN_KIND_CONSTRUCT_DELIMITERS, Token, TokenKind};
 use crate::list::TokenKindList;
 use crate::range_from_span::RangeFromSpan;
 use crate::{node_token_matches, token_kind_list};
@@ -34,8 +34,8 @@ macro_rules! node_token_matches {
     };
 }
 
-pub struct Parser<'a> {
-    pub lexer: Lexer<'a>,
+pub struct RsmlParser<'a> {
+    pub lexer: RsmlLexer<'a>,
     pub(crate) last_token_end: usize,
 
     pub ast: Vec<Construct<'a>>,
@@ -44,8 +44,8 @@ pub struct Parser<'a> {
     pub did_advance: bool,
 }
 
-impl<'a> Parser<'a> {
-    pub fn new(lexer: Lexer<'a>) -> ParsedRsml<'a> {
+impl<'a> RsmlParser<'a> {
+    pub fn new(lexer: RsmlLexer<'a>) -> ParsedRsml<'a> {
         let mut parser = Self {
             lexer,
             last_token_end: 0,
@@ -97,6 +97,10 @@ impl<'a> Parser<'a> {
             ast_errors: parser.ast_errors,
             rope: parser.lexer.rope,
         }
+    }
+
+    pub fn from_source(source: &'a str) -> ParsedRsml<'a> {
+        Self::new(RsmlLexer::new(source))
     }
 
     pub fn range_from_span(&self, span: (usize, usize)) -> Range {
@@ -281,7 +285,7 @@ impl<'a> Parser<'a> {
 
     #[cfg(test)]
     pub fn parse_source(source: &'a str) -> ParsedRsml<'a> {
-        let lexer = crate::lexer::Lexer::new(source);
+        let lexer = crate::lexer::RsmlLexer::new(source);
         Self::new(lexer)
     }
 
@@ -358,22 +362,22 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::Compiler;
+    use crate::compiler::RsmlCompiler;
 
     macro_rules! parser_test {
         ($name:ident, $source:expr) => {
             #[test]
             fn $name() {
-                let parsed = Parser::parse_source($source);
+                let parsed = RsmlParser::parse_source($source);
                 insta::assert_debug_snapshot!(parsed.ast);
             }
 
             paste::paste! {
                 #[test]
                 fn [<compiler_ $name>]() {
-                    let parsed = Parser::parse_source($source);
-                    let compiled = Compiler::new(parsed);
-                    insta::assert_debug_snapshot!(compiled.tree_nodes);
+                    let parsed = RsmlParser::parse_source($source);
+                    let compiled = RsmlCompiler::new(parsed);
+                    insta::assert_debug_snapshot!(compiled);
                 }
             }
         };
@@ -382,7 +386,7 @@ mod tests {
     #[test]
     fn unary_minus_in_udim2_expression() {
         let source = r#"$Size = udim2(-20px + 100%, -20px + 100%);"#;
-        let parsed = Parser::parse_source(source);
+        let parsed = RsmlParser::parse_source(source);
 
         assert!(parsed.ast_errors.0.is_empty(), "Expected no parse errors, got: {:?}", parsed.ast_errors.0);
         insta::assert_debug_snapshot!(parsed.ast);
@@ -464,8 +468,8 @@ mod tests {
     parser_test!(rule_deeply_nested, r#".tag { :hover { Color = #f00; } }"#);
     parser_test!(rule_missing_close_brace, r#"Frame { Size = 100;"#);
     parser_test!(rule_children_missing_part, r#"Frame > { }"#);
-    parser_test!(rule_macro_call_selector, r#"sel!(arg) { Size = 100; }"#);
-    parser_test!(rule_macro_call_comma, r#"sel!(a), Frame { }"#);
+    parser_test!(rule_macro_call_selector, r#"sel!(10px) { Size = 100; }"#);
+    parser_test!(rule_macro_call_comma, r#"sel!(1), Frame { }"#);
 
     parser_test!(macro_construct_return, r#"@macro MyMacro -> Construct { Size = 100; }"#);
     parser_test!(macro_args_construct_return, r#"@macro MyMacro(&v) -> Construct { Size = &v; }"#);
@@ -482,10 +486,10 @@ mod tests {
     parser_test!(macro_args_missing_comma, r#"@macro M(&a &b) -> Construct { }"#);
 
     parser_test!(macro_call_no_args, r#"MyMacro!();"#);
-    parser_test!(macro_call_with_args, r#"MyMacro!(arg1, arg2);"#);
+    parser_test!(macro_call_with_args, r#"MyMacro!(10px, 20px);"#);
     parser_test!(macro_call_complex_args, r#"Apply!(#ff0000, 10px, "hello");"#);
     parser_test!(macro_call_missing_semicolon, r#"MyMacro!()"#);
-    parser_test!(macro_call_missing_close_paren, r#"MyMacro!(arg1;"#);
+    parser_test!(macro_call_missing_close_paren, r#"MyMacro!(10px;"#);
 
     parser_test!(builtin_padding_one_arg, r#"Frame { Padding!(10px); }"#);
     parser_test!(builtin_padding_two_args, r#"Frame { Padding!(10px, 20px); }"#);
@@ -493,6 +497,7 @@ mod tests {
     parser_test!(builtin_padding_four_args, r#"Frame { Padding!(10px, 20px, 30px, 40px); }"#);
     parser_test!(builtin_corner_radius, r#"Frame { CornerRadius!(8px); }"#);
     parser_test!(builtin_scale, r#"Frame { Scale!(1.5); }"#);
+    parser_test!(macro_call_math_arg, r#"Frame { Padding!(0% + .5); }"#);
 
     parser_test!(comment_before_assign, "-- comment\nSize = 100;");
     parser_test!(comment_multi_before_assign, r#"--[[comment]] Size = 100;"#);

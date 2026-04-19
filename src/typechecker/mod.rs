@@ -661,7 +661,7 @@ impl<'a> Typechecker<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{lexer::Lexer, parser::Parser};
+    use crate::{lexer::RsmlLexer, parser::RsmlParser};
 
     use std::path::PathBuf;
 
@@ -674,8 +674,8 @@ mod tests {
     }
 
     async fn typecheck(source: &str) -> TypecheckResult {
-        let lexer = Lexer::new(source);
-        let parsed = Parser::new(lexer);
+        let lexer = RsmlLexer::new(source);
+        let parsed = RsmlParser::new(lexer);
         let dummy_path = PathBuf::from("/test.rsml");
 
         let TypecheckedRsml {

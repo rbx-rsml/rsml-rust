@@ -1,6 +1,4 @@
-use rbx_rsml::compiler::{Compiler, CompilerData};
-use rbx_rsml::lexer::Lexer;
-use rbx_rsml::parser::Parser;
+use rbx_rsml::{RsmlCompiler, RsmlLexer, RsmlParser};
 
 fn main() {
     let source = r#"
@@ -9,9 +7,8 @@ fn main() {
         }
     "#;
 
-    let lexer = Lexer::new(source);
-    let parsed = Parser::new(lexer);
-    //let CompilerData { tree_nodes, .. } = Compiler::new(parsed);
-
-    println!("{:#?}", parsed.ast);
+    let lexer = RsmlLexer::new(source);
+    let parsed = RsmlParser::new(lexer);
+    let compiled = RsmlCompiler::new(parsed);
+    println!("{:#?}", compiled);
 }

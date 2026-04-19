@@ -48,10 +48,28 @@ CompiledRsml {
                 static_attributes: {},
                 properties: Attributes {
                     data: {
+                        "PaddingBottom": UDim(
+                            UDim {
+                                scale: 0.5,
+                                offset: 0,
+                            },
+                        ),
+                        "PaddingLeft": UDim(
+                            UDim {
+                                scale: 0.5,
+                                offset: 0,
+                            },
+                        ),
+                        "PaddingRight": UDim(
+                            UDim {
+                                scale: 0.5,
+                                offset: 0,
+                            },
+                        ),
                         "PaddingTop": UDim(
                             UDim {
-                                scale: 0.0,
-                                offset: 10,
+                                scale: 0.5,
+                                offset: 0,
                             },
                         ),
                     },

@@ -32,8 +32,8 @@ expression: parsed.ast
                             node: Node {
                                 token: SpannedToken(
                                     9,
-                                    Identifier(
-                                        "arg1",
+                                    NumberOffset(
+                                        "10px",
                                     ),
                                     13,
                                 ),
@@ -54,8 +54,8 @@ expression: parsed.ast
                             node: Node {
                                 token: SpannedToken(
                                     15,
-                                    Identifier(
-                                        "arg2",
+                                    NumberOffset(
+                                        "20px",
                                     ),
                                     19,
                                 ),

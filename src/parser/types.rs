@@ -4,7 +4,7 @@ use crate::range_from_span::RangeFromSpan;
 use crate::types::{Diagnostic, Range, Severity};
 
 use crate::lexer::{SpannedToken, Token};
-use crate::parser::Parser;
+use crate::parser::RsmlParser;
 use crate::parser::parse_error::ParseError;
 
 pub struct ParsedRsml<'a> {
@@ -28,11 +28,11 @@ pub struct Node<'a> {
 }
 
 pub(super) trait UpdateLastTokenEnd {
-    fn update_last_token_end(self, parser: &mut Parser) -> Self;
+    fn update_last_token_end(self, parser: &mut RsmlParser) -> Self;
 }
 
 impl<'a> UpdateLastTokenEnd for Option<Node<'a>> {
-    fn update_last_token_end(self, parser: &mut Parser) -> Self {
+    fn update_last_token_end(self, parser: &mut RsmlParser) -> Self {
         if let Some(Node {
             token: SpannedToken(_, _, end),
             ..
@@ -540,7 +540,7 @@ pub enum NodeStatus<'a> {
 }
 
 impl<'a> NodeStatus<'a> {
-    pub(super) fn consume_err_or_advance(self, parser: &mut Parser<'a>) -> Option<Node<'a>> {
+    pub(super) fn consume_err_or_advance(self, parser: &mut RsmlParser<'a>) -> Option<Node<'a>> {
         match self {
             Self::Err(node) => Some(node),
             Self::Exists => parser.advance(),

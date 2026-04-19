@@ -67,12 +67,12 @@ pub enum AnyTreeNodeMut<'a> {
 }
 
 #[derive(Debug)]
-pub struct TreeNodeGroup {
+pub struct CompiledRsml {
     root: Option<RootTreeNode>,
     nodes: Vec<Option<TreeNode>>,
 }
 
-impl TreeNodeGroup {
+impl CompiledRsml {
     pub fn new() -> Self {
         Self {
             root: Some(RootTreeNode::new()),
@@ -119,7 +119,7 @@ impl TreeNodeGroup {
     }
 }
 
-impl Index<usize> for TreeNodeGroup {
+impl Index<usize> for CompiledRsml {
     type Output = Option<TreeNode>;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -127,7 +127,7 @@ impl Index<usize> for TreeNodeGroup {
     }
 }
 
-impl IndexMut<usize> for TreeNodeGroup {
+impl IndexMut<usize> for CompiledRsml {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.nodes[index]
     }

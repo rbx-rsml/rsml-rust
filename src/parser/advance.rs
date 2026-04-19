@@ -4,11 +4,11 @@ use crate::lexer::{MultilineString, SpannedToken, Token, TokenKind};
 use crate::list::TokenKindList;
 use crate::parser::parse_error::{ParseError, ParseErrorMessage};
 use crate::parser::types::*;
-use crate::parser::Parser;
+use crate::parser::RsmlParser;
 
 type SymResult<T> = Result<T, T>;
 
-impl<'a> Parser<'a> {
+impl<'a> RsmlParser<'a> {
     pub(super) fn next_token(&mut self) -> Option<SpannedToken<'a>> {
         self.lexer.next()
     }

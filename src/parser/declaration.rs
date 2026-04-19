@@ -1,9 +1,9 @@
 use crate::lexer::{
-    SpannedToken, TOKEN_KIND_CONSTRUCT_DELIMITERS, TOKEN_KIND_INSIDE_PARENS_CONSTRUCT_DELIMITERS,
+    TOKEN_KIND_CONSTRUCT_DELIMITERS, TOKEN_KIND_INSIDE_PARENS_CONSTRUCT_DELIMITERS,
     TOKEN_KIND_MACRO_CALL_DELIMITERS, Token, TokenKind,
 };
 use crate::list::{Stringified, TokenKindList};
-use crate::parser::Parser;
+use crate::parser::RsmlParser;
 use crate::parser::parse_error::{ParseError, ParseErrorMessage};
 use crate::parser::types::*;
 use crate::{node_token_matches, token_kind_list};
@@ -18,7 +18,7 @@ static MACRO_RETURN_TYPES: phf::Set<&str> = phf_set! {
 
 static MACRO_RETURN_TYPE_NAMES: [&str; 3] = ["Construct", "Assignment", "Selector"];
 
-impl<'a> Parser<'a> {
+impl<'a> RsmlParser<'a> {
     /// Many declarations in rsml just have a datatype after them.
     /// So we can use the same function to parse them.
     pub(crate) fn parse_declaration_with_datatype(
@@ -273,6 +273,67 @@ impl<'a> Parser<'a> {
         Parsed(next_node, construct)
     }
 
+    /// Parses the `(` args `)` portion of a macro call, treating each arg as a
+    /// datatype (so math expressions like `0% + .5` become a single
+    /// `Construct::MathOperation`). Does NOT consume any trailing terminator —
+    /// the caller handles that.
+    ///
+    /// `body.right.is_some()` ⇔ the close paren was consumed and the parser
+    /// cursor is positioned right after it. The returned `Option<Node>` carries
+    /// either the unconsumed errored token (when close was missing) or `None`
+    /// (on success or EOF).
+    fn parse_macro_call_args(
+        &mut self,
+        open_node: Node<'a>,
+    ) -> (Option<Node<'a>>, Delimited<'a>) {
+        let first_node = match self.advance() {
+            Some(node) => {
+                let token_value = node.token.value();
+
+                if matches!(token_value, Token::ParensClose) {
+                    return (None, Delimited::new(open_node, None, Some(node)));
+                } else if TOKEN_KIND_INSIDE_PARENS_CONSTRUCT_DELIMITERS
+                    .contains(&token_value.kind())
+                {
+                    self.ast_errors.push(
+                        ParseError::MissingToken {
+                            msg: Some(ParseErrorMessage::Expected(TokenKind::ParensClose.name())),
+                        },
+                        self.range_from_span(clamp_span_to_end(open_node.token.end())),
+                    );
+                    return (Some(node), Delimited::new(open_node, None, None));
+                }
+
+                node
+            }
+
+            None => {
+                self.ast_errors.push(
+                    ParseError::MissingToken {
+                        msg: Some(ParseErrorMessage::Expected(TokenKind::ParensClose.name())),
+                    },
+                    self.range_from_span(clamp_span_to_end(open_node.token.end())),
+                );
+                return (None, Delimited::new(open_node, None, None));
+            }
+        };
+
+        let (next_node, datatype_groups) = self.parse_table_datatype_args(Some(first_node));
+
+        if !node_token_matches!(next_node, Some(ParensClose)) {
+            let delimited = Delimited::new(open_node, datatype_groups, None);
+            self.ast_errors.push(
+                ParseError::MissingToken {
+                    msg: Some(ParseErrorMessage::Expected(TokenKind::ParensClose.name())),
+                },
+                self.range_from_span(clamp_span_to_end(delimited.end())),
+            );
+            return (next_node, delimited);
+        }
+
+        (None, Delimited::new(open_node, datatype_groups, next_node))
+    }
+
     pub(crate) fn parse_macro_call_body(&mut self, name_node: Node<'a>) -> Parsed<'a> {
         let open_node = match self.advance_until(
             token_kind_list![ParensOpen],
@@ -301,52 +362,18 @@ impl<'a> Parser<'a> {
             }
         };
 
-        let mut body_content: Vec<Construct<'a>> = vec![];
+        let (next_node, body) = self.parse_macro_call_args(open_node);
 
-        let mut parens_nestedness: usize = 0;
-
-        let close_node = loop {
-            let node = self.advance();
-
-            match node {
-                Some(Node {
-                    token: SpannedToken(_, Token::ParensOpen, _),
-                    ..
-                }) => parens_nestedness += 1,
-
-                Some(
-                    node @ Node {
-                        token: SpannedToken(_, Token::ParensClose, _),
-                        ..
-                    },
-                ) => {
-                    if parens_nestedness == 0 {
-                        break node;
-                    } else {
-                        parens_nestedness -= 1
-                    }
-                }
-
-                Some(node) => body_content.push(Construct::Node { node }),
-
-                None => {
-                    let construct = Construct::MacroCall {
-                        name: name_node,
-                        body: Some(Delimited::new(open_node, Some(body_content), None)),
-                        terminator: None,
-                    };
-
-                    self.ast_errors.push(
-                        ParseError::MissingToken {
-                            msg: Some(ParseErrorMessage::Expected(TokenKind::ParensClose.name())),
-                        },
-                        self.range_from_span(construct.span()),
-                    );
-
-                    return Parsed(None, Some(construct));
-                }
-            }
-        };
+        if body.right.is_none() {
+            return Parsed(
+                next_node,
+                Some(Construct::MacroCall {
+                    name: name_node,
+                    body: Some(body),
+                    terminator: None,
+                }),
+            );
+        }
 
         let terminator_node = match self.advance_until(
             token_kind_list![SemiColon, ScopeOpen, Comma],
@@ -357,11 +384,7 @@ impl<'a> Parser<'a> {
                     Some(node),
                     Some(Construct::MacroCall {
                         name: name_node,
-                        body: Some(Delimited::new(
-                            open_node,
-                            Some(body_content),
-                            Some(close_node),
-                        )),
+                        body: Some(body),
                         terminator: None,
                     }),
                 );
@@ -372,11 +395,7 @@ impl<'a> Parser<'a> {
                     Some(node),
                     Some(Construct::MacroCall {
                         name: name_node,
-                        body: Some(Delimited::new(
-                            open_node,
-                            Some(body_content),
-                            Some(close_node),
-                        )),
+                        body: Some(body),
                         terminator: None,
                     }),
                 );
@@ -386,11 +405,7 @@ impl<'a> Parser<'a> {
                     None,
                     Some(Construct::MacroCall {
                         name: name_node,
-                        body: Some(Delimited::new(
-                            open_node,
-                            Some(body_content),
-                            Some(close_node),
-                        )),
+                        body: Some(body),
                         terminator: None,
                     }),
                 );
@@ -401,11 +416,7 @@ impl<'a> Parser<'a> {
             self.advance(),
             Some(Construct::MacroCall {
                 name: name_node,
-                body: Some(Delimited::new(
-                    open_node,
-                    Some(body_content),
-                    Some(close_node),
-                )),
+                body: Some(body),
                 terminator: Some(terminator_node),
             }),
         )
@@ -442,60 +453,23 @@ impl<'a> Parser<'a> {
             }
         };
 
-        let mut body_content: Vec<Construct<'a>> = vec![];
-        let mut parens_nestedness: usize = 0;
+        let (next_node, body) = self.parse_macro_call_args(open_node);
 
-        let close_node = loop {
-            let node = self.advance();
-
-            match node {
-                Some(Node {
-                    token: SpannedToken(_, Token::ParensOpen, _),
-                    ..
-                }) => parens_nestedness += 1,
-
-                Some(
-                    node @ Node {
-                        token: SpannedToken(_, Token::ParensClose, _),
-                        ..
-                    },
-                ) => {
-                    if parens_nestedness == 0 {
-                        break node;
-                    } else {
-                        parens_nestedness -= 1
-                    }
-                }
-
-                Some(node) => body_content.push(Construct::Node { node }),
-
-                None => {
-                    let selector_node = SelectorNode::MacroCall {
-                        name: name_node,
-                        body: Some(Delimited::new(open_node, Some(body_content), None)),
-                    };
-
-                    self.ast_errors.push(
-                        ParseError::MissingToken {
-                            msg: Some(ParseErrorMessage::Expected(TokenKind::ParensClose.name())),
-                        },
-                        self.range_from_span((selector_node.start(), selector_node.end())),
-                    );
-
-                    return (None, selector_node);
-                }
-            }
-        };
+        if body.right.is_none() {
+            return (
+                next_node,
+                SelectorNode::MacroCall {
+                    name: name_node,
+                    body: Some(body),
+                },
+            );
+        }
 
         (
             self.advance(),
             SelectorNode::MacroCall {
                 name: name_node,
-                body: Some(Delimited::new(
-                    open_node,
-                    Some(body_content),
-                    Some(close_node),
-                )),
+                body: Some(body),
             },
         )
     }

@@ -109,9 +109,7 @@ expression: parsed.ast
                                 ),
                                 leading_trivia: None,
                             },
-                            content: Some(
-                                [],
-                            ),
+                            content: None,
                             right: Some(
                                 Node {
                                     token: SpannedToken(

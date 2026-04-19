@@ -5,11 +5,11 @@ use crate::lexer::{MultilineString, SpannedToken, Token, TokenKind, TOKEN_KIND_A
 use crate::list::{Stringified, TokenKindList};
 use crate::parser::parse_error::{ParseError, ParseErrorMessage};
 use crate::parser::types::*;
-use crate::parser::Parser;
+use crate::parser::RsmlParser;
 
 type SymResult<T> = Result<T, T>;
 
-impl<'a> Parser<'a> {
+impl<'a> RsmlParser<'a> {
     pub(crate) fn parse_datatype(
         &mut self,
         node: Option<Node<'a>>,
@@ -313,7 +313,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_table_datatype_args(&mut self, mut node: Option<Node<'a>>) -> (Option<Node<'a>>, Option<Vec<Construct<'a>>>) {
+    pub(crate) fn parse_table_datatype_args(&mut self, mut node: Option<Node<'a>>) -> (Option<Node<'a>>, Option<Vec<Construct<'a>>>) {
         let (this_node_status, datatype_group) =
             self.parse_datatype(node, TOKEN_KIND_INSIDE_PARENS_CONSTRUCT_DELIMITERS);
 

@@ -4,7 +4,7 @@ use rbx_types::Variant;
 
 use crate::datatype::{Datatype, StaticLookup, evaluate_construct};
 use crate::lexer::Token;
-use crate::parser::ParsedRsml;
+use crate::parser::{ParsedRsml, RsmlParser};
 use crate::parser::types::{Construct, Delimited, MacroBodyContent, Node, SelectorNode};
 use crate::typechecker::{
     MacroDefinition, MacroRegistry, collect_macro_def_arg_names, macro_return_context,
@@ -16,13 +16,8 @@ mod selector;
 use selector::build_selector_string;
 use tree_node::*;
 
-pub struct Compiler<'a> {
+pub struct RsmlCompiler<'a> {
     pub parsed: ParsedRsml<'a>,
-}
-
-pub struct CompilerData<'a> {
-    pub compiler: Compiler<'a>,
-    pub tree_nodes: TreeNodeGroup,
 }
 
 #[derive(Clone, Copy)]
@@ -39,10 +34,10 @@ pub struct MacroContext<'a> {
     pub expansion_stack: Vec<String>,
 }
 
-impl<'a> Compiler<'a> {
-    pub fn new(parsed: ParsedRsml<'a>) -> CompilerData<'a> {
+impl<'a> RsmlCompiler<'a> {
+    pub fn new(parsed: ParsedRsml<'a>) -> CompiledRsml {
         let compiler = Self { parsed };
-        let mut tree_nodes = TreeNodeGroup::new();
+        let mut tree_nodes = CompiledRsml::new();
         let mut current_idx = TreeNodeType::Root;
 
         let local = collect_user_macros(&compiler.parsed.ast);
@@ -56,10 +51,11 @@ impl<'a> Compiler<'a> {
             compile_construct(construct, &mut tree_nodes, &mut current_idx, &mut macro_ctx);
         }
 
-        CompilerData {
-            compiler,
-            tree_nodes,
-        }
+        tree_nodes
+    }
+
+    pub fn from_source(source: &'a str) -> CompiledRsml {
+        Self::new(RsmlParser::from_source(source))
     }
 }
 
@@ -90,7 +86,7 @@ fn collect_user_macros<'a>(ast: &'a [Construct<'a>]) -> MacroRegistry<'a> {
 }
 
 struct CompilerLookup<'a> {
-    tree_nodes: &'a TreeNodeGroup,
+    tree_nodes: &'a CompiledRsml,
     idx: TreeNodeType,
     macro_ctx: Option<&'a MacroContext<'a>>,
     active_scope_depth: usize,
@@ -126,7 +122,7 @@ fn current_scope_depth(macro_ctx: &MacroContext) -> usize {
 
 fn compile_construct<'a>(
     construct: &'a Construct<'a>,
-    tree_nodes: &mut TreeNodeGroup,
+    tree_nodes: &mut CompiledRsml,
     current_idx: &mut TreeNodeType,
     macro_ctx: &mut MacroContext<'a>,
 ) {
@@ -198,7 +194,7 @@ fn compile_construct<'a>(
 fn compile_rule<'a>(
     selectors: &'a Option<Vec<SelectorNode<'a>>>,
     body: &'a Option<Delimited<'a>>,
-    tree_nodes: &mut TreeNodeGroup,
+    tree_nodes: &mut CompiledRsml,
     current_idx: &mut TreeNodeType,
     macro_ctx: &mut MacroContext<'a>,
 ) {
@@ -235,7 +231,7 @@ fn compile_rule<'a>(
 fn compile_assignment<'a>(
     left: &Node<'a>,
     right: Option<&'a Construct<'a>>,
-    tree_nodes: &mut TreeNodeGroup,
+    tree_nodes: &mut CompiledRsml,
     current_idx: &mut TreeNodeType,
     macro_ctx: &mut MacroContext<'a>,
 ) {
@@ -310,7 +306,7 @@ fn compile_assignment<'a>(
 fn compile_macro_call<'a>(
     name: &Node<'a>,
     call_body: &'a Option<Delimited<'a>>,
-    tree_nodes: &mut TreeNodeGroup,
+    tree_nodes: &mut CompiledRsml,
     current_idx: &mut TreeNodeType,
     macro_ctx: &mut MacroContext<'a>,
 ) {
@@ -479,7 +475,7 @@ fn collect_call_args<'a>(body: &'a Option<Delimited<'a>>) -> Vec<&'a Construct<'
 
 fn resolve_static_attribute(
     name: &str,
-    tree_nodes: &TreeNodeGroup,
+    tree_nodes: &CompiledRsml,
     idx: TreeNodeType,
 ) -> Datatype {
     match tree_nodes.get(idx) {

@@ -3,9 +3,9 @@ use crate::lexer::{SpannedToken, Token, TokenKind, TOKEN_KIND_CONSTRUCT_DELIMITE
 use crate::list::{Stringified, TokenKindList};
 use crate::parser::parse_error::{ParseError, ParseErrorMessage};
 use crate::parser::types::*;
-use crate::parser::Parser;
+use crate::parser::RsmlParser;
 
-impl<'a> Parser<'a> {
+impl<'a> RsmlParser<'a> {
     pub(crate) fn parse_property_assignment_or_rule_scope(&mut self, node: Node<'a>) -> Parsed<'a> {
         if !node_token_matches!(node, Identifier(_)) { return Parsed (Some(node), None) };
 

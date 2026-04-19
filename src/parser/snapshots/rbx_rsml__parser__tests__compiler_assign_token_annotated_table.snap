@@ -1,8 +1,8 @@
 ---
 source: src/parser/mod.rs
-expression: compiled.tree_nodes
+expression: compiled
 ---
-TreeNodeGroup {
+CompiledRsml {
     root: Some(
         RootTreeNode {
             attributes: Attributes {

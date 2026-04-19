@@ -1,0 +1,138 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Rule {
+        selectors: Some(
+            [
+                Token(
+                    Node {
+                        token: SpannedToken(
+                            0,
+                            Identifier(
+                                "Frame",
+                            ),
+                            5,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            ],
+        ),
+        body: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        6,
+                        ScopeOpen,
+                        7,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Some(
+                    [
+                        MacroCall {
+                            name: Node {
+                                token: SpannedToken(
+                                    8,
+                                    MacroCallIdentifier(
+                                        Some(
+                                            "Padding",
+                                        ),
+                                    ),
+                                    16,
+                                ),
+                                leading_trivia: None,
+                            },
+                            body: Some(
+                                Delimited {
+                                    left: Node {
+                                        token: SpannedToken(
+                                            16,
+                                            ParensOpen,
+                                            17,
+                                        ),
+                                        leading_trivia: None,
+                                    },
+                                    content: Some(
+                                        [
+                                            MathOperation {
+                                                left: Node {
+                                                    node: Node {
+                                                        token: SpannedToken(
+                                                            17,
+                                                            NumberScale(
+                                                                "0%",
+                                                            ),
+                                                            19,
+                                                        ),
+                                                        leading_trivia: None,
+                                                    },
+                                                },
+                                                operators: [
+                                                    Node {
+                                                        token: SpannedToken(
+                                                            20,
+                                                            OpAdd,
+                                                            21,
+                                                        ),
+                                                        leading_trivia: None,
+                                                    },
+                                                ],
+                                                right: Some(
+                                                    Node {
+                                                        node: Node {
+                                                            token: SpannedToken(
+                                                                22,
+                                                                Number(
+                                                                    ".5",
+                                                                ),
+                                                                24,
+                                                            ),
+                                                            leading_trivia: None,
+                                                        },
+                                                    },
+                                                ),
+                                            },
+                                        ],
+                                    ),
+                                    right: Some(
+                                        Node {
+                                            token: SpannedToken(
+                                                24,
+                                                ParensClose,
+                                                25,
+                                            ),
+                                            leading_trivia: None,
+                                        },
+                                    ),
+                                },
+                            ),
+                            terminator: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        25,
+                                        SemiColon,
+                                        26,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                        },
+                    ],
+                ),
+                right: Some(
+                    Node {
+                        token: SpannedToken(
+                            27,
+                            ScopeClose,
+                            28,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+    },
+]

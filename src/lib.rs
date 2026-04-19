@@ -14,3 +14,7 @@ pub mod list;
 pub mod parser;
 pub mod range_from_span;
 pub mod typechecker;
+
+pub use compiler::RsmlCompiler;
+pub use lexer::RsmlLexer;
+pub use parser::RsmlParser;

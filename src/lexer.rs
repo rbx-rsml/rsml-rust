@@ -5,20 +5,20 @@ use logos::{Lexer as LogosLexer, Logos, SpannedIter};
 use ropey::Rope;
 use std::{
     collections::{HashMap, HashSet},
-    mem::{discriminant, Discriminant},
+    mem::{Discriminant, discriminant},
     sync::LazyLock,
 };
 
-pub struct Lexer<'a> {
+pub struct RsmlLexer<'a> {
     token_stream: SpannedIter<'a, Token<'a>>,
     pub rope: Rope,
 }
 
-impl<'a> Lexer<'a> {
-    pub fn new(input: &'a str) -> Self {
+impl<'a> RsmlLexer<'a> {
+    pub fn new(source: &'a str) -> Self {
         Self {
-            token_stream: Token::lexer(input).spanned(),
-            rope: Rope::from_str(input),
+            token_stream: Token::lexer(source).spanned(),
+            rope: Rope::from_str(source),
         }
     }
 
@@ -27,11 +27,13 @@ impl<'a> Lexer<'a> {
     }
 }
 
-impl<'a> Iterator for Lexer<'a> {
+impl<'a> Iterator for RsmlLexer<'a> {
     type Item = SpannedToken<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let Some((token, span)) = self.token_stream.next() else { return None };
+        let Some((token, span)) = self.token_stream.next() else {
+            return None;
+        };
 
         match token {
             Ok(token) => match token {
@@ -47,7 +49,6 @@ impl<'a> Iterator for Lexer<'a> {
         }
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct SpannedToken<'a>(pub usize, pub Token<'a>, pub usize);
@@ -79,11 +80,7 @@ impl<'a> SpannedToken<'a> {
 }
 
 fn str_to_option(str: &str) -> Option<&str> {
-    if str.len() == 0 {
-        None
-    } else {
-        Some(str)
-    }
+    if str.len() == 0 { None } else { Some(str) }
 }
 
 #[derive(Logos, Clone, Debug, PartialEq, EnumKind)]
@@ -116,7 +113,6 @@ pub enum Token<'a> {
 
     #[regex(r"@(?&ident)", callback = |lex| str_to_option(&lex.slice()[1..]))]
     QuerySelector(&'a str),
-
 
     #[regex(r"\$!(?&ident)?", callback = |lex| str_to_option(&lex.slice()[2..]))]
     StaticTokenIdentifier(&'a str),

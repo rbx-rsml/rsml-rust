@@ -32,20 +32,10 @@ expression: parsed.ast
                             node: Node {
                                 token: SpannedToken(
                                     9,
-                                    Identifier(
-                                        "arg1",
+                                    NumberOffset(
+                                        "10px",
                                     ),
                                     13,
-                                ),
-                                leading_trivia: None,
-                            },
-                        },
-                        Node {
-                            node: Node {
-                                token: SpannedToken(
-                                    13,
-                                    SemiColon,
-                                    14,
                                 ),
                                 leading_trivia: None,
                             },

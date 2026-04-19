@@ -1,7 +1,7 @@
 use std::sync::LazyLock;
 
-use crate::lexer::{Lexer, Token};
-use crate::parser::{Construct, ParsedRsml, Parser};
+use crate::lexer::{RsmlLexer, Token};
+use crate::parser::{Construct, ParsedRsml, RsmlParser};
 use crate::typechecker::{
     MacroDefinition, MacroRegistry, collect_macro_def_arg_names, macro_return_context,
 };
@@ -15,7 +15,7 @@ pub struct BuiltinData {
 
 pub static BUILTINS: LazyLock<BuiltinData> = LazyLock::new(|| {
     let parsed: &'static ParsedRsml<'static> =
-        Box::leak(Box::new(Parser::new(Lexer::new(BUILTINS_SOURCE))));
+        Box::leak(Box::new(RsmlParser::new(RsmlLexer::new(BUILTINS_SOURCE))));
 
     let mut registry = MacroRegistry::new();
     for construct in &parsed.ast {

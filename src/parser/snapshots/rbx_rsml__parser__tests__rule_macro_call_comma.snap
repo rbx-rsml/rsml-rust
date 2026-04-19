@@ -35,8 +35,8 @@ expression: parsed.ast
                                         node: Node {
                                             token: SpannedToken(
                                                 5,
-                                                Identifier(
-                                                    "a",
+                                                Number(
+                                                    "1",
                                                 ),
                                                 6,
                                             ),
