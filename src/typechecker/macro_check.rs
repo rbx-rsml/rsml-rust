@@ -32,7 +32,13 @@ pub struct MacroDefinition<'a> {
     pub return_context: MacroReturnContext,
 }
 
-pub type MacroRegistry<'a> = HashMap<String, Vec<MacroDefinition<'a>>>;
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+pub struct MacroKey<'a> {
+    pub name: &'a str,
+    pub arity: usize,
+}
+
+pub type MacroRegistry<'a> = HashMap<MacroKey<'a>, MacroDefinition<'a>>;
 
 pub fn collect_macro_def_arg_names<'a>(args: &Option<Delimited<'a>>) -> Vec<&'a str> {
     let Some(args) = args else { return Vec::new() };
@@ -190,9 +196,20 @@ impl<'a> Typechecker<'a> {
             return;
         };
 
-        let local = self.macro_registry.get(*macro_name);
-        let builtin = crate::builtins::BUILTINS.registry.get(*macro_name);
-        if local.is_none() && builtin.is_none() {
+        let local_arities = self
+            .macro_registry
+            .keys()
+            .filter(|k| k.name == *macro_name)
+            .map(|k| k.arity);
+        let builtin_arities = crate::builtins::BUILTINS
+            .registry
+            .keys()
+            .filter(|k| k.name == *macro_name)
+            .map(|k| k.arity);
+
+        let mut expected_counts: Vec<usize> = local_arities.chain(builtin_arities).collect();
+
+        if expected_counts.is_empty() {
             ast_errors.push(
                 TypeError::UndefinedMacro { name: macro_name },
                 self.range_from_span(name.token.span()),
@@ -201,32 +218,26 @@ impl<'a> Typechecker<'a> {
         }
 
         let call_arg_count = count_macro_call_args(body);
+        let key = MacroKey {
+            name: *macro_name,
+            arity: call_arg_count,
+        };
 
-        let local_arg_counts = local
-            .into_iter()
-            .flat_map(|defs| defs.iter().map(|def| def.arg_names.len()));
-        let builtin_arg_counts = builtin
-            .into_iter()
-            .flat_map(|defs| defs.iter().map(|def| def.arg_names.len()));
+        let matching_context = self
+            .macro_registry
+            .get(&key)
+            .map(|def| def.return_context)
+            .or_else(|| {
+                crate::builtins::BUILTINS
+                    .registry
+                    .get(&key)
+                    .map(|def| def.return_context)
+            });
 
-        let local_match_context = local
-            .into_iter()
-            .flat_map(|defs| defs.iter())
-            .find(|def| def.arg_names.len() == call_arg_count)
-            .map(|def| def.return_context);
-        let builtin_match_context = builtin
-            .into_iter()
-            .flat_map(|defs| defs.iter())
-            .find(|def| def.arg_names.len() == call_arg_count)
-            .map(|def| def.return_context);
-
-        let matching_context = local_match_context.or(builtin_match_context);
-
-        if matching_context.is_none() {
-            let mut expected_counts: Vec<usize> =
-                local_arg_counts.chain(builtin_arg_counts).collect();
+        let Some(matching_context) = matching_context else {
             expected_counts.sort();
             expected_counts.dedup();
+
             ast_errors.push(
                 TypeError::WrongMacroArgCount {
                     name: macro_name,
@@ -236,9 +247,8 @@ impl<'a> Typechecker<'a> {
                 self.range_from_span(name.token.span()),
             );
             return;
-        }
+        };
 
-        let matching_context = matching_context.unwrap();
         if matching_context != expected_context {
             ast_errors.push(
                 TypeError::WrongMacroContext {

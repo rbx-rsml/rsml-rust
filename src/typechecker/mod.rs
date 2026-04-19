@@ -14,7 +14,7 @@ use crate::{
 
 use self::luaurc::Luaurc;
 pub use macro_check::{
-    MacroDefinition, MacroRegistry, MacroReturnContext, collect_macro_def_arg_names,
+    MacroDefinition, MacroKey, MacroRegistry, MacroReturnContext, collect_macro_def_arg_names,
     macro_return_context,
 };
 
@@ -253,22 +253,16 @@ impl<'a> Typechecker<'a> {
                             let arg_names = collect_macro_def_arg_names(args);
                             let arg_count = arg_names.len();
                             let context = macro_return_context(return_type);
+                            let key = MacroKey {
+                                name: *name_str,
+                                arity: arg_count,
+                            };
 
                             let builtin_collision = !typechecker.parsed.directives.nobuiltins
-                                && crate::builtins::BUILTINS
-                                    .registry
-                                    .get(*name_str)
-                                    .map(|defs| defs.iter().any(|def| def.arg_names.len() == arg_count))
-                                    .unwrap_or(false);
+                                && crate::builtins::BUILTINS.registry.contains_key(&key);
 
-                            let definitions = typechecker
-                                .macro_registry
-                                .entry(name_str.to_string())
-                                .or_insert_with(Vec::new);
-
-                            let local_collision = definitions
-                                .iter()
-                                .any(|def| def.arg_names.len() == arg_count);
+                            let local_collision =
+                                typechecker.macro_registry.contains_key(&key);
 
                             if builtin_collision || local_collision {
                                 ast_errors.push(
@@ -279,11 +273,14 @@ impl<'a> Typechecker<'a> {
                                     Range::from_span(&typechecker.parsed.rope, construct.span()),
                                 );
                             } else {
-                                definitions.push(MacroDefinition {
-                                    arg_names,
-                                    body: body.as_ref().map(|b| &b.content),
-                                    return_context: context,
-                                });
+                                typechecker.macro_registry.insert(
+                                    key,
+                                    MacroDefinition {
+                                        arg_names,
+                                        body: body.as_ref().map(|b| &b.content),
+                                        return_context: context,
+                                    },
+                                );
                             }
                         }
                     }

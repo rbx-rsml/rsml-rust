@@ -62,8 +62,8 @@ expression: parsed.ast
                 content: Selector(
                     Some(
                         [
-                            Token(
-                                Node {
+                            MacroCall {
+                                name: Node {
                                     token: SpannedToken(
                                         26,
                                         MacroCallIdentifier(
@@ -75,11 +75,43 @@ expression: parsed.ast
                                     ),
                                     leading_trivia: None,
                                 },
-                            ),
+                                body: Some(
+                                    Delimited {
+                                        left: Node {
+                                            token: SpannedToken(
+                                                31,
+                                                ParensOpen,
+                                                32,
+                                            ),
+                                            leading_trivia: None,
+                                        },
+                                        content: None,
+                                        right: Some(
+                                            Node {
+                                                token: SpannedToken(
+                                                    32,
+                                                    ParensClose,
+                                                    33,
+                                                ),
+                                                leading_trivia: None,
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
                         ],
                     ),
                 ),
-                close: None,
+                close: Some(
+                    Node {
+                        token: SpannedToken(
+                            34,
+                            ScopeClose,
+                            35,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
             },
         ),
     },

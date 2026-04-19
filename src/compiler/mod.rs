@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use rbx_types::Variant;
 
@@ -7,7 +7,7 @@ use crate::lexer::Token;
 use crate::parser::{ParsedRsml, RsmlParser};
 use crate::parser::types::{Construct, Delimited, MacroBodyContent, Node, SelectorNode};
 use crate::typechecker::{
-    MacroDefinition, MacroRegistry, collect_macro_def_arg_names, macro_return_context,
+    MacroDefinition, MacroKey, MacroRegistry, collect_macro_def_arg_names, macro_return_context,
 };
 
 pub mod tree_node;
@@ -31,7 +31,7 @@ pub type BindingFrame<'a> = HashMap<String, BoundArg<'a>>;
 pub struct MacroContext<'a> {
     pub local: MacroRegistry<'a>,
     pub bindings: Vec<BindingFrame<'a>>,
-    pub expansion_stack: Vec<String>,
+    pub active_expansions: HashSet<MacroKey<'a>>,
     pub nobuiltins: bool,
 }
 
@@ -45,7 +45,7 @@ impl<'a> RsmlCompiler<'a> {
         let mut macro_ctx = MacroContext {
             local,
             bindings: vec![HashMap::new()],
-            expansion_stack: Vec::new(),
+            active_expansions: HashSet::new(),
             nobuiltins: compiler.parsed.directives.nobuiltins,
         };
 
@@ -73,14 +73,19 @@ fn collect_user_macros<'a>(ast: &'a [Construct<'a>]) -> MacroRegistry<'a> {
         } = construct
         {
             if let Token::Identifier(name_str) = name_node.token.value() {
-                registry
-                    .entry(name_str.to_string())
-                    .or_insert_with(Vec::new)
-                    .push(MacroDefinition {
-                        arg_names: collect_macro_def_arg_names(args),
+                let arg_names = collect_macro_def_arg_names(args);
+
+                registry.insert(
+                    MacroKey {
+                        name: *name_str,
+                        arity: arg_names.len(),
+                    },
+                    MacroDefinition {
+                        arg_names,
                         body: body.as_ref().map(|b| &b.content),
                         return_context: macro_return_context(return_type),
-                    });
+                    },
+                );
             }
         }
     }
@@ -319,36 +324,28 @@ fn compile_macro_call<'a>(
     };
 
     let macro_name_str = *macro_name;
+    let call_args = collect_call_args(call_body);
+    let arg_count = call_args.len();
+    let key = MacroKey {
+        name: macro_name_str,
+        arity: arg_count,
+    };
 
-    if macro_ctx
-        .expansion_stack
-        .iter()
-        .any(|n| n == macro_name_str)
-    {
+    if macro_ctx.active_expansions.contains(&key) {
         return;
     }
 
-    let call_args = collect_call_args(call_body);
-    let arg_count = call_args.len();
-
     let (arg_names, body): (Vec<String>, &MacroBodyContent<'a>) = {
-        let from_local = macro_ctx
-            .local
-            .get(macro_name_str)
-            .and_then(|defs| defs.iter().find(|d| d.arg_names.len() == arg_count))
-            .and_then(|def| {
-                def.body
-                    .map(|b| (def.arg_names.iter().map(|s| s.to_string()).collect(), b))
-            });
+        let from_local = macro_ctx.local.get(&key).and_then(|def| {
+            def.body
+                .map(|b| (def.arg_names.iter().map(|s| s.to_string()).collect(), b))
+        });
 
         if let Some(pair) = from_local {
             pair
         } else if !macro_ctx.nobuiltins
-            && let Some(pair) = crate::builtins::BUILTINS
-                .registry
-                .get(macro_name_str)
-                .and_then(|defs| defs.iter().find(|d| d.arg_names.len() == arg_count))
-                .and_then(|def| {
+            && let Some(pair) =
+                crate::builtins::BUILTINS.registry.get(&key).and_then(|def| {
                     def.body
                         .map(|b| (def.arg_names.iter().map(|s| s.to_string()).collect(), b))
                 })
@@ -377,13 +374,13 @@ fn compile_macro_call<'a>(
     }
 
     macro_ctx.bindings.push(new_frame);
-    macro_ctx.expansion_stack.push(macro_name_str.to_string());
+    macro_ctx.active_expansions.insert(key);
 
     for construct in constructs.iter() {
         compile_construct(construct, tree_nodes, current_idx, macro_ctx);
     }
 
-    macro_ctx.expansion_stack.pop();
+    macro_ctx.active_expansions.remove(&key);
     macro_ctx.bindings.pop();
 }
 
@@ -416,30 +413,28 @@ fn expand_selectors_into<'a>(
                 continue;
             };
             let macro_name_str: &'a str = *macro_name;
+            let arg_count = collect_call_args(body).len();
+            let key = MacroKey {
+                name: macro_name_str,
+                arity: arg_count,
+            };
 
-            if macro_ctx
-                .expansion_stack
-                .iter()
-                .any(|n| n == macro_name_str)
-            {
+            if macro_ctx.active_expansions.contains(&key) {
                 continue;
             }
 
-            let arg_count = collect_call_args(body).len();
-
             let matched_body: Option<&'a MacroBodyContent<'a>> = macro_ctx
                 .local
-                .get(macro_name_str)
-                .and_then(|defs| defs.iter().find(|d| d.arg_names.len() == arg_count))
+                .get(&key)
                 .and_then(|def| def.body)
                 .or_else(|| {
                     if macro_ctx.nobuiltins {
                         return None;
                     }
+
                     crate::builtins::BUILTINS
                         .registry
-                        .get(macro_name_str)
-                        .and_then(|defs| defs.iter().find(|d| d.arg_names.len() == arg_count))
+                        .get(&key)
                         .and_then(|def| def.body)
                 });
 
@@ -447,9 +442,9 @@ fn expand_selectors_into<'a>(
                 continue;
             };
 
-            macro_ctx.expansion_stack.push(macro_name_str.to_string());
+            macro_ctx.active_expansions.insert(key);
             expand_selectors_into(inner, macro_ctx, out, last_was_comma);
-            macro_ctx.expansion_stack.pop();
+            macro_ctx.active_expansions.remove(&key);
             continue;
         }
 

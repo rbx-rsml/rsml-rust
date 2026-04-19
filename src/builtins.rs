@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use crate::lexer::{RsmlLexer, Token};
 use crate::parser::{Construct, ParsedRsml, RsmlParser};
 use crate::typechecker::{
-    MacroDefinition, MacroRegistry, collect_macro_def_arg_names, macro_return_context,
+    MacroDefinition, MacroKey, MacroRegistry, collect_macro_def_arg_names, macro_return_context,
 };
 
 const BUILTINS_SOURCE: &str = include_str!("../builtins.rsml");
@@ -28,14 +28,19 @@ pub static BUILTINS: LazyLock<BuiltinData> = LazyLock::new(|| {
         } = construct
         {
             if let Token::Identifier(name_str) = name_node.token.value() {
-                registry
-                    .entry(name_str.to_string())
-                    .or_insert_with(Vec::new)
-                    .push(MacroDefinition {
-                        arg_names: collect_macro_def_arg_names(args),
+                let arg_names = collect_macro_def_arg_names(args);
+
+                registry.insert(
+                    MacroKey {
+                        name: *name_str,
+                        arity: arg_names.len(),
+                    },
+                    MacroDefinition {
+                        arg_names,
                         body: body.as_ref().map(|b| &b.content),
                         return_context: macro_return_context(return_type),
-                    });
+                    },
+                );
             }
         }
     }

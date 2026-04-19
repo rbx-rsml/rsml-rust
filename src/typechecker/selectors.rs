@@ -15,7 +15,7 @@ use ropey::Rope;
 use crate::types::Range;
 
 use crate::typechecker::{DefinitionKind, PushTypeError, ResolvedTypes, Typechecker, type_error::*};
-use crate::typechecker::macro_check::{MacroRegistry, MacroReturnContext};
+use crate::typechecker::macro_check::{MacroKey, MacroRegistry, MacroReturnContext};
 
 impl<'a> Typechecker<'a> {
     pub(super) fn typecheck_rule(
@@ -527,9 +527,20 @@ impl<'a> TypecheckSelectors<'a> {
             return;
         };
 
-        let local = self.macro_registry.get(*macro_name);
-        let builtin = crate::builtins::BUILTINS.registry.get(*macro_name);
-        if local.is_none() && builtin.is_none() {
+        let local_arities = self
+            .macro_registry
+            .keys()
+            .filter(|k| k.name == *macro_name)
+            .map(|k| k.arity);
+        let builtin_arities = crate::builtins::BUILTINS
+            .registry
+            .keys()
+            .filter(|k| k.name == *macro_name)
+            .map(|k| k.arity);
+
+        let mut expected_counts: Vec<usize> = local_arities.chain(builtin_arities).collect();
+
+        if expected_counts.is_empty() {
             self.ast_errors.push(
                 TypeError::UndefinedMacro { name: macro_name },
                 self.range_from_span(name.token.span()),
@@ -538,32 +549,26 @@ impl<'a> TypecheckSelectors<'a> {
         }
 
         let call_arg_count = count_macro_call_args(body);
+        let key = MacroKey {
+            name: *macro_name,
+            arity: call_arg_count,
+        };
 
-        let local_match_context = local
-            .into_iter()
-            .flat_map(|defs| defs.iter())
-            .find(|def| def.arg_names.len() == call_arg_count)
-            .map(|def| def.return_context);
-        let builtin_match_context = builtin
-            .into_iter()
-            .flat_map(|defs| defs.iter())
-            .find(|def| def.arg_names.len() == call_arg_count)
-            .map(|def| def.return_context);
+        let matching_context = self
+            .macro_registry
+            .get(&key)
+            .map(|def| def.return_context)
+            .or_else(|| {
+                crate::builtins::BUILTINS
+                    .registry
+                    .get(&key)
+                    .map(|def| def.return_context)
+            });
 
-        let matching_context = local_match_context.or(builtin_match_context);
-
-        if matching_context.is_none() {
-            let mut expected_counts: Vec<usize> = local
-                .into_iter()
-                .flat_map(|defs| defs.iter().map(|def| def.arg_names.len()))
-                .chain(
-                    builtin
-                        .into_iter()
-                        .flat_map(|defs| defs.iter().map(|def| def.arg_names.len())),
-                )
-                .collect();
+        let Some(matching_context) = matching_context else {
             expected_counts.sort();
             expected_counts.dedup();
+
             self.ast_errors.push(
                 TypeError::WrongMacroArgCount {
                     name: macro_name,
@@ -573,9 +578,8 @@ impl<'a> TypecheckSelectors<'a> {
                 self.range_from_span(name.token.span()),
             );
             return;
-        }
+        };
 
-        let matching_context = matching_context.unwrap();
         if matching_context != MacroReturnContext::Selector {
             self.ast_errors.push(
                 TypeError::WrongMacroContext {

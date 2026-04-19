@@ -599,6 +599,10 @@ Frame {
         "@macro Recur() -> Construct { Recur!(); }\nFrame { Recur!(); }"
     );
     parser_test!(
+        macro_overload_cross_call_not_blocked,
+        "@macro Foo() -> Construct { Foo!(10px); }\n@macro Foo(&v) -> Construct { ::Inner { X = &v; } }\nFrame { Foo!(); }"
+    );
+    parser_test!(
         macro_overload_by_arg_count,
         "@macro Set(&a) -> Construct { ::Inner { X = &a; } }\n@macro Set(&a, &b) -> Construct { ::Inner { Y = &b; } }\nFrame { Set!(1px); Set!(2px, 3px); }"
     );
@@ -613,6 +617,10 @@ Frame {
     parser_test!(
         macro_selector_recursion_guard,
         "@macro Loop -> Selector { Loop!() }\nLoop!() { }"
+    );
+    parser_test!(
+        macro_selector_overload_cross_call_not_blocked,
+        "@macro Sel -> Selector { Sel!(1) }\n@macro Sel(&x) -> Selector { TextButton }\nSel!() { }"
     );
     parser_test!(
         macro_selector_recursion_inline_comma,

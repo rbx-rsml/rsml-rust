@@ -1319,10 +1319,32 @@ impl<'a> RsmlParser<'a> {
             );
         }
 
-        let first_token = node.token.clone();
-        let selectors = vec![SelectorNode::Token(node)];
+        let (terminator, selectors) = if node_token_matches!(node, MacroCallIdentifier(_)) {
+            let (next_node, selector_node) = self.parse_macro_call_in_selector(node);
+            let mut selectors = vec![selector_node];
 
-        let (terminator, selectors) = self.parse_selector_tokens(first_token, selectors, true);
+            match next_node {
+                Some(next)
+                    if node_token_matches!(next, ScopeOpen)
+                        || node_token_matches!(next, ScopeClose) =>
+                {
+                    (Some(next), selectors)
+                }
+                Some(next) => {
+                    let token = next.token.clone();
+                    selectors.push(SelectorNode::Token(next));
+                    match token.value() {
+                        Token::Comma => self.parse_selector_tokens(token, selectors, false),
+                        _ => self.parse_selector_tokens(token, selectors, true),
+                    }
+                }
+                None => (None, selectors),
+            }
+        } else {
+            let first_token = node.token.clone();
+            let selectors = vec![SelectorNode::Token(node)];
+            self.parse_selector_tokens(first_token, selectors, true)
+        };
 
         let content = if selectors.is_empty() {
             None
