@@ -2,13 +2,12 @@ use std::{
     collections::{HashMap, HashSet},
     ops::{Deref, DerefMut, RangeInclusive},
     path::{Path, PathBuf},
-    sync::LazyLock,
 };
 
 use crate::{
     datatype::{Datatype, StaticLookup, evaluate_construct, shorthand_rebind},
-    lexer::{Lexer, Token},
-    parser::{AstErrors, Construct, Delimited, Node, ParsedRsml, Parser},
+    lexer::Token,
+    parser::{AstErrors, Construct, Delimited, Node, ParsedRsml},
     range_from_span::RangeFromSpan,
     types::{Diagnostic, Range},
 };
@@ -16,35 +15,9 @@ use crate::{
 
 use self::luaurc::Luaurc;
 pub use macro_check::{
-    MacroRegistry, MacroReturnContext, MacroSignature, count_macro_def_args, macro_return_context,
+    MacroDefinition, MacroRegistry, MacroReturnContext, collect_macro_def_arg_names,
+    macro_return_context,
 };
-
-const BUILTINS_SOURCE: &str = include_str!("../../builtins.rsml");
-
-pub static BUILTIN_MACROS: LazyLock<MacroRegistry> = LazyLock::new(|| {
-    let parsed = Parser::new(Lexer::new(BUILTINS_SOURCE));
-    let mut registry = MacroRegistry::new();
-    for construct in &parsed.ast {
-        if let Construct::Macro {
-            name: Some(name_node),
-            args,
-            return_type,
-            ..
-        } = construct
-        {
-            if let Token::Identifier(name_str) = name_node.token.value() {
-                registry
-                    .entry(name_str.to_string())
-                    .or_insert_with(Vec::new)
-                    .push(MacroSignature {
-                        arg_count: count_macro_def_args(args),
-                        return_context: macro_return_context(return_type),
-                    });
-            }
-        }
-    }
-    registry
-});
 
 use rangemap::RangeInclusiveMap;
 
@@ -182,7 +155,7 @@ pub struct TypecheckedRsml {
 
 pub struct Typechecker<'a> {
     pub parsed: &'a ParsedRsml<'a>,
-    macro_registry: MacroRegistry,
+    macro_registry: MacroRegistry<'a>,
     pub(crate) static_scopes: Vec<HashMap<String, Datatype>>,
     pub(crate) declared_tokens: Vec<HashSet<ResolvedTypeKey>>,
 }
@@ -214,7 +187,7 @@ impl<'a> Typechecker<'a> {
     ) -> TypecheckedRsml {
         let mut typechecker: Typechecker<'a> = Self {
             parsed,
-            macro_registry: (*BUILTIN_MACROS).clone(),
+            macro_registry: MacroRegistry::new(),
             static_scopes: vec![HashMap::new()],
             declared_tokens: vec![HashSet::new()],
         };
@@ -278,14 +251,26 @@ impl<'a> Typechecker<'a> {
                 } => {
                     if let Some(name_node) = name {
                         if let Token::Identifier(name_str) = name_node.token.value() {
-                            let arg_count = count_macro_def_args(args);
+                            let arg_names = collect_macro_def_arg_names(args);
+                            let arg_count = arg_names.len();
                             let context = macro_return_context(return_type);
-                            let signatures = typechecker
+
+                            let builtin_collision = crate::builtins::BUILTINS
+                                .registry
+                                .get(*name_str)
+                                .map(|defs| defs.iter().any(|def| def.arg_names.len() == arg_count))
+                                .unwrap_or(false);
+
+                            let definitions = typechecker
                                 .macro_registry
                                 .entry(name_str.to_string())
                                 .or_insert_with(Vec::new);
 
-                            if signatures.iter().any(|sig| sig.arg_count == arg_count) {
+                            let local_collision = definitions
+                                .iter()
+                                .any(|def| def.arg_names.len() == arg_count);
+
+                            if builtin_collision || local_collision {
                                 ast_errors.push(
                                     TypeError::DuplicateMacro {
                                         name: name_str,
@@ -294,8 +279,9 @@ impl<'a> Typechecker<'a> {
                                     Range::from_span(&typechecker.parsed.rope, construct.span()),
                                 );
                             } else {
-                                signatures.push(MacroSignature {
-                                    arg_count,
+                                definitions.push(MacroDefinition {
+                                    arg_names,
+                                    body: body.as_ref().map(|b| &b.content),
                                     return_context: context,
                                 });
                             }
@@ -1576,6 +1562,190 @@ mod tests {
             macro_errors.is_empty(),
             "unexpected errors: {:?}",
             macro_errors
+        );
+    }
+
+    #[tokio::test]
+    async fn builtin_padding_one_arg_no_error() {
+        let result = typecheck("Frame { Padding!(10); }").await;
+        let macro_errors: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Undefined Macro") || err.contains("Wrong Macro"))
+            .collect();
+        assert!(
+            macro_errors.is_empty(),
+            "unexpected errors: {:?}",
+            macro_errors
+        );
+    }
+
+    #[tokio::test]
+    async fn builtin_padding_two_args_no_error() {
+        let result = typecheck("Frame { Padding!(10, 20); }").await;
+        let macro_errors: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Undefined Macro") || err.contains("Wrong Macro"))
+            .collect();
+        assert!(
+            macro_errors.is_empty(),
+            "unexpected errors: {:?}",
+            macro_errors
+        );
+    }
+
+    #[tokio::test]
+    async fn builtin_padding_three_args_no_error() {
+        let result = typecheck("Frame { Padding!(10, 20, 30); }").await;
+        let macro_errors: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Undefined Macro") || err.contains("Wrong Macro"))
+            .collect();
+        assert!(
+            macro_errors.is_empty(),
+            "unexpected errors: {:?}",
+            macro_errors
+        );
+    }
+
+    #[tokio::test]
+    async fn builtin_padding_four_args_no_error() {
+        let result = typecheck("Frame { Padding!(10, 20, 30, 40); }").await;
+        let macro_errors: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Undefined Macro") || err.contains("Wrong Macro"))
+            .collect();
+        assert!(
+            macro_errors.is_empty(),
+            "unexpected errors: {:?}",
+            macro_errors
+        );
+    }
+
+    #[tokio::test]
+    async fn builtin_corner_radius_no_error() {
+        let result = typecheck("Frame { CornerRadius!(8); }").await;
+        let macro_errors: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Undefined Macro") || err.contains("Wrong Macro"))
+            .collect();
+        assert!(
+            macro_errors.is_empty(),
+            "unexpected errors: {:?}",
+            macro_errors
+        );
+    }
+
+    #[tokio::test]
+    async fn builtin_scale_no_error() {
+        let result = typecheck("Frame { Scale!(1.5); }").await;
+        let macro_errors: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Undefined Macro") || err.contains("Wrong Macro"))
+            .collect();
+        assert!(
+            macro_errors.is_empty(),
+            "unexpected errors: {:?}",
+            macro_errors
+        );
+    }
+
+    #[tokio::test]
+    async fn builtin_padding_zero_args_errors() {
+        let result = typecheck("Frame { Padding!(); }").await;
+        let err = result
+            .errors
+            .iter()
+            .find(|err| err.contains("Wrong Macro Argument Count"))
+            .expect("expected wrong arg count error");
+        assert!(
+            err.contains("1, 2, 3, or 4 arguments"),
+            "expected Oxford-comma arg list, got: {}",
+            err
+        );
+    }
+
+    #[tokio::test]
+    async fn builtin_padding_five_args_errors() {
+        let result = typecheck("Frame { Padding!(10, 20, 30, 40, 50); }").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Wrong Macro Argument Count")),
+            "expected arg count error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn builtin_corner_radius_wrong_arg_count_errors() {
+        let result = typecheck("Frame { CornerRadius!(); }").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Wrong Macro Argument Count")
+                    && err.contains("CornerRadius")),
+            "expected arg count error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn builtin_user_redefine_padding_duplicate_errors() {
+        let result = typecheck("@macro Padding (&all) { ::UIPadding {} }").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Duplicate Macro") && err.contains("Padding")),
+            "expected duplicate macro error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn builtin_padding_in_assignment_context_errors() {
+        let result = typecheck("Frame { Size = Padding!(10); }").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Wrong Macro Context")),
+            "expected wrong context error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn builtin_padding_in_selector_context_errors() {
+        let result = typecheck("Padding!(10) {}").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Wrong Macro Context")),
+            "expected wrong context error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn builtin_undefined_macro_still_errors() {
+        let result = typecheck("Frame { NotABuiltin!(10); }").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("No macro named `NotABuiltin` has been defined")),
+            "expected undefined macro error, got: {:?}",
+            result.errors
         );
     }
 

@@ -180,6 +180,8 @@ fn evaluate_token(
 
         Token::StaticTokenIdentifier(static_name) => Some(lookup.resolve_static(static_name)),
 
+        Token::MacroArgIdentifier(Some(name)) => lookup.resolve_macro_arg(name, key),
+
         Token::StateSelectorOrEnumPart(Some(value)) => {
             if let Some(key) = key {
                 let rebinded_key = shorthand_rebind(key);

@@ -121,24 +121,6 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn parse_rule_scope_selector_begin(&mut self, node: Node<'a>) -> Parsed<'a> {
         match node.token.value() {
-            Token::MacroCallIdentifier(_) => {
-                let (next_node, selector_node) = self.parse_macro_call_in_selector(node);
-                let mut selectors = vec![selector_node];
-
-                match next_node {
-                    Some(next) => {
-                        let token = next.token.clone();
-                        if node_token_matches!(next, ScopeOpen) {
-                            self.parse_rule_scope_body(next, Some(selectors))
-                        } else {
-                            selectors.push(SelectorNode::Token(next));
-                            self.parse_rule_scope_selector(token, selectors, true)
-                        }
-                    },
-                    None => Parsed (None, Some(Construct::Rule { selectors: Some(selectors), body: None }))
-                }
-            },
-
             Token::NameSelector(_) | Token::TagSelectorOrEnumPart(_) |
             Token::StateSelectorOrEnumPart(_) | Token::PseudoSelector(_) |
             Token::QuerySelector(_) | Token::ChildrenSelector |

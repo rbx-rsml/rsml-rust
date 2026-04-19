@@ -166,7 +166,7 @@ struct TypecheckSelectors<'a> {
 
     rope: &'a Rope,
     ast_errors: &'a mut AstErrors,
-    macro_registry: &'a MacroRegistry,
+    macro_registry: &'a MacroRegistry<'a>,
 }
 
 impl<'a> TypecheckSelectors<'a> {
@@ -176,7 +176,7 @@ impl<'a> TypecheckSelectors<'a> {
         rope: &'a Rope,
         ast_errors: &'a mut AstErrors,
         definitions: &mut super::Definitions,
-        macro_registry: &'a MacroRegistry,
+        macro_registry: &'a MacroRegistry<'a>,
     ) -> Self {
         let mut typecheck_selectors = Self {
             iter: selectors.iter(),
@@ -529,24 +529,43 @@ impl<'a> TypecheckSelectors<'a> {
             return;
         };
 
-        let Some(signatures) = self.macro_registry.get(*macro_name) else {
+        let local = self.macro_registry.get(*macro_name);
+        let builtin = crate::builtins::BUILTINS.registry.get(*macro_name);
+        if local.is_none() && builtin.is_none() {
             self.ast_errors.push(
                 TypeError::UndefinedMacro { name: macro_name },
                 self.range_from_span(name.token.span()),
             );
             return;
-        };
+        }
 
         let call_arg_count = count_macro_call_args(body);
 
-        let matching: Vec<_> = signatures
-            .iter()
-            .filter(|signature| signature.arg_count == call_arg_count)
-            .collect();
+        let local_match_context = local
+            .into_iter()
+            .flat_map(|defs| defs.iter())
+            .find(|def| def.arg_names.len() == call_arg_count)
+            .map(|def| def.return_context);
+        let builtin_match_context = builtin
+            .into_iter()
+            .flat_map(|defs| defs.iter())
+            .find(|def| def.arg_names.len() == call_arg_count)
+            .map(|def| def.return_context);
 
-        if matching.is_empty() {
-            let expected_counts: Vec<usize> =
-                signatures.iter().map(|signature| signature.arg_count).collect();
+        let matching_context = local_match_context.or(builtin_match_context);
+
+        if matching_context.is_none() {
+            let mut expected_counts: Vec<usize> = local
+                .into_iter()
+                .flat_map(|defs| defs.iter().map(|def| def.arg_names.len()))
+                .chain(
+                    builtin
+                        .into_iter()
+                        .flat_map(|defs| defs.iter().map(|def| def.arg_names.len())),
+                )
+                .collect();
+            expected_counts.sort();
+            expected_counts.dedup();
             self.ast_errors.push(
                 TypeError::WrongMacroArgCount {
                     name: macro_name,
@@ -558,14 +577,12 @@ impl<'a> TypecheckSelectors<'a> {
             return;
         }
 
-        let context_match = matching
-            .iter()
-            .any(|signature| signature.return_context == MacroReturnContext::Selector);
-        if !context_match {
+        let matching_context = matching_context.unwrap();
+        if matching_context != MacroReturnContext::Selector {
             self.ast_errors.push(
                 TypeError::WrongMacroContext {
                     name: macro_name,
-                    expected: matching[0].return_context.name(),
+                    expected: matching_context.name(),
                     got: MacroReturnContext::Selector.name(),
                 },
                 self.range_from_span(name.token.span()),

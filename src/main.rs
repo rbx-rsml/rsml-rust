@@ -4,7 +4,14 @@ use rbx_rsml::parser::Parser;
 
 fn main() {
     let source = r#"
-        $Size = udim2 ( 100%, 50% ;
+        @macro Foo -> Selector {
+            TextButton
+        }
+
+        Foo!(), Frame {
+            Padding!(50%);
+            CornerRadius!(25px);
+        }
     "#;
 
     let lexer = Lexer::new(source);

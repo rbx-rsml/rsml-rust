@@ -26,25 +26,28 @@ impl MacroReturnContext {
 }
 
 #[derive(Debug, Clone)]
-pub struct MacroSignature {
-    pub arg_count: usize,
+pub struct MacroDefinition<'a> {
+    pub arg_names: Vec<&'a str>,
+    pub body: Option<&'a MacroBodyContent<'a>>,
     pub return_context: MacroReturnContext,
 }
 
-pub type MacroRegistry = HashMap<String, Vec<MacroSignature>>;
+pub type MacroRegistry<'a> = HashMap<String, Vec<MacroDefinition<'a>>>;
 
-pub fn count_macro_def_args(args: &Option<Delimited>) -> usize {
-    let Some(args) = args else { return 0 };
-    let Some(content) = &args.content else { return 0 };
+pub fn collect_macro_def_arg_names<'a>(args: &Option<Delimited<'a>>) -> Vec<&'a str> {
+    let Some(args) = args else { return Vec::new() };
+    let Some(content) = &args.content else { return Vec::new() };
     content
         .iter()
-        .filter(|construct| {
-            matches!(
-                construct,
-                Construct::Node { node } if matches!(node.token.value(), Token::MacroArgIdentifier(_))
-            )
+        .filter_map(|construct| {
+            if let Construct::Node { node } = construct {
+                if let Token::MacroArgIdentifier(Some(name)) = node.token.value() {
+                    return Some(*name);
+                }
+            }
+            None
         })
-        .count()
+        .collect()
 }
 
 pub(super) fn count_macro_call_args(body: &Option<Delimited>) -> usize {
@@ -187,24 +190,43 @@ impl<'a> Typechecker<'a> {
             return;
         };
 
-        let Some(signatures) = self.macro_registry.get(*macro_name) else {
+        let local = self.macro_registry.get(*macro_name);
+        let builtin = crate::builtins::BUILTINS.registry.get(*macro_name);
+        if local.is_none() && builtin.is_none() {
             ast_errors.push(
                 TypeError::UndefinedMacro { name: macro_name },
                 self.range_from_span(name.token.span()),
             );
             return;
-        };
+        }
 
         let call_arg_count = count_macro_call_args(body);
 
-        let matching: Vec<&MacroSignature> = signatures
-            .iter()
-            .filter(|signature| signature.arg_count == call_arg_count)
-            .collect();
+        let local_arg_counts = local
+            .into_iter()
+            .flat_map(|defs| defs.iter().map(|def| def.arg_names.len()));
+        let builtin_arg_counts = builtin
+            .into_iter()
+            .flat_map(|defs| defs.iter().map(|def| def.arg_names.len()));
 
-        if matching.is_empty() {
-            let expected_counts: Vec<usize> =
-                signatures.iter().map(|signature| signature.arg_count).collect();
+        let local_match_context = local
+            .into_iter()
+            .flat_map(|defs| defs.iter())
+            .find(|def| def.arg_names.len() == call_arg_count)
+            .map(|def| def.return_context);
+        let builtin_match_context = builtin
+            .into_iter()
+            .flat_map(|defs| defs.iter())
+            .find(|def| def.arg_names.len() == call_arg_count)
+            .map(|def| def.return_context);
+
+        let matching_context = local_match_context.or(builtin_match_context);
+
+        if matching_context.is_none() {
+            let mut expected_counts: Vec<usize> =
+                local_arg_counts.chain(builtin_arg_counts).collect();
+            expected_counts.sort();
+            expected_counts.dedup();
             ast_errors.push(
                 TypeError::WrongMacroArgCount {
                     name: macro_name,
@@ -216,14 +238,12 @@ impl<'a> Typechecker<'a> {
             return;
         }
 
-        let context_match = matching
-            .iter()
-            .any(|signature| signature.return_context == expected_context);
-        if !context_match {
+        let matching_context = matching_context.unwrap();
+        if matching_context != expected_context {
             ast_errors.push(
                 TypeError::WrongMacroContext {
                     name: macro_name,
-                    expected: matching[0].return_context.name(),
+                    expected: matching_context.name(),
                     got: expected_context.name(),
                 },
                 self.range_from_span(name.token.span()),

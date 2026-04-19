@@ -8,7 +8,16 @@ TreeNodeGroup {
             attributes: Attributes {
                 data: {},
             },
-            static_attributes: {},
+            static_attributes: {
+                "P": Variant(
+                    UDim(
+                        UDim {
+                            scale: 0.0,
+                            offset: 10,
+                        },
+                    ),
+                ),
+            },
             child_rules: [],
         },
     ),

@@ -487,6 +487,13 @@ mod tests {
     parser_test!(macro_call_missing_semicolon, r#"MyMacro!()"#);
     parser_test!(macro_call_missing_close_paren, r#"MyMacro!(arg1;"#);
 
+    parser_test!(builtin_padding_one_arg, r#"Frame { Padding!(10px); }"#);
+    parser_test!(builtin_padding_two_args, r#"Frame { Padding!(10px, 20px); }"#);
+    parser_test!(builtin_padding_three_args, r#"Frame { Padding!(10px, 20px, 30px); }"#);
+    parser_test!(builtin_padding_four_args, r#"Frame { Padding!(10px, 20px, 30px, 40px); }"#);
+    parser_test!(builtin_corner_radius, r#"Frame { CornerRadius!(8px); }"#);
+    parser_test!(builtin_scale, r#"Frame { Scale!(1.5); }"#);
+
     parser_test!(comment_before_assign, "-- comment\nSize = 100;");
     parser_test!(comment_multi_before_assign, r#"--[[comment]] Size = 100;"#);
     parser_test!(comment_multi_nested, r#"--[==[comment]==] Size = 100;"#);
@@ -528,4 +535,16 @@ Frame {
 }
 "#);
     parser_test!(macro_def_and_call, "@macro P(&v) -> Construct { $!P = &v; }\nP!(10px);");
+    parser_test!(
+        macro_user_nested_expansion,
+        "@macro Inner(&v) -> Construct { ::UIPadding { PaddingTop = &v; } }\n@macro Outer(&v) -> Construct { Inner!(&v); }\nFrame { Outer!(10px); }"
+    );
+    parser_test!(
+        macro_recursion_guard,
+        "@macro Recur() -> Construct { Recur!(); }\nFrame { Recur!(); }"
+    );
+    parser_test!(
+        macro_overload_by_arg_count,
+        "@macro Set(&a) -> Construct { ::Inner { X = &a; } }\n@macro Set(&a, &b) -> Construct { ::Inner { Y = &b; } }\nFrame { Set!(1px); Set!(2px, 3px); }"
+    );
 }
