@@ -254,11 +254,12 @@ impl<'a> Typechecker<'a> {
                             let arg_count = arg_names.len();
                             let context = macro_return_context(return_type);
 
-                            let builtin_collision = crate::builtins::BUILTINS
-                                .registry
-                                .get(*name_str)
-                                .map(|defs| defs.iter().any(|def| def.arg_names.len() == arg_count))
-                                .unwrap_or(false);
+                            let builtin_collision = !typechecker.parsed.directives.nobuiltins
+                                && crate::builtins::BUILTINS
+                                    .registry
+                                    .get(*name_str)
+                                    .map(|defs| defs.iter().any(|def| def.arg_names.len() == arg_count))
+                                    .unwrap_or(false);
 
                             let definitions = typechecker
                                 .macro_registry

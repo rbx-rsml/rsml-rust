@@ -1,0 +1,37 @@
+---
+source: src/parser/mod.rs
+expression: compiled
+---
+CompiledRsml {
+    root: Some(
+        RootTreeNode {
+            attributes: Attributes {
+                data: {},
+            },
+            static_attributes: {},
+            child_rules: [
+                0,
+            ],
+        },
+    ),
+    nodes: [
+        Some(
+            TreeNode {
+                selector: Some(
+                    "Frame",
+                ),
+                priority: None,
+                tweens: {},
+                attributes: Attributes {
+                    data: {},
+                },
+                static_attributes: {},
+                properties: Attributes {
+                    data: {},
+                },
+                child_rules: [],
+                parent: Root,
+            },
+        ),
+    ],
+}

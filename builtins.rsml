@@ -1,4 +1,4 @@
--- Macros which are built in to RSML.
+--!nobuiltins
 
 @macro Padding (&all) {
     ::UIPadding {

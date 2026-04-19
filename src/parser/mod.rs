@@ -42,6 +42,10 @@ pub struct RsmlParser<'a> {
     pub ast_errors: AstErrors,
 
     pub did_advance: bool,
+
+    pub directives: Directives,
+    pub(crate) pending_node: Option<Node<'a>>,
+    pub(crate) directives_phase_done: bool,
 }
 
 impl<'a> RsmlParser<'a> {
@@ -54,7 +58,13 @@ impl<'a> RsmlParser<'a> {
             ast_errors: AstErrors::new(),
 
             did_advance: false,
+
+            directives: Directives::default(),
+            pending_node: None,
+            directives_phase_done: false,
         };
+
+        parser.parse_directives();
 
         parser.parse_loop(|parser, mut node| {
             node = parser.parse_macro(node).handle_construct(&mut parser.ast)?;
@@ -95,6 +105,7 @@ impl<'a> RsmlParser<'a> {
         ParsedRsml {
             ast: parser.ast,
             ast_errors: parser.ast_errors,
+            directives: parser.directives,
             rope: parser.lexer.rope,
         }
     }
@@ -503,6 +514,45 @@ mod tests {
     parser_test!(comment_multi_before_assign, r#"--[[comment]] Size = 100;"#);
     parser_test!(comment_multi_nested, r#"--[==[comment]==] Size = 100;"#);
     parser_test!(comment_leading_trivia, "-- a\n-- b\nSize = 100;");
+
+    parser_test!(directive_nobuiltins_alone, "--!nobuiltins");
+    parser_test!(directive_nobuiltins_then_code, "--!nobuiltins\nSize = 100;");
+    parser_test!(directive_nobuiltins_blocks_builtin_expansion, "--!nobuiltins\nFrame { Padding!(10px); }");
+    parser_test!(directive_after_comment, "-- preface\n--!nobuiltins\nSize = 100;");
+    parser_test!(directive_unknown, "--!foo\nSize = 100;");
+    parser_test!(directive_empty, "--!\nSize = 100;");
+    parser_test!(directive_after_code, "Size = 1;\n--!nobuiltins\nSize = 2;");
+
+    #[test]
+    fn directive_sets_nobuiltins_flag() {
+        let parsed = RsmlParser::parse_source("--!nobuiltins\nSize = 100;");
+        assert!(parsed.directives.nobuiltins);
+    }
+
+    #[test]
+    fn no_directive_leaves_flag_unset() {
+        let parsed = RsmlParser::parse_source("Size = 100;");
+        assert!(!parsed.directives.nobuiltins);
+    }
+
+    #[test]
+    fn directive_after_code_emits_error() {
+        let parsed = RsmlParser::parse_source("Size = 1;\n--!nobuiltins");
+        assert!(!parsed.directives.nobuiltins);
+        assert!(parsed.ast_errors.0.iter().any(|d| d.code == "DIRECTIVE_NOT_AT_TOP"));
+    }
+
+    #[test]
+    fn unknown_directive_emits_error() {
+        let parsed = RsmlParser::parse_source("--!foo\nSize = 1;");
+        assert!(parsed.ast_errors.0.iter().any(|d| d.code == "UNKNOWN_DIRECTIVE"));
+    }
+
+    #[test]
+    fn empty_directive_emits_error() {
+        let parsed = RsmlParser::parse_source("--!\nSize = 1;");
+        assert!(parsed.ast_errors.0.iter().any(|d| d.code == "EMPTY_DIRECTIVE"));
+    }
 
     parser_test!(query_selector, r#"@media { }"#);
     parser_test!(query_selector_unknown, r#"@foobar { }"#);

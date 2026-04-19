@@ -40,13 +40,19 @@ impl<'a> ToString for ParseErrorMessage<'a> {
 pub enum ParseError<'a> {
     UnexpectedTokens { msg: Option<ParseErrorMessage<'a>> },
     MissingToken { msg: Option<ParseErrorMessage<'a>> },
+    UnknownDirective { name: String },
+    EmptyDirective,
+    DirectiveNotAtTop { name: String },
 }
 
 impl<'a> ParseError<'a> {
     pub fn severity(&self) -> Severity {
         match self {
             Self::UnexpectedTokens { .. } |
-            Self::MissingToken { .. } => Severity::Error,
+            Self::MissingToken { .. } |
+            Self::UnknownDirective { .. } |
+            Self::EmptyDirective |
+            Self::DirectiveNotAtTop { .. } => Severity::Error,
         }
     }
 
@@ -61,6 +67,12 @@ impl<'a> ParseError<'a> {
                 Some(msg) => format!("Missing Token: {}", msg.to_string()),
                 None => String::from("Missing Token")
             },
+
+            Self::UnknownDirective { name } => format!("Unknown directive: \"{name}\""),
+            Self::EmptyDirective => String::from("Directive is empty"),
+            Self::DirectiveNotAtTop { .. } => String::from(
+                "Directives must appear at the top of the file"
+            ),
         }
     }
 
@@ -97,6 +109,9 @@ impl<'a> ToString for ParseError<'a> {
          match self {
             Self::UnexpectedTokens { .. } => "UNEXPECTED_TOKENS",
             Self::MissingToken { .. } => "MISSING_TOKEN",
+            Self::UnknownDirective { .. } => "UNKNOWN_DIRECTIVE",
+            Self::EmptyDirective => "EMPTY_DIRECTIVE",
+            Self::DirectiveNotAtTop { .. } => "DIRECTIVE_NOT_AT_TOP",
         }.into()
     }
 }

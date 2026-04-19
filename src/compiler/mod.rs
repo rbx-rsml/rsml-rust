@@ -32,6 +32,7 @@ pub struct MacroContext<'a> {
     pub local: MacroRegistry<'a>,
     pub bindings: Vec<BindingFrame<'a>>,
     pub expansion_stack: Vec<String>,
+    pub nobuiltins: bool,
 }
 
 impl<'a> RsmlCompiler<'a> {
@@ -45,6 +46,7 @@ impl<'a> RsmlCompiler<'a> {
             local,
             bindings: vec![HashMap::new()],
             expansion_stack: Vec::new(),
+            nobuiltins: compiler.parsed.directives.nobuiltins,
         };
 
         for construct in &compiler.parsed.ast {
@@ -341,14 +343,15 @@ fn compile_macro_call<'a>(
 
         if let Some(pair) = from_local {
             pair
-        } else if let Some(pair) = crate::builtins::BUILTINS
-            .registry
-            .get(macro_name_str)
-            .and_then(|defs| defs.iter().find(|d| d.arg_names.len() == arg_count))
-            .and_then(|def| {
-                def.body
-                    .map(|b| (def.arg_names.iter().map(|s| s.to_string()).collect(), b))
-            })
+        } else if !macro_ctx.nobuiltins
+            && let Some(pair) = crate::builtins::BUILTINS
+                .registry
+                .get(macro_name_str)
+                .and_then(|defs| defs.iter().find(|d| d.arg_names.len() == arg_count))
+                .and_then(|def| {
+                    def.body
+                        .map(|b| (def.arg_names.iter().map(|s| s.to_string()).collect(), b))
+                })
         {
             pair
         } else {
@@ -430,6 +433,9 @@ fn expand_selectors_into<'a>(
                 .and_then(|defs| defs.iter().find(|d| d.arg_names.len() == arg_count))
                 .and_then(|def| def.body)
                 .or_else(|| {
+                    if macro_ctx.nobuiltins {
+                        return None;
+                    }
                     crate::builtins::BUILTINS
                         .registry
                         .get(macro_name_str)

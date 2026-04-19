@@ -90,6 +90,9 @@ fn str_to_option(str: &str) -> Option<&str> {
 #[logos(subpattern numsect = r"_*[\d]+_*")]
 #[logos(subpattern num = r"((?&numsect)+\.)?(?&numsect)+|\.(?&numsect)")]
 pub enum Token<'a> {
+    #[regex(r"\-\-!.*", priority = 100, callback = |lex| lex.slice()[3..].trim())]
+    Directive(&'a str),
+
     #[regex(r"\-\-\[=*\[", priority = 99, callback = |lex| multiline_string_block_callback(lex, 2))]
     CommentMulti(MultilineString<'a>),
 
@@ -369,6 +372,7 @@ pub const TOKEN_KIND_OPERATOR_PRECEDENCE: LazyLock<HashMap<TokenKind, usize>> = 
 const TOKEN_KIND_STRING_MAP: LazyLock<HashMap<TokenKind, &'static str>> = lazy_collection! {
     TokenKind::CommentMulti => "`comment`",
     TokenKind::CommentSingle => "`comment`",
+    TokenKind::Directive => "`directive`",
     TokenKind::DeriveDeclaration => "\"@derive\"",
     TokenKind::MacroDeclaration => "\"@macro\"",
     TokenKind::PriorityDeclaration => "\"@priority\"",

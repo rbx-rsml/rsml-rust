@@ -27,12 +27,18 @@ impl<'a> RsmlParser<'a> {
     }
 
     pub(crate) fn next_node(&mut self) -> Option<Node<'a>> {
+        if let Some(node) = self.pending_node.take() {
+            return Some(node);
+        }
+
         let mut token = self.next_token()?;
 
         match token.value() {
             Token::CommentMulti(MultilineString { nestedness: Err(expected_nestedness), .. }) => {
                 self.handle_multiline_string_error(&token, *expected_nestedness)
             },
+
+            Token::Directive(_) => self.handle_directive_token(&token),
 
             Token::CommentSingle(_) | Token::CommentMulti(MultilineString { nestedness: Ok(_), .. }) => (),
 
@@ -60,6 +66,11 @@ impl<'a> RsmlParser<'a> {
                     leading_trivia.push(token);
                 },
 
+                Token::Directive(_) => {
+                    self.handle_directive_token(&token);
+                    leading_trivia.push(token);
+                },
+
                 Token::CommentSingle(_) | Token::CommentMulti(MultilineString { nestedness: Ok(_), .. }) =>
                     leading_trivia.push(token),
 
@@ -68,6 +79,55 @@ impl<'a> RsmlParser<'a> {
                     leading_trivia: Some(leading_trivia)
                 })
             }
+        }
+    }
+
+    fn handle_directive_token(&mut self, token: &SpannedToken<'a>) {
+        if !self.directives_phase_done {
+            return;
+        }
+
+        let Token::Directive(text) = token.value() else {
+            return;
+        };
+
+        let name = text.split_whitespace().next().unwrap_or("").to_string();
+        self.ast_errors.push(
+            ParseError::DirectiveNotAtTop { name },
+            self.range_from_span(token.span()),
+        );
+    }
+
+    pub(crate) fn parse_directives(&mut self) {
+        let node = self.next_node();
+
+        if let Some(node) = &node {
+            if let Some(trivia) = &node.leading_trivia {
+                for token in trivia {
+                    if let Token::Directive(text) = token.value() {
+                        self.apply_directive(text.trim(), token.span());
+                    }
+                }
+            }
+        }
+
+        self.pending_node = node;
+        self.directives_phase_done = true;
+    }
+
+    fn apply_directive(&mut self, text: &str, span: (usize, usize)) {
+        if text.is_empty() {
+            self.ast_errors.push(ParseError::EmptyDirective, self.range_from_span(span));
+            return;
+        }
+
+        let name = text.split_whitespace().next().unwrap_or("");
+        match name {
+            "nobuiltins" => self.directives.nobuiltins = true,
+            _ => self.ast_errors.push(
+                ParseError::UnknownDirective { name: name.to_string() },
+                self.range_from_span(span),
+            ),
         }
     }
 

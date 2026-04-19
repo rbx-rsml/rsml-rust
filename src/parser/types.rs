@@ -7,9 +7,15 @@ use crate::lexer::{SpannedToken, Token};
 use crate::parser::RsmlParser;
 use crate::parser::parse_error::ParseError;
 
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Directives {
+    pub nobuiltins: bool,
+}
+
 pub struct ParsedRsml<'a> {
     pub ast: Vec<Construct<'a>>,
     pub ast_errors: AstErrors,
+    pub directives: Directives,
     pub rope: Rope,
 }
 
