@@ -2,7 +2,7 @@ use serde::de::{Deserialize};
 use tokio::fs;
 use std::{collections::BTreeMap, ops::{Deref, DerefMut}, path::{Path, PathBuf}};
 
-use super::multibimap::MultiBiMap;
+use crate::typechecker::multibimap::MultiBiMap;
 
 #[derive(Debug, Default)]
 pub struct Aliases(pub BTreeMap<String, PathBuf>);
@@ -152,7 +152,6 @@ impl Dependants {
         Self(MultiBiMap::new())
     }
 }
-
 
 #[derive(Default, Debug)]
 pub struct Luaurc {

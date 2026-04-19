@@ -1,7 +1,7 @@
 use palette::{IntoColor, Oklab, Oklch, Srgb};
 use rbx_types::{Color3, EnumItem, Variant, VariantType};
 
-use super::variants::EnumItemFromNameAndValueName;
+use crate::datatype::variants::EnumItemFromNameAndValueName;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Datatype {

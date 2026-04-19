@@ -7,7 +7,7 @@ use crate::{
     parser::{AstErrors, Construct, Node},
 };
 
-use super::{PushTypeError, ResolvedTypeKey, Typechecker, TypecheckerLookup, type_error::*};
+use crate::typechecker::{PushTypeError, ResolvedTypeKey, Typechecker, TypecheckerLookup, type_error::*};
 use crate::datatype::StaticLookup;
 
 #[derive(Clone, Copy)]

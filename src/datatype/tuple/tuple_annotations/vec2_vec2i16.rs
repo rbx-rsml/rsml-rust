@@ -2,7 +2,7 @@ use rbx_types::{Variant, Vector2, Vector2int16};
 
 use crate::datatype::Datatype;
 
-use super::coerce_datatype_to_f32;
+use crate::datatype::tuple::tuple_annotations::coerce_datatype_to_f32;
 
 pub fn vec2_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     let x_component = coerce_datatype_to_f32(datatypes.get(0), 0.0);

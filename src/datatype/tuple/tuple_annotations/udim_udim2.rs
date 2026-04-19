@@ -2,7 +2,7 @@ use rbx_types::{UDim, UDim2, Variant};
 
 use crate::datatype::Datatype;
 
-use super::{coerce_datatype_to_f32, coerce_datatype_to_i32};
+use crate::datatype::tuple::tuple_annotations::{coerce_datatype_to_f32, coerce_datatype_to_i32};
 
 fn coerce_datatype_to_udim(datatype: Option<&Datatype>, default: UDim) -> UDim {
     if let Some(datatype) = datatype {

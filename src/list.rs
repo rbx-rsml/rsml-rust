@@ -55,15 +55,6 @@ impl Stringified {
         })
     }
 
-    fn push(self, to_push: String) -> Stringified {
-        match self {
-            Stringified::Single(item) => Stringified::Many(vec![item, to_push]),
-            Stringified::Many(mut items) => Stringified::Many({
-                items.push(to_push);
-                items
-            })
-        }
-    }
 }
 
 impl<'a, const N: usize> TokenKindList<N> {
@@ -149,7 +140,6 @@ impl<'a, const N: usize> TokenKindList<N> {
         }
     }
 }
-
 
 fn array_concat<T, const AN: usize, const BN: usize>(a: &[T; AN], b: &[T; BN]) -> [T; AN + BN]
 where T: Copy, [(); AN + BN]: {

@@ -3,7 +3,7 @@ use rbx_types::{Color3, Color3uint8, Variant};
 
 use crate::datatype::Datatype;
 
-use super::coerce_datatype_to_f32;
+use crate::datatype::tuple::tuple_annotations::coerce_datatype_to_f32;
 
 pub fn color3_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     let first = datatypes.get(0);

@@ -6,7 +6,7 @@ use crate::{
     range_from_span::RangeFromSpan,
 };
 
-use super::{PushTypeError, Typechecker, type_error::*};
+use crate::typechecker::{PushTypeError, Typechecker, type_error::*};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MacroReturnContext {

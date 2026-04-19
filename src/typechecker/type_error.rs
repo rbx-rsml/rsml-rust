@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::types::Severity;
-use super::normalize_path::NormalizePath;
+use crate::typechecker::normalize_path::NormalizePath;
 
 pub enum ExpectedDatatype {
     String,

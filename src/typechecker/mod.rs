@@ -12,7 +12,6 @@ use crate::{
     types::{Diagnostic, Range},
 };
 
-
 use self::luaurc::Luaurc;
 pub use macro_check::{
     MacroDefinition, MacroRegistry, MacroReturnContext, collect_macro_def_arg_names,
@@ -192,8 +191,8 @@ impl<'a> Typechecker<'a> {
             declared_tokens: vec![HashSet::new()],
         };
 
-        // We need to use a different ast errors
-        // vec due to borrow checker issues.
+        // A separate `AstErrors` is needed because the shared one would conflict
+        // with borrows of `self` taken further down.
         let mut ast_errors = AstErrors::new();
 
         let mut derives: HashMap<PathBuf, RangeInclusive<usize>> = HashMap::new();
@@ -660,7 +659,7 @@ impl<'a> Typechecker<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::typechecker::*;
     use crate::{lexer::RsmlLexer, parser::RsmlParser};
 
     use std::path::PathBuf;

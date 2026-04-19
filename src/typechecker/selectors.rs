@@ -14,8 +14,8 @@ use phf_macros::phf_set;
 use ropey::Rope;
 use crate::types::Range;
 
-use super::{DefinitionKind, PushTypeError, ResolvedTypes, Typechecker, type_error::*};
-use super::macro_check::{MacroRegistry, MacroReturnContext};
+use crate::typechecker::{DefinitionKind, PushTypeError, ResolvedTypes, Typechecker, type_error::*};
+use crate::typechecker::macro_check::{MacroRegistry, MacroReturnContext};
 
 impl<'a> Typechecker<'a> {
     pub(super) fn typecheck_rule(
@@ -23,7 +23,7 @@ impl<'a> Typechecker<'a> {
         (selectors, body): (&Option<Vec<SelectorNode<'a>>>, &Option<Delimited<'a>>),
         parent_classes: &Vec<String>,
         ast_errors: &mut AstErrors,
-        definitions: &mut super::Definitions,
+        definitions: &mut crate::typechecker::Definitions,
         resolved_types: &mut ResolvedTypes,
     ) {
         let current_classes = if let Some(selectors) = selectors {
@@ -94,7 +94,7 @@ impl<'a> Typechecker<'a> {
                     self.validate_macro_call(name, body, MacroReturnContext::Construct, ast_errors);
                 }
 
-                Construct::Macro { name, args, body, .. } => {
+                Construct::Macro { args, body, .. } => {
                     ast_errors.push(
                         TypeError::NotAllowedInContext { name: construct.name_plural(), context: "rules" },
                         Range::from_span(&self.parsed.rope, construct.span()),
@@ -115,7 +115,7 @@ impl<'a> Typechecker<'a> {
         selectors: &Vec<SelectorNode<'a>>,
         parent_classes: &Vec<String>,
         ast_errors: &mut AstErrors,
-        definitions: &mut super::Definitions,
+        definitions: &mut crate::typechecker::Definitions,
     ) -> Vec<String> {
         TypecheckSelectors::new(
             selectors,
@@ -162,7 +162,6 @@ struct TypecheckSelectors<'a> {
     classes: IndexSet<String>,
 
     part: Option<&'a Node<'a>>,
-    has_name: bool,
 
     rope: &'a Rope,
     ast_errors: &'a mut AstErrors,
@@ -175,7 +174,7 @@ impl<'a> TypecheckSelectors<'a> {
         parent_classes: &'a Vec<String>,
         rope: &'a Rope,
         ast_errors: &'a mut AstErrors,
-        definitions: &mut super::Definitions,
+        definitions: &mut crate::typechecker::Definitions,
         macro_registry: &'a MacroRegistry<'a>,
     ) -> Self {
         let mut typecheck_selectors = Self {
@@ -183,7 +182,6 @@ impl<'a> TypecheckSelectors<'a> {
             parent_classes,
             classes: IndexSet::new(),
             part: None,
-            has_name: false,
             rope,
             ast_errors,
             macro_registry,
@@ -218,7 +216,7 @@ impl<'a> TypecheckSelectors<'a> {
         }
     }
 
-    fn begin(&mut self, definitions: &mut super::Definitions) {
+    fn begin(&mut self, definitions: &mut crate::typechecker::Definitions) {
         let Some(part) = self.next() else { return };
         let span_start = part.token.start();
 
@@ -462,7 +460,7 @@ impl<'a> TypecheckSelectors<'a> {
         }
     }
 
-    /// Returns the class if it valid, if its invalid then it returns `"Instance"`.
+    /// Returns the class if it is valid. Falls back to `"Instance"` otherwise.
     fn validate_class<'b>(&mut self, class: &'a str, token: &SpannedToken) -> &'a str {
         if let Ok(db) = rbx_reflection_database::get()
             && db.classes.contains_key(class)
@@ -523,7 +521,7 @@ impl<'a> TypecheckSelectors<'a> {
         name: &Node<'a>,
         body: &Option<Delimited<'a>>,
     ) {
-        use super::macro_check::count_macro_call_args;
+        use crate::typechecker::macro_check::count_macro_call_args;
 
         let Token::MacroCallIdentifier(Some(macro_name)) = name.token.value() else {
             return;

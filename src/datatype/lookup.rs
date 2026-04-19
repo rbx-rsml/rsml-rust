@@ -1,4 +1,4 @@
-use super::Datatype;
+use crate::datatype::Datatype;
 
 pub trait StaticLookup {
     fn resolve_static(&self, name: &str) -> Datatype;

@@ -19,8 +19,8 @@ static MACRO_RETURN_TYPES: phf::Set<&str> = phf_set! {
 static MACRO_RETURN_TYPE_NAMES: [&str; 3] = ["Construct", "Assignment", "Selector"];
 
 impl<'a> RsmlParser<'a> {
-    /// Many declarations in rsml just have a datatype after them.
-    /// So we can use the same function to parse them.
+    /// Many declarations in rsml just have a datatype after them, so the same
+    /// function can parse all of them.
     pub(crate) fn parse_declaration_with_datatype(
         &mut self,
         node: Node<'a>,
@@ -301,6 +301,7 @@ impl<'a> RsmlParser<'a> {
                         },
                         self.range_from_span(clamp_span_to_end(open_node.token.end())),
                     );
+
                     return (Some(node), Delimited::new(open_node, None, None));
                 }
 
@@ -314,6 +315,7 @@ impl<'a> RsmlParser<'a> {
                     },
                     self.range_from_span(clamp_span_to_end(open_node.token.end())),
                 );
+
                 return (None, Delimited::new(open_node, None, None));
             }
         };
@@ -340,6 +342,7 @@ impl<'a> RsmlParser<'a> {
             &TOKEN_KIND_CONSTRUCT_DELIMITERS,
         ) {
             Some(Ok(node)) => node,
+
             Some(Err(node)) => {
                 return Parsed(
                     Some(node),
@@ -350,6 +353,7 @@ impl<'a> RsmlParser<'a> {
                     }),
                 );
             }
+
             None => {
                 return Parsed(
                     None,
@@ -389,7 +393,9 @@ impl<'a> RsmlParser<'a> {
                     }),
                 );
             }
+
             Some(Ok(node)) => node,
+
             Some(Err(node)) => {
                 return Parsed(
                     Some(node),
@@ -400,6 +406,7 @@ impl<'a> RsmlParser<'a> {
                     }),
                 );
             }
+
             None => {
                 return Parsed(
                     None,
@@ -433,6 +440,7 @@ impl<'a> RsmlParser<'a> {
             &TOKEN_KIND_CONSTRUCT_DELIMITERS,
         ) {
             Some(Ok(node)) => node,
+
             Some(Err(node)) => {
                 return (
                     Some(node),
@@ -442,6 +450,7 @@ impl<'a> RsmlParser<'a> {
                     },
                 );
             }
+
             None => {
                 return (
                     None,

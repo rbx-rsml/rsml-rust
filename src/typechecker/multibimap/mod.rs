@@ -130,7 +130,6 @@ where
     }
 }
 
-
 /*
     This MultiBiMap implementation is forked 
     from billyrieger's bimap implementation.

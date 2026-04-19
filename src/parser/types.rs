@@ -1,7 +1,7 @@
 use ropey::Rope;
 
 use crate::range_from_span::RangeFromSpan;
-use crate::types::{Diagnostic, Range, Severity};
+use crate::types::{Diagnostic, Range};
 
 use crate::lexer::{SpannedToken, Token};
 use crate::parser::RsmlParser;
@@ -19,7 +19,7 @@ impl<'a> ParsedRsml<'a> {
     }
 }
 
-pub(super) type Trivia<'a> = Vec<SpannedToken<'a>>;
+pub(crate) type Trivia<'a> = Vec<SpannedToken<'a>>;
 
 #[derive(Debug)]
 pub struct Node<'a> {
@@ -27,7 +27,7 @@ pub struct Node<'a> {
     pub leading_trivia: Option<Trivia<'a>>,
 }
 
-pub(super) trait UpdateLastTokenEnd {
+pub(crate) trait UpdateLastTokenEnd {
     fn update_last_token_end(self, parser: &mut RsmlParser) -> Self;
 }
 
@@ -45,7 +45,7 @@ impl<'a> UpdateLastTokenEnd for Option<Node<'a>> {
     }
 }
 
-pub(super) trait ToStatus<'a> {
+pub(crate) trait ToStatus<'a> {
     fn to_status(self) -> NodeStatus<'a>;
 }
 
@@ -64,23 +64,18 @@ impl<'a> ToStatus<'a> for Node<'a> {
     }
 }
 
-pub(super) struct Parsed<'a, T = Construct<'a>>(pub Option<Node<'a>>, pub Option<T>);
+pub(crate) struct Parsed<'a, T = Construct<'a>>(pub Option<Node<'a>>, pub Option<T>);
 
 impl<'a> Parsed<'a> {
-    #[inline(always)]
-    pub(super) fn none() -> Self {
-        Self(None, None)
-    }
-
-    pub(super) fn handle_construct(self, ast: &mut Vec<Construct<'a>>) -> Option<Node<'a>> {
+    pub(crate) fn handle_construct(self, ast: &mut Vec<Construct<'a>>) -> Option<Node<'a>> {
         if let Some(construct) = self.1 {
             ast.push(construct)
         };
-        return self.0;
+        self.0
     }
 }
 
-pub(super) trait SpanEnd {
+pub trait SpanEnd {
     fn end(&self) -> usize;
 }
 
@@ -141,14 +136,18 @@ impl<'a> SpanEnd for MacroBody<'a> {
                     return last.end();
                 }
             }
+
             MacroBodyContent::Assignment(Some(item)) => return item.end(),
+
             MacroBodyContent::Selector(Some(items)) => {
                 if let Some(last) = items.last() {
                     return last.end();
                 }
             }
+
             _ => {}
         }
+
         self.open.token.end()
     }
 }
@@ -279,9 +278,11 @@ impl<'a> Construct<'a> {
                         return first.start();
                     }
                 }
+
                 if let Some(body) = body {
                     return body.start();
                 }
+
                 0
             }
 
@@ -310,21 +311,26 @@ impl<'a> SpanEnd for Construct<'a> {
                 return_type,
                 body,
             } => {
-                if let Some(x) = body {
-                    return x.end();
+                if let Some(body) = body {
+                    return body.end();
                 }
+
                 if let Some((arrow, ident)) = return_type {
                     if let Some(ident) = ident {
                         return ident.token.end();
                     }
+
                     return arrow.token.end();
                 }
-                if let Some(x) = args {
-                    return x.end();
+
+                if let Some(args) = args {
+                    return args.end();
                 }
-                if let Some(x) = name {
-                    return x.token.end();
+
+                if let Some(name) = name {
+                    return name.token.end();
                 }
+
                 declaration.token.end()
             }
 
@@ -333,12 +339,14 @@ impl<'a> SpanEnd for Construct<'a> {
                 body,
                 terminator,
             } => {
-                if let Some(x) = terminator {
-                    return x.token.end();
+                if let Some(terminator) = terminator {
+                    return terminator.token.end();
                 }
-                if let Some(x) = body {
-                    return x.end();
+
+                if let Some(body) = body {
+                    return body.end();
                 }
+
                 name.token.end()
             }
 
@@ -353,12 +361,14 @@ impl<'a> SpanEnd for Construct<'a> {
                 terminator,
             }
             => {
-                if let Some(x) = terminator {
-                    return x.token.end();
+                if let Some(terminator) = terminator {
+                    return terminator.token.end();
                 }
-                if let Some(x) = body {
-                    return x.end();
+
+                if let Some(body) = body {
+                    return body.end();
                 }
+
                 declaration.token.end()
             }
 
@@ -368,22 +378,26 @@ impl<'a> SpanEnd for Construct<'a> {
                 body,
                 terminator,
             } => {
-                if let Some(x) = terminator {
-                    return x.token.end();
+                if let Some(terminator) = terminator {
+                    return terminator.token.end();
                 }
-                if let Some(x) = body {
-                    return x.end();
+
+                if let Some(body) = body {
+                    return body.end();
                 }
-                if let Some(x) = name {
-                    return x.token.end();
+
+                if let Some(name) = name {
+                    return name.token.end();
                 }
+
                 declaration.token.end()
             }
 
             Self::Rule { body, .. } => {
-                if let Some(x) = body {
-                    return x.end();
+                if let Some(body) = body {
+                    return body.end();
                 }
+
                 0
             }
 
@@ -393,15 +407,18 @@ impl<'a> SpanEnd for Construct<'a> {
                 right,
                 terminator,
             } => {
-                if let Some(x) = terminator {
-                    return x.token.end();
+                if let Some(terminator) = terminator {
+                    return terminator.token.end();
                 }
-                if let Some(x) = right {
-                    return x.end();
+
+                if let Some(right) = right {
+                    return right.end();
                 }
-                if let Some(x) = middle {
-                    return x.token.end();
+
+                if let Some(middle) = middle {
+                    return middle.token.end();
                 }
+
                 left.token.end()
             }
 
@@ -411,23 +428,27 @@ impl<'a> SpanEnd for Construct<'a> {
                 right,
                 ..
             } => {
-                if let Some(x) = right {
-                    return x.end();
+                if let Some(right) = right {
+                    return right.end();
                 }
-                if let Some(x) = operators.last() {
-                    return x.token.end();
+
+                if let Some(last_op) = operators.last() {
+                    return last_op.token.end();
                 }
+
                 left.end()
             }
 
             Self::UnaryMinus { operand, .. } => operand.end(),
 
             Self::AnnotatedTable { annotation, body } => {
-                if let Some(x) = body {
-                    return x.end();
+                if let Some(body) = body {
+                    return body.end();
                 }
+
                 annotation.token.end()
             }
+
             Self::Table { body } => body.end(),
 
             Self::Enum {
@@ -435,12 +456,14 @@ impl<'a> SpanEnd for Construct<'a> {
                 name,
                 variant,
             } => {
-                if let Some(x) = variant {
-                    return x.token.end();
+                if let Some(variant) = variant {
+                    return variant.token.end();
                 }
-                if let Some(x) = name {
-                    return x.token.end();
+
+                if let Some(name) = name {
+                    return name.token.end();
                 }
+
                 keyword.token.end()
             }
 
@@ -449,7 +472,7 @@ impl<'a> SpanEnd for Construct<'a> {
     }
 }
 
-pub(super) enum ParseEndedReason {
+pub(crate) enum ParseEndedReason {
     Eof,
     Manual,
 }
@@ -462,7 +485,7 @@ pub struct Delimited<'a, T: SpanEnd = Construct<'a>> {
 }
 
 impl<'a, T: SpanEnd> Delimited<'a, T> {
-    pub(super) fn new(left: Node<'a>, content: Option<Vec<T>>, right: Option<Node<'a>>) -> Self {
+    pub(crate) fn new(left: Node<'a>, content: Option<Vec<T>>, right: Option<Node<'a>>) -> Self {
         Self {
             left,
             content,
@@ -471,24 +494,22 @@ impl<'a, T: SpanEnd> Delimited<'a, T> {
     }
 
     #[inline(always)]
-    pub(super) fn start(&self) -> usize {
+    pub(crate) fn start(&self) -> usize {
         self.left.token.start()
     }
 
-    pub(super) fn end(&self) -> usize {
-        if let Some(x) = &self.right {
-            return x.token.2;
+    pub(crate) fn end(&self) -> usize {
+        if let Some(right) = &self.right {
+            return right.token.2;
         }
-        if let Some(x) = &self.content {
-            if let Some(x) = x.last() {
-                return x.end();
+
+        if let Some(content) = &self.content {
+            if let Some(last) = content.last() {
+                return last.end();
             }
         }
-        self.left.token.end()
-    }
 
-    pub(super) fn span(&self) -> (usize, usize) {
-        (self.start(), self.end())
+        self.left.token.end()
     }
 }
 
@@ -507,7 +528,7 @@ impl AstErrors {
     }
 }
 
-pub(super) trait PushParseError {
+pub(crate) trait PushParseError {
     fn push(&mut self, error: ParseError, range: Range);
 }
 
@@ -524,7 +545,7 @@ impl PushParseError for AstErrors {
 }
 
 #[inline(always)]
-pub(super) fn clamp_span_to_end(span_end: usize) -> (usize, usize) {
+pub(crate) fn clamp_span_to_end(span_end: usize) -> (usize, usize) {
     (span_end - 1, span_end)
 }
 
@@ -534,13 +555,12 @@ pub enum NodeStatus<'a> {
 
     None,
 
-    /// Error node when advancing until a specific token
-    /// but a block delimiter token was reached instead.
+    /// A block delimiter token was reached before the expected token while advancing.
     Err(Node<'a>),
 }
 
 impl<'a> NodeStatus<'a> {
-    pub(super) fn consume_err_or_advance(self, parser: &mut RsmlParser<'a>) -> Option<Node<'a>> {
+    pub(crate) fn consume_err_or_advance(self, parser: &mut RsmlParser<'a>) -> Option<Node<'a>> {
         match self {
             Self::Err(node) => Some(node),
             Self::Exists => parser.advance(),

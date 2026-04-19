@@ -1,19 +1,17 @@
 mod tuple_annotations;
 use tuple_annotations::TUPLE_ANNOTATIONS;
 
-use super::Datatype;
+use crate::datatype::Datatype;
 
 pub struct Tuple {
     pub name: Option<String>,
-    pub parent: Option<usize>,
     data: Vec<Datatype>,
 }
 
 impl Tuple {
-    pub fn new(name: Option<String>, parent: Option<usize>) -> Self {
+    pub fn new(name: Option<String>) -> Self {
         Self {
             name,
-            parent,
             data: vec![],
         }
     }

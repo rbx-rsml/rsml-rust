@@ -2,7 +2,7 @@ use crate::datatype::Datatype;
 use rbx_types::{Color3, ColorSequence, ColorSequenceKeypoint, Variant};
 use std::cmp::Ordering;
 
-use super::extract_datatype_f32;
+use crate::datatype::tuple::tuple_annotations::extract_datatype_f32;
 
 fn coerce_datatype_to_color3(datatype: Option<&Datatype>, default: Color3) -> Color3 {
     if let Some(datatype) = datatype {

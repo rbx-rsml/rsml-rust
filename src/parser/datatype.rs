@@ -118,7 +118,7 @@ impl<'a> RsmlParser<'a> {
         let mut operators = vec![some_middle_node];
         let right_node = if precedence == TOKEN_KIND_ADD_SUB_PRECEDENCE {
 
-            // Chains consecuative Add and Sub operators.
+            // Chain consecutive Add and Sub operators.
             loop {
                 let middle_node = self.advance();
 

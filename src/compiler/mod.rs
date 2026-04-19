@@ -146,6 +146,7 @@ fn compile_construct<'a>(
                         macro_ctx: Some(&*macro_ctx),
                         active_scope_depth,
                     };
+
                     if let Some(Datatype::Variant(Variant::Float32(value))) =
                         evaluate_construct(body, None, &lookup)
                     {
@@ -170,6 +171,7 @@ fn compile_construct<'a>(
                                 macro_ctx: Some(&*macro_ctx),
                                 active_scope_depth,
                             };
+
                             if let Some(datatype) = evaluate_construct(body, None, &lookup) {
                                 if let Some(node) = tree_nodes[node_idx].as_mut() {
                                     node.tweens.insert(tween_name.to_string(), datatype);
@@ -313,6 +315,7 @@ fn compile_macro_call<'a>(
     let Token::MacroCallIdentifier(Some(macro_name)) = name.token.value() else {
         return;
     };
+
     let macro_name_str = *macro_name;
 
     if macro_ctx
@@ -359,6 +362,7 @@ fn compile_macro_call<'a>(
 
     let caller_scope = current_scope_depth(macro_ctx);
     let mut new_frame: BindingFrame<'a> = HashMap::new();
+
     for (arg_name, arg_value) in arg_names.iter().zip(call_args.iter()) {
         new_frame.insert(
             arg_name.clone(),

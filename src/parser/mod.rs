@@ -361,7 +361,7 @@ impl<'a> RsmlParser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::parser::*;
     use crate::compiler::RsmlCompiler;
 
     macro_rules! parser_test {

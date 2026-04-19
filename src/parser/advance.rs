@@ -9,15 +9,11 @@ use crate::parser::RsmlParser;
 type SymResult<T> = Result<T, T>;
 
 impl<'a> RsmlParser<'a> {
-    pub(super) fn next_token(&mut self) -> Option<SpannedToken<'a>> {
+    pub(crate) fn next_token(&mut self) -> Option<SpannedToken<'a>> {
         self.lexer.next()
     }
 
-    pub(super) fn token_slice(&self) -> &'a str {
-        self.lexer.slice()
-    }
-
-    pub(super) fn handle_multiline_string_error(
+    pub(crate) fn handle_multiline_string_error(
         &mut self,
         token: &SpannedToken,
         expected_nestedness: usize
@@ -30,7 +26,7 @@ impl<'a> RsmlParser<'a> {
         )
     }
 
-    pub(super) fn next_node(&mut self) -> Option<Node<'a>> {
+    pub(crate) fn next_node(&mut self) -> Option<Node<'a>> {
         let mut token = self.next_token()?;
 
         match token.value() {
@@ -75,8 +71,8 @@ impl<'a> RsmlParser<'a> {
         }
     }
 
-    /// Advances to the next valid node - doesn't update the `did_advance` or `last_token_end` flags.
-    pub(super) fn advance_without_flags<'b>(
+    /// Advances to the next valid node. Does not update the `did_advance` or `last_token_end` flags.
+    pub(crate) fn advance_without_flags<'b>(
         &mut self
     ) -> Option<Node<'a>> {
         match self.next_node()? {
@@ -108,7 +104,7 @@ impl<'a> RsmlParser<'a> {
         node
     }
 
-    pub(super) fn advance_until_core_loop<const N: usize>(
+    pub(crate) fn advance_until_core_loop<const N: usize>(
         &mut self,
         allow_list: &TokenKindList<N>,
         construct_delimiters: &LazyLock<HashSet<TokenKind>>,
@@ -161,8 +157,8 @@ impl<'a> RsmlParser<'a> {
         }
     }
 
-    /// Advances to the next valid node which has a token in the allow list - does not set the `did_advance` flag.
-    pub(super) fn advance_until_without_flag<const N: usize>(
+    /// Advances to the next valid node which has a token in the allow list. Does not set the `did_advance` flag.
+    pub(crate) fn advance_until_without_flag<const N: usize>(
         &mut self,
         allow_list: &TokenKindList<N>,
         construct_delimiters: &LazyLock<HashSet<TokenKind>>
@@ -210,7 +206,7 @@ impl<'a> RsmlParser<'a> {
     }
 
     /// Advances to the next valid node which has a token in the allow list.
-    pub(super) fn advance_until<const N: usize>(
+    pub(crate) fn advance_until<const N: usize>(
         &mut self,
         allow_list: &TokenKindList<N>,
         construct_delimiters: &LazyLock<HashSet<TokenKind>>
@@ -220,7 +216,7 @@ impl<'a> RsmlParser<'a> {
         next
     }
 
-    pub(super) fn node_is_kind_else_advance_until<const N: usize>(
+    pub(crate) fn node_is_kind_else_advance_until<const N: usize>(
         &mut self,
         node: Node<'a>,
         allow_list: &TokenKindList<N>,
@@ -289,7 +285,7 @@ impl<'a> RsmlParser<'a> {
 
     }
 
-    pub(super) fn optional_node_is_kind_else_advance_until<const N: usize>(
+    pub(crate) fn optional_node_is_kind_else_advance_until<const N: usize>(
         &mut self,
         node: Option<Node<'a>>,
         allow_list: &TokenKindList<N>,

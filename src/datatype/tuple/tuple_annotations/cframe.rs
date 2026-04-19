@@ -2,7 +2,7 @@ use rbx_types::{CFrame, Matrix3, Variant, Vector3};
 
 use crate::datatype::Datatype;
 
-use super::coerce_datatype_to_f32;
+use crate::datatype::tuple::tuple_annotations::coerce_datatype_to_f32;
 
 fn coerce_datatype_to_vec3(datatype: Option<&Datatype>, default: Vector3) -> Vector3 {
     if let Some(datatype) = datatype {

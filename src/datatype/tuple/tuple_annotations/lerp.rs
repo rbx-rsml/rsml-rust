@@ -4,7 +4,7 @@ use rbx_types_ops::Lerp;
 
 use crate::datatype::Datatype;
 
-use super::coerce_datatype_to_f32;
+use crate::datatype::tuple::tuple_annotations::coerce_datatype_to_f32;
 
 macro_rules! op_match_between_two_variants {
     ($method_name:ident, $from:expr, $to:expr, $time:expr, [$($name:ident),*]) => {

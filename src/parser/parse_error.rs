@@ -1,10 +1,10 @@
-use std::{borrow::Cow, cmp::min};
+use std::cmp::min;
 
 use levenshtein::levenshtein;
 use serde_json::Value;
 use crate::types::{Range, Severity};
 
-use crate::{collection};
+use crate::collection;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseErrorMessage<'a> {
@@ -38,12 +38,8 @@ impl<'a> ToString for ParseErrorMessage<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError<'a> {
-    // Errors.
     UnexpectedTokens { msg: Option<ParseErrorMessage<'a>> },
     MissingToken { msg: Option<ParseErrorMessage<'a>> },
-
-    // Warnings.
-    RedundantTokens { msg: Option<Cow<'a, str>> },
 }
 
 impl<'a> ParseError<'a> {
@@ -51,8 +47,6 @@ impl<'a> ParseError<'a> {
         match self {
             Self::UnexpectedTokens { .. } |
             Self::MissingToken { .. } => Severity::Error,
-
-            Self::RedundantTokens { .. } => Severity::Warning
         }
     }
 
@@ -66,11 +60,6 @@ impl<'a> ParseError<'a> {
             Self::MissingToken { msg } => match msg {
                 Some(msg) => format!("Missing Token: {}", msg.to_string()),
                 None => String::from("Missing Token")
-            },
-
-            Self::RedundantTokens { msg } => match msg {
-                Some(msg) => format!("Redundant Token(s): {}", msg),
-                None => String::from("Redundant Token(s)")
             },
         }
     }
@@ -108,7 +97,6 @@ impl<'a> ToString for ParseError<'a> {
          match self {
             Self::UnexpectedTokens { .. } => "UNEXPECTED_TOKENS",
             Self::MissingToken { .. } => "MISSING_TOKEN",
-            Self::RedundantTokens { .. } => "REDUNDANT_TOKENS",
         }.into()
     }
 }

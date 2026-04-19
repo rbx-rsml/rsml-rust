@@ -2,7 +2,7 @@ use rbx_types::{NumberRange, Variant};
 
 use crate::datatype::Datatype;
 
-use super::coerce_datatype_to_f32;
+use crate::datatype::tuple::tuple_annotations::coerce_datatype_to_f32;
 
 pub fn numrange_annotation(datatype: &Vec<Datatype>) -> Datatype {
     let min = coerce_datatype_to_f32(datatype.get(0), 0.0);

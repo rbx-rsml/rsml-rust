@@ -2,7 +2,7 @@ use palette::{IntoColor, Oklab, Srgb};
 use rbx_types::Variant;
 
 use crate::datatype::Datatype;
-use super::Remap;
+use crate::datatype::tuple::tuple_annotations::Remap;
 
 pub fn oklab_annotation(datatypes: &Vec<Datatype>) -> Datatype {
     let first_datatype = datatypes.get(0);

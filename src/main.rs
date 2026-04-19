@@ -1,4 +1,4 @@
-use rbx_rsml::{RsmlCompiler, RsmlLexer, RsmlParser};
+use rbx_rsml::RsmlCompiler;
 
 fn main() {
     let source = r#"
@@ -7,8 +7,6 @@ fn main() {
         }
     "#;
 
-    let lexer = RsmlLexer::new(source);
-    let parsed = RsmlParser::new(lexer);
-    let compiled = RsmlCompiler::new(parsed);
+    let compiled = RsmlCompiler::from_source(source);
     println!("{:#?}", compiled);
 }

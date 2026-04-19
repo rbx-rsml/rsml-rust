@@ -3,7 +3,7 @@ use crate::{
     parser::{AstErrors, Construct, Delimited, Node},
 };
 
-use super::{PushTypeError, Typechecker, type_error::*};
+use crate::typechecker::{PushTypeError, Typechecker, type_error::*};
 
 fn is_number(construct: &Construct) -> bool {
     matches!(

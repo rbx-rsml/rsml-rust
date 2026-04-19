@@ -10,10 +10,10 @@ use crate::{
     parser::{AstErrors, Construct, Delimited, Node},
 };
 
-use super::luaurc::Luaurc;
-use super::normalize_path::NormalizePath;
+use crate::typechecker::luaurc::Luaurc;
+use crate::typechecker::normalize_path::NormalizePath;
 
-use super::{PushTypeError, Typechecker, type_error::*};
+use crate::typechecker::{PushTypeError, Typechecker, type_error::*};
 
 impl<'a> Typechecker<'a> {
     pub(super) fn typecheck_derive<'b>(

@@ -5,11 +5,11 @@ use rbx_types_ops::BasicOperations;
 use crate::lexer::Token;
 use crate::parser::types::{Construct, Delimited, Node};
 
-use super::colors::{BRICK_COLORS, CSS_COLORS, SKIN_COLORS, TAILWIND_COLORS};
-use super::lookup::StaticLookup;
-use super::tuple;
-use super::types::Datatype;
-use super::variants::EnumItemFromNameAndValueName;
+use crate::datatype::colors::{BRICK_COLORS, CSS_COLORS, SKIN_COLORS, TAILWIND_COLORS};
+use crate::datatype::lookup::StaticLookup;
+use crate::datatype::tuple;
+use crate::datatype::types::Datatype;
+use crate::datatype::variants::EnumItemFromNameAndValueName;
 
 pub fn evaluate_construct(
     construct: &Construct,
@@ -212,7 +212,7 @@ fn evaluate_delimited_to_vec(
 }
 
 fn coerce_tuple_data(datatypes: Vec<Datatype>, name: Option<&str>) -> Option<Datatype> {
-    let mut t = tuple::Tuple::new(name.map(|s| s.to_string()), None);
+    let mut t = tuple::Tuple::new(name.map(|s| s.to_string()));
     for d in datatypes {
         t.push(d);
     }
