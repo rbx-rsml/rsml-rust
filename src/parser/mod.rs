@@ -630,4 +630,8 @@ Frame {
         macro_selector_undefined_dropped,
         "Missing!(), Frame { }"
     );
+    parser_test!(
+        macro_indirect_recursion_typechecker_error,
+        "@macro A() -> Construct { B!(); }\n@macro B() -> Construct { A!(); }\nFrame { A!(); }"
+    );
 }

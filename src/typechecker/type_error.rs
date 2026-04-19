@@ -35,6 +35,7 @@ pub enum TypeError<'a> {
     WrongMacroArgCount { name: &'a str, expected: Vec<usize>, got: usize },
     WrongMacroContext { name: &'a str, expected: &'a str, got: &'a str },
     DuplicateMacro { name: &'a str, arg_count: usize },
+    RecursiveMacroCall,
     NotAllowedInContext { name: &'a str, context: &'a str },
     UnknownAnnotation { name: &'a str },
     WrongAnnotationArgCount { name: &'a str, expected: Vec<usize>, got: usize },
@@ -57,6 +58,7 @@ impl<'a> TypeError<'a> {
             Self::WrongMacroArgCount { .. } |
             Self::WrongMacroContext { .. } |
             Self::DuplicateMacro { .. } |
+            Self::RecursiveMacroCall |
             Self::NotAllowedInContext { .. } |
             Self::UnknownAnnotation { .. } |
             Self::WrongAnnotationArgCount { .. } |
@@ -145,6 +147,9 @@ impl<'a> TypeError<'a> {
                     name, arg_count, if *arg_count == 1 { "" } else { "s" }
                 ),
 
+            Self::RecursiveMacroCall =>
+                String::from("Type Error (Recursive Macro Call): Infinite recursion cycle detected."),
+
             Self::NotAllowedInContext { name, context } =>
                 format!("{} are not allowed in {}.", name, context),
 
@@ -211,6 +216,7 @@ impl<'a> ToString for TypeError<'a> {
             Self::WrongMacroArgCount { .. } => "WRONG_MACRO_ARG_COUNT",
             Self::WrongMacroContext { .. } => "WRONG_MACRO_CONTEXT",
             Self::DuplicateMacro { .. } => "DUPLICATE_MACRO",
+            Self::RecursiveMacroCall => "RECURSIVE_MACRO_CALL",
             Self::NotAllowedInContext { .. } => "NOT_ALLOWED_IN_CONTEXT",
             Self::UnknownAnnotation { .. } => "UNKNOWN_ANNOTATION",
             Self::WrongAnnotationArgCount { .. } => "WRONG_ANNOTATION_ARG_COUNT",

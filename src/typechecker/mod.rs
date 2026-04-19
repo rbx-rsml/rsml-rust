@@ -338,6 +338,8 @@ impl<'a> Typechecker<'a> {
             }
         }
 
+        typechecker.detect_recursive_macro_calls(&mut ast_errors);
+
         TypecheckedRsml {
             errors: ast_errors,
             derives,
@@ -1529,6 +1531,75 @@ mod tests {
             duplicate_errors.is_empty(),
             "unexpected errors: {:?}",
             duplicate_errors
+        );
+    }
+
+    #[tokio::test]
+    async fn macro_direct_recursion_emits_error() {
+        let result = typecheck("@macro Foo() -> Construct { Foo!(); }\nFrame { Foo!(); }").await;
+        let recursive: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Recursive Macro Call"))
+            .collect();
+        assert_eq!(
+            recursive.len(),
+            1,
+            "expected exactly one recursive-call error, got: {:?}",
+            recursive
+        );
+    }
+
+    #[tokio::test]
+    async fn macro_indirect_recursion_emits_error() {
+        let result = typecheck(
+            "@macro A() -> Construct { B!(); }\n@macro B() -> Construct { A!(); }\nFrame { A!(); }",
+        )
+        .await;
+        let recursive: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Recursive Macro Call"))
+            .collect();
+        assert_eq!(
+            recursive.len(),
+            1,
+            "expected exactly one recursive-call error on the cycle-closing edge, got: {:?}",
+            recursive
+        );
+    }
+
+    #[tokio::test]
+    async fn macro_selector_direct_recursion_emits_error() {
+        let result = typecheck("@macro Sel -> Selector { Sel!() }\nSel!() { }").await;
+        let recursive: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Recursive Macro Call"))
+            .collect();
+        assert_eq!(
+            recursive.len(),
+            1,
+            "expected exactly one recursive-call error, got: {:?}",
+            recursive
+        );
+    }
+
+    #[tokio::test]
+    async fn macro_overload_cross_arity_not_recursive() {
+        let result = typecheck(
+            "@macro Foo() -> Construct { Foo!(10px); }\n@macro Foo(&v) -> Construct { ::Inner { X = &v; } }\nFrame { Foo!(); }",
+        )
+        .await;
+        let recursive: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Recursive Macro Call"))
+            .collect();
+        assert!(
+            recursive.is_empty(),
+            "cross-arity overload should not report recursion, got: {:?}",
+            recursive
         );
     }
 

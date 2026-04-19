@@ -351,3 +351,136 @@ fn collect_macro_arg_names<'a>(args: &Option<Delimited<'a>>) -> HashSet<&'a str>
     }
     names
 }
+
+fn for_each_macro_call_in_body<'a, F>(body: &MacroBodyContent<'a>, cb: &mut F)
+where
+    F: FnMut(&'a str, usize, (usize, usize)),
+{
+    match body {
+        MacroBodyContent::Construct(Some(content)) => {
+            for construct in content {
+                visit_construct_for_calls(construct, cb);
+            }
+        }
+
+        MacroBodyContent::Assignment(Some(content)) => {
+            visit_construct_for_calls(content, cb);
+        }
+
+        MacroBodyContent::Selector(Some(selectors)) => {
+            visit_selectors_for_calls(selectors, cb);
+        }
+
+        _ => {}
+    }
+}
+
+fn visit_construct_for_calls<'a, F>(construct: &Construct<'a>, cb: &mut F)
+where
+    F: FnMut(&'a str, usize, (usize, usize)),
+{
+    match construct {
+        Construct::MacroCall { name, body, .. } => {
+            if let Token::MacroCallIdentifier(Some(n)) = name.token.value() {
+                cb(*n, count_macro_call_args(body), name.token.span());
+            }
+        }
+
+        Construct::Assignment { right, .. } => {
+            if let Some(right) = right {
+                visit_construct_for_calls(right, cb);
+            }
+        }
+
+        Construct::Rule { selectors, body } => {
+            if let Some(selectors) = selectors {
+                visit_selectors_for_calls(selectors, cb);
+            }
+
+            if let Some(body) = body {
+                if let Some(content) = &body.content {
+                    for inner in content {
+                        visit_construct_for_calls(inner, cb);
+                    }
+                }
+            }
+        }
+
+        _ => {}
+    }
+}
+
+fn visit_selectors_for_calls<'a, F>(selectors: &[SelectorNode<'a>], cb: &mut F)
+where
+    F: FnMut(&'a str, usize, (usize, usize)),
+{
+    for selector in selectors {
+        if let SelectorNode::MacroCall { name, body } = selector {
+            if let Token::MacroCallIdentifier(Some(n)) = name.token.value() {
+                cb(*n, count_macro_call_args(body), name.token.span());
+            }
+        }
+    }
+}
+
+enum DfsColor {
+    Gray,
+    Black,
+}
+
+impl<'a> Typechecker<'a> {
+    pub(super) fn detect_recursive_macro_calls(&self, ast_errors: &mut AstErrors) {
+        let mut color: HashMap<MacroKey<'a>, DfsColor> = HashMap::new();
+
+        let roots: Vec<MacroKey<'a>> = self.macro_registry.keys().copied().collect();
+        for root in roots {
+            if color.contains_key(&root) {
+                continue;
+            }
+
+            self.dfs_macro_cycle(root, &mut color, ast_errors);
+        }
+    }
+
+    fn dfs_macro_cycle(
+        &self,
+        key: MacroKey<'a>,
+        color: &mut HashMap<MacroKey<'a>, DfsColor>,
+        ast_errors: &mut AstErrors,
+    ) {
+        color.insert(key, DfsColor::Gray);
+
+        let Some(def) = self.macro_registry.get(&key) else {
+            color.insert(key, DfsColor::Black);
+            return;
+        };
+        let Some(body) = def.body else {
+            color.insert(key, DfsColor::Black);
+            return;
+        };
+
+        let mut calls: Vec<(&'a str, usize, (usize, usize))> = Vec::new();
+        for_each_macro_call_in_body(body, &mut |name, arity, span| {
+            calls.push((name, arity, span));
+        });
+
+        for (name, arity, span) in calls {
+            let callee = MacroKey { name, arity };
+
+            if !self.macro_registry.contains_key(&callee) {
+                continue;
+            }
+
+            match color.get(&callee) {
+                Some(DfsColor::Gray) => ast_errors.push(
+                    TypeError::RecursiveMacroCall,
+                    self.range_from_span(span),
+                ),
+                Some(DfsColor::Black) => {}
+                None => self.dfs_macro_cycle(callee, color, ast_errors),
+            }
+        }
+
+        color.insert(key, DfsColor::Black);
+    }
+}
