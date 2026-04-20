@@ -2,6 +2,11 @@
 name = "rbx-rsml"
 version = "1.0.0"
 edition = "2024"
+description = "A lexer and parser for the RSML language."
+homepage = "https://www.rsml.style"
+repository = "https://github.com/rbx-rsml/rsml-rust.git"
+readme = "README.md"
+license = "MIT"
 
 [dependencies]
 logos = "0.15.1"
