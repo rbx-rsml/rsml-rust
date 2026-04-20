@@ -5,6 +5,13 @@
     - Added a new compilation step which turns the parsed AST into StyleSheet nodes (effectively what the parsing step in the old version did).
 - Removed the `@name` declaration.
 - Added a typechecker component to the library.
+    - An error will be thrown when calling a macro which doesn't exist.
+    - An error will be thrown when a macro overload is invalid.
+    - An error will be thrown if a function's args are incorrect.
+    - An error will be thrown when referencing a token which doesn't exist.
+    - An errror will be thrown when a infinite recursion cycle is detected when calling a macro.
+    - The typechecker can run in an optional `strict` mode. This mode can be enabled by adding `--!strict` at the top of an rsml file, or via `languageMode` in a luaurc. Strict mode requires a property to exist on **every** class in a multi-class selector.
+- We now parse numbers as f64 to mitigate precision issues, particularly with the `font` function.
 
 # 0.1.14
 - Added query selector support to the lexer and parser.
