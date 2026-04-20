@@ -1,6 +1,7 @@
 mod colors;
 mod evaluate;
 mod lookup;
+pub mod palette;
 mod tuple;
 mod types;
 mod variants;
