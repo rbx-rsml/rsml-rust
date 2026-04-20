@@ -1,7 +1,7 @@
 use ropey::Rope;
 
 use crate::range_from_span::RangeFromSpan;
-use crate::types::{Diagnostic, Range};
+use crate::types::{Diagnostic, LanguageMode, Range};
 
 use crate::lexer::{SpannedToken, Token};
 use crate::parser::RsmlParser;
@@ -10,6 +10,7 @@ use crate::parser::parse_error::ParseError;
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Directives {
     pub nobuiltins: bool,
+    pub language_mode: Option<LanguageMode>,
 }
 
 pub struct ParsedRsml<'a> {

@@ -13,6 +13,7 @@ use crate::{
 };
 
 use self::luaurc::Luaurc;
+use crate::types::LanguageMode;
 pub use macro_check::{
     MacroDefinition, MacroKey, MacroRegistry, MacroReturnContext, collect_macro_def_arg_names,
     macro_return_context,
@@ -26,18 +27,19 @@ pub mod luaurc;
 mod macro_check;
 pub(crate) mod multibimap;
 pub(crate) mod normalize_path;
+mod properties;
 mod selectors;
 mod tween;
 mod type_error;
 
 pub use type_error::*;
 
-pub trait PushTypeError {
-    fn push(&mut self, error: TypeError, range: Range);
+pub trait ReportTypeError {
+    fn report(&mut self, error: TypeError, range: Range);
 }
 
-impl PushTypeError for AstErrors {
-    fn push(&mut self, error: TypeError, range: Range) {
+impl ReportTypeError for AstErrors {
+    fn report(&mut self, error: TypeError, range: Range) {
         self.0.push(Diagnostic {
             range,
             severity: error.severity(),
@@ -157,6 +159,7 @@ pub struct Typechecker<'a> {
     macro_registry: MacroRegistry<'a>,
     pub(crate) static_scopes: Vec<HashMap<String, Datatype>>,
     pub(crate) declared_tokens: Vec<HashSet<ResolvedTypeKey>>,
+    pub(crate) language_mode: LanguageMode,
 }
 
 pub(crate) struct TypecheckerLookup<'a> {
@@ -184,11 +187,19 @@ impl<'a> Typechecker<'a> {
         current_path: &Path,
         mut luaurc: Option<&mut Luaurc>,
     ) -> TypecheckedRsml {
+        let language_mode = parsed.directives.language_mode.unwrap_or_else(|| {
+            luaurc
+                .as_deref()
+                .map(|luaurc_ref| luaurc_ref.language_mode)
+                .unwrap_or_default()
+        });
+
         let mut typechecker: Typechecker<'a> = Self {
             parsed,
             macro_registry: MacroRegistry::new(),
             static_scopes: vec![HashMap::new()],
             declared_tokens: vec![HashSet::new()],
+            language_mode,
         };
 
         // A separate `AstErrors` is needed because the shared one would conflict
@@ -221,7 +232,7 @@ impl<'a> Typechecker<'a> {
                 Construct::Tween {
                     body: Some(body), ..
                 } => {
-                    ast_errors.push(
+                    ast_errors.report(
                         TypeError::NotAllowedInContext {
                             name: construct.name_plural(),
                             context: "the global scope",
@@ -265,7 +276,7 @@ impl<'a> Typechecker<'a> {
                                 typechecker.macro_registry.contains_key(&key);
 
                             if builtin_collision || local_collision {
-                                ast_errors.push(
+                                ast_errors.report(
                                     TypeError::DuplicateMacro {
                                         name: name_str,
                                         arg_count,
@@ -302,7 +313,7 @@ impl<'a> Typechecker<'a> {
                     ..
                 } => {
                     if matches!(left.token.value(), Token::Identifier(_)) {
-                        ast_errors.push(
+                        ast_errors.report(
                             TypeError::NotAllowedInContext {
                                 name: construct.name_plural(),
                                 context: "the global scope",
@@ -321,11 +332,11 @@ impl<'a> Typechecker<'a> {
                             &mut ast_errors,
                         );
                     }
-                    typechecker.resolve_token_assignment(left, right, &mut ast_errors, &mut definitions, &mut resolved_types);
+                    typechecker.resolve_token_assignment(left, right, &[], &mut ast_errors, &mut definitions, &mut resolved_types);
                 }
 
                 Construct::Priority { .. } => {
-                    ast_errors.push(
+                    ast_errors.report(
                         TypeError::NotAllowedInContext {
                             name: construct.name_plural(),
                             context: "the global scope",
@@ -353,6 +364,7 @@ impl<'a> Typechecker<'a> {
         &mut self,
         left: &Node<'a>,
         right: &Construct<'a>,
+        current_classes: &[String],
         ast_errors: &mut AstErrors,
         definitions: &mut Definitions,
         resolved_types: &mut ResolvedTypes,
@@ -435,6 +447,15 @@ impl<'a> Typechecker<'a> {
                 );
             }
             LhsKind::Property { .. } => {
+                self.check_property_against_reflection(
+                    name,
+                    &resolved_type,
+                    current_classes,
+                    left,
+                    right,
+                    ast_errors,
+                );
+
                 let type_definition = vec![resolved_type.type_name()];
                 resolved_types.insert(
                     ResolvedTypeKey::Property { start },
@@ -449,6 +470,93 @@ impl<'a> Typechecker<'a> {
                 );
             }
         }
+    }
+
+    /// Cross-checks a property assignment against the reflection database.
+    /// Emits `UnknownProperty` when the property doesn't appear on the selector
+    /// classes, and `PropertyTypeMismatch` when the RHS's runtime type doesn't
+    /// match the declared type. Skipped when `current_classes` is empty — that
+    /// covers global-scope assignments and pseudo-selector bodies
+    /// (`UICorner { ... }`) where no Instance class drives the lookup.
+    fn check_property_against_reflection(
+        &self,
+        property_name: &str,
+        resolved_type: &Datatype,
+        current_classes: &[String],
+        left: &Node<'a>,
+        right: &Construct<'a>,
+        ast_errors: &mut AstErrors,
+    ) {
+        if current_classes.is_empty() {
+            return;
+        }
+
+        let Ok(db) = rbx_reflection_database::get() else {
+            return;
+        };
+
+        let mut descriptors: Vec<Option<&rbx_reflection::PropertyDescriptor>> =
+            Vec::with_capacity(current_classes.len());
+
+        let mut missing_classes: Vec<String> = Vec::new();
+        let mut present_classes: Vec<String> = Vec::new();
+
+        for class_name in current_classes {
+            let descriptor = properties::lookup_property(db, class_name, property_name);
+
+            if descriptor.is_some() {
+                present_classes.push(class_name.clone());
+            } else {
+                missing_classes.push(class_name.clone());
+            }
+
+            descriptors.push(descriptor);
+        }
+
+        let should_error = match self.language_mode {
+            LanguageMode::Strict => !missing_classes.is_empty(),
+            LanguageMode::Nonstrict => present_classes.is_empty(),
+        };
+
+        if should_error {
+            ast_errors.report(
+                TypeError::UnknownProperty {
+                    name: property_name.to_string(),
+                    missing: missing_classes,
+                    present: present_classes,
+                },
+                Range::from_span(&self.parsed.rope, left.token.span()),
+            );
+            return;
+        }
+
+        let Datatype::Variant(value) = resolved_type else {
+            return;
+        };
+
+        // Multi-class selectors with differing declared types are essentially
+        // nonexistent in Roblox — compare against the first class that declares
+        // the property.
+        let first_descriptor = descriptors
+            .iter()
+            .find_map(|descriptor| descriptor.as_ref().copied());
+
+        let Some(descriptor) = first_descriptor else {
+            return;
+        };
+
+        if properties::variant_matches(descriptor, value) {
+            return;
+        }
+
+        ast_errors.report(
+            TypeError::PropertyTypeMismatch {
+                name: property_name.to_string(),
+                expected: properties::expected_type_label(descriptor),
+                got: crate::datatype::variant_type_name(value.ty()).to_string(),
+            },
+            Range::from_span(&self.parsed.rope, right.span()),
+        );
     }
 
     /// Validates every enum reference on the RHS of an assignment against the
@@ -564,7 +672,7 @@ impl<'a> Typechecker<'a> {
         ast_errors: &mut AstErrors,
     ) -> bool {
         if !annotations::enum_exists(enum_name) {
-            ast_errors.push(
+            ast_errors.report(
                 TypeError::UnknownEnum { name: enum_name.to_string() },
                 self.parsed.range_from_span(name_span),
             );
@@ -576,7 +684,7 @@ impl<'a> Typechecker<'a> {
         }
 
         if !annotations::validate_enum_variant(variant, enum_name) {
-            ast_errors.push(
+            ast_errors.report(
                 TypeError::UnknownEnumVariant {
                     enum_name: enum_name.to_string(),
                     variant: variant.to_string(),
@@ -611,7 +719,7 @@ impl<'a> Typechecker<'a> {
                     .rev()
                     .any(|frame| frame.contains(&key));
                 if !in_scope {
-                    ast_errors.push(
+                    ast_errors.report(
                         TypeError::UndefinedToken { name, is_static },
                         self.parsed.range_from_span(node.token.span()),
                     );
@@ -673,9 +781,18 @@ mod tests {
     }
 
     async fn typecheck(source: &str) -> TypecheckResult {
+        typecheck_with_luaurc(source, None).await
+    }
+
+    async fn typecheck_with_luaurc(
+        source: &str,
+        luaurc_contents: Option<&str>,
+    ) -> TypecheckResult {
         let lexer = RsmlLexer::new(source);
         let parsed = RsmlParser::new(lexer);
         let dummy_path = PathBuf::from("/test.rsml");
+
+        let mut luaurc = luaurc_contents.map(Luaurc::new);
 
         let TypecheckedRsml {
             errors: ast_errors,
@@ -683,7 +800,7 @@ mod tests {
             definitions,
             dependencies: _dependencies,
             resolved_types,
-        } = Typechecker::new(&parsed, &dummy_path, None).await;
+        } = Typechecker::new(&parsed, &dummy_path, luaurc.as_mut()).await;
 
         let selectors: Vec<(usize, usize, Vec<String>)> = definitions
             .iter()
@@ -2674,6 +2791,143 @@ mod tests {
             ),
             "got {:?}",
             dt
+        );
+    }
+
+    fn has_unknown_property_error(result: &TypecheckResult) -> bool {
+        result
+            .errors
+            .iter()
+            .any(|err| err.contains("Unknown Property"))
+    }
+
+    fn has_property_type_mismatch_error(result: &TypecheckResult) -> bool {
+        result
+            .errors
+            .iter()
+            .any(|err| err.contains("Property Type Mismatch"))
+    }
+
+    #[tokio::test]
+    async fn property_matching_reflection_type_no_error() {
+        let result = typecheck("Frame { Position = UDim2.new(0, 0, 0, 0); }").await;
+        assert!(
+            !has_unknown_property_error(&result) && !has_property_type_mismatch_error(&result),
+            "unexpected property diagnostics, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn property_type_mismatch_emits_error() {
+        let result = typecheck("Frame { Position = \"hello\"; }").await;
+        assert!(
+            has_property_type_mismatch_error(&result),
+            "expected Property Type Mismatch error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn unknown_property_emits_error() {
+        let result = typecheck("Frame { Bogus = 1; }").await;
+        assert!(
+            has_unknown_property_error(&result),
+            "expected Unknown Property error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn multi_class_nonstrict_accepts_partial_property() {
+        let result = typecheck("TextButton, Frame { Text = \"hi\"; }").await;
+        assert!(
+            !has_unknown_property_error(&result),
+            "unexpected Unknown Property error in nonstrict mode, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn multi_class_strict_directive_rejects_partial_property() {
+        let result = typecheck("--!strict\nTextButton, Frame { Text = \"hi\"; }").await;
+        assert!(
+            has_unknown_property_error(&result),
+            "expected Unknown Property error in strict mode, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn luaurc_strict_rejects_partial_property() {
+        let result = typecheck_with_luaurc(
+            "TextButton, Frame { Text = \"hi\"; }",
+            Some(r#"{ "languageMode": "strict" }"#),
+        )
+        .await;
+        assert!(
+            has_unknown_property_error(&result),
+            "expected Unknown Property error from luaurc strict mode, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn directive_nonstrict_overrides_luaurc_strict() {
+        let result = typecheck_with_luaurc(
+            "--!nonstrict\nTextButton, Frame { Text = \"hi\"; }",
+            Some(r#"{ "languageMode": "strict" }"#),
+        )
+        .await;
+        assert!(
+            !has_unknown_property_error(&result),
+            "unexpected Unknown Property error when directive overrides luaurc, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn luaurc_unknown_mode_treated_as_nonstrict() {
+        let result = typecheck_with_luaurc(
+            "TextButton, Frame { Text = \"hi\"; }",
+            Some(r#"{ "languageMode": "nocheck" }"#),
+        )
+        .await;
+        assert!(
+            !has_unknown_property_error(&result),
+            "unexpected Unknown Property error for unknown luaurc mode, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn multi_class_unknown_everywhere_errors_in_nonstrict() {
+        let result = typecheck("TextButton, Frame { Bogus = 1; }").await;
+        assert!(
+            has_unknown_property_error(&result),
+            "expected Unknown Property error when property missing on every class, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn multi_class_shared_property_no_error() {
+        let result =
+            typecheck("Frame, TextLabel { BackgroundColor3 = Color3.new(1, 1, 1); }").await;
+        assert!(
+            !has_unknown_property_error(&result) && !has_property_type_mismatch_error(&result),
+            "unexpected property diagnostics for shared property, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn pseudo_selector_skips_property_check() {
+        let result = typecheck("UICorner { CornerRadius = UDim.new(0, 8); }").await;
+        assert!(
+            !has_unknown_property_error(&result) && !has_property_type_mismatch_error(&result),
+            "unexpected property diagnostics in pseudo-selector body, got: {:?}",
+            result.errors
         );
     }
 }

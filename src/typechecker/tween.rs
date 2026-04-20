@@ -3,7 +3,7 @@ use crate::{
     parser::{AstErrors, Construct, Delimited, Node},
 };
 
-use crate::typechecker::{PushTypeError, Typechecker, type_error::*};
+use crate::typechecker::{ReportTypeError, Typechecker, type_error::*};
 
 fn is_number(construct: &Construct) -> bool {
     matches!(
@@ -114,7 +114,7 @@ impl<'a> Typechecker<'a> {
                 let args: Vec<&Construct<'a>> = items.iter().filter(|item| !is_comma(item)).collect();
 
                 if args.is_empty() {
-                    ast_errors.push(
+                    ast_errors.report(
                         TypeError::InvalidType { expected: Some(ExpectedDatatype::Tween) },
                         self.parsed.range_from_span(body.span()),
                     );
@@ -122,7 +122,7 @@ impl<'a> Typechecker<'a> {
                 }
 
                 if !is_number(args[0]) {
-                    ast_errors.push(
+                    ast_errors.report(
                         TypeError::InvalidTweenArg { expected: "number" },
                         self.parsed.range_from_span(args[0].span()),
                     );
@@ -130,13 +130,13 @@ impl<'a> Typechecker<'a> {
 
                 if let Some(arg) = args.get(1) {
                     if !is_enum(arg, "EasingStyle") {
-                        ast_errors.push(
+                        ast_errors.report(
                             TypeError::InvalidTweenArg { expected: "Enum.EasingStyle" },
                             self.parsed.range_from_span(arg.span()),
                         );
                     } else if let Some(variant) = get_enum_variant(arg) {
                         if !validate_enum_variant(variant, "EasingStyle") {
-                            ast_errors.push(
+                            ast_errors.report(
                                 TypeError::InvalidTweenArg { expected: "a valid Enum.EasingStyle variant" },
                                 self.parsed.range_from_span(arg.span()),
                             );
@@ -146,13 +146,13 @@ impl<'a> Typechecker<'a> {
 
                 if let Some(arg) = args.get(2) {
                     if !is_enum(arg, "EasingDirection") {
-                        ast_errors.push(
+                        ast_errors.report(
                             TypeError::InvalidTweenArg { expected: "Enum.EasingDirection" },
                             self.parsed.range_from_span(arg.span()),
                         );
                     } else if let Some(variant) = get_enum_variant(arg) {
                         if !validate_enum_variant(variant, "EasingDirection") {
-                            ast_errors.push(
+                            ast_errors.report(
                                 TypeError::InvalidTweenArg { expected: "a valid Enum.EasingDirection variant" },
                                 self.parsed.range_from_span(arg.span()),
                             );
@@ -161,7 +161,7 @@ impl<'a> Typechecker<'a> {
                 }
 
                 for arg in args.iter().skip(3) {
-                    ast_errors.push(
+                    ast_errors.report(
                         TypeError::InvalidType { expected: Some(ExpectedDatatype::Tween) },
                         self.parsed.range_from_span(arg.span()),
                     );
@@ -169,7 +169,7 @@ impl<'a> Typechecker<'a> {
             }
 
             _ => {
-                ast_errors.push(
+                ast_errors.report(
                     TypeError::InvalidType { expected: Some(ExpectedDatatype::Tween) },
                     self.parsed.range_from_span(body.span()),
                 );

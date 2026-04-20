@@ -6,7 +6,7 @@ use crate::{
     range_from_span::RangeFromSpan,
 };
 
-use crate::typechecker::{PushTypeError, Typechecker, type_error::*};
+use crate::typechecker::{ReportTypeError, Typechecker, type_error::*};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MacroReturnContext {
@@ -167,14 +167,14 @@ impl<'a> Typechecker<'a> {
                 }
 
                 Construct::Macro { .. } => {
-                    ast_errors.push(
+                    ast_errors.report(
                         TypeError::NotAllowedInContext { name: construct.name_plural(), context: "other macros" },
                         self.range_from_span(construct.span()),
                     );
                 }
 
                 Construct::Derive { .. } => {
-                    ast_errors.push(
+                    ast_errors.report(
                         TypeError::NotAllowedInContext { name: construct.name_plural(), context: "non-global scopes" },
                         self.range_from_span(construct.span()),
                     );
@@ -210,7 +210,7 @@ impl<'a> Typechecker<'a> {
         let mut expected_counts: Vec<usize> = local_arities.chain(builtin_arities).collect();
 
         if expected_counts.is_empty() {
-            ast_errors.push(
+            ast_errors.report(
                 TypeError::UndefinedMacro { name: macro_name },
                 self.range_from_span(name.token.span()),
             );
@@ -238,7 +238,7 @@ impl<'a> Typechecker<'a> {
             expected_counts.sort();
             expected_counts.dedup();
 
-            ast_errors.push(
+            ast_errors.report(
                 TypeError::WrongMacroArgCount {
                     name: macro_name,
                     expected: expected_counts,
@@ -250,7 +250,7 @@ impl<'a> Typechecker<'a> {
         };
 
         if matching_context != expected_context {
-            ast_errors.push(
+            ast_errors.report(
                 TypeError::WrongMacroContext {
                     name: macro_name,
                     expected: matching_context.name(),
@@ -277,7 +277,7 @@ impl<'a> Typechecker<'a> {
 
                     if !is_valid {
                         if let Some(arg_name) = name {
-                            ast_errors.push(
+                            ast_errors.report(
                                 TypeError::InvalidMacroArg {
                                     msg: &format!(
                                         "No macro argument named \"{}\" exists.",
@@ -287,7 +287,7 @@ impl<'a> Typechecker<'a> {
                                 self.range_from_span(node.token.span()),
                             );
                         } else {
-                            ast_errors.push(
+                            ast_errors.report(
                                 TypeError::InvalidMacroArg {
                                     msg: "Missing macro argument name.",
                                 },
@@ -472,7 +472,7 @@ impl<'a> Typechecker<'a> {
             }
 
             match color.get(&callee) {
-                Some(DfsColor::Gray) => ast_errors.push(
+                Some(DfsColor::Gray) => ast_errors.report(
                     TypeError::RecursiveMacroCall,
                     self.range_from_span(span),
                 ),

@@ -26,3 +26,10 @@ pub struct Diagnostic {
     pub message: String,
     pub data: Option<Value>,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LanguageMode {
+    #[default]
+    Nonstrict,
+    Strict,
+}

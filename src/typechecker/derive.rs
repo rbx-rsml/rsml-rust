@@ -13,7 +13,7 @@ use crate::{
 use crate::typechecker::luaurc::Luaurc;
 use crate::typechecker::normalize_path::NormalizePath;
 
-use crate::typechecker::{PushTypeError, Typechecker, type_error::*};
+use crate::typechecker::{ReportTypeError, Typechecker, type_error::*};
 
 impl<'a> Typechecker<'a> {
     pub(super) fn typecheck_derive<'b>(
@@ -94,7 +94,7 @@ impl<'a> Typechecker<'a> {
                         },
                 } => (),
 
-                _ => ast_errors.push(
+                _ => ast_errors.report(
                     TypeError::InvalidType {
                         expected: Some(ExpectedDatatype::String),
                     },
@@ -163,7 +163,7 @@ impl<'a> Typechecker<'a> {
         match path.canonicalize() {
             Ok(canonicalized) => {
                 if &canonicalized == current_path {
-                    ast_errors.push(
+                    ast_errors.report(
                         TypeError::CyclicDerive {
                             kind: CyclicKind::Internal,
                         },
@@ -178,7 +178,7 @@ impl<'a> Typechecker<'a> {
             Err(_) => {
                 let normalized_path = path.normalize();
 
-                ast_errors.push(
+                ast_errors.report(
                     TypeError::UnknownDerive {
                         path: Some(&normalized_path.to_string_lossy()),
                     },

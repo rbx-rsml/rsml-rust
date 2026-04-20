@@ -14,7 +14,7 @@ use phf_macros::phf_set;
 use ropey::Rope;
 use crate::types::Range;
 
-use crate::typechecker::{DefinitionKind, PushTypeError, ResolvedTypes, Typechecker, type_error::*};
+use crate::typechecker::{DefinitionKind, ReportTypeError, ResolvedTypes, Typechecker, type_error::*};
 use crate::typechecker::macro_check::{MacroKey, MacroRegistry, MacroReturnContext};
 
 impl<'a> Typechecker<'a> {
@@ -72,7 +72,7 @@ impl<'a> Typechecker<'a> {
                         if let Construct::MacroCall { name, body, .. } = right.as_ref() {
                             self.validate_macro_call(name, body, MacroReturnContext::Assignment, ast_errors);
                         }
-                        self.resolve_token_assignment(left, right, ast_errors, definitions, resolved_types);
+                        self.resolve_token_assignment(left, right, &current_classes, ast_errors, definitions, resolved_types);
                     }
                 }
 
@@ -84,7 +84,7 @@ impl<'a> Typechecker<'a> {
                 }
 
                 Construct::Derive { .. } => {
-                    ast_errors.push(
+                    ast_errors.report(
                         TypeError::NotAllowedInContext { name: construct.name_plural(), context: "non-global scopes" },
                         Range::from_span(&self.parsed.rope, construct.span()),
                     );
@@ -95,7 +95,7 @@ impl<'a> Typechecker<'a> {
                 }
 
                 Construct::Macro { args, body, .. } => {
-                    ast_errors.push(
+                    ast_errors.report(
                         TypeError::NotAllowedInContext { name: construct.name_plural(), context: "rules" },
                         Range::from_span(&self.parsed.rope, construct.span()),
                     );
@@ -300,7 +300,7 @@ impl<'a> TypecheckSelectors<'a> {
         match part.token.value() {
             Token::Identifier(class) => {
                 if !after_combinator {
-                    self.ast_errors.push(
+                    self.ast_errors.report(
                         TypeError::InvalidSelector {
                             msg: Some("Class Selectors can't be nested inside another selector without a children (>) or descendants selector."),
                         },
@@ -441,7 +441,7 @@ impl<'a> TypecheckSelectors<'a> {
             )
         };
 
-        self.ast_errors.push(
+        self.ast_errors.report(
             TypeError::InvalidSelector { msg: Some(&msg) },
             self.range_from_span(subject_span),
         );
@@ -468,7 +468,7 @@ impl<'a> TypecheckSelectors<'a> {
             return class;
         }
 
-        self.ast_errors.push(
+        self.ast_errors.report(
             TypeError::InvalidSelector {
                 msg: Some(&format!("No class named \"{}\" exists.", class)),
             },
@@ -487,7 +487,7 @@ impl<'a> TypecheckSelectors<'a> {
         let validated = self.validate_class(class, token);
 
         if validated != "Instance" && !ALLOWED_PSEUDO_SELECTORS.contains(class) {
-            self.ast_errors.push(
+            self.ast_errors.report(
                 TypeError::InvalidSelector {
                     msg: Some(&format!(
                         "Class \"{}\" can't be used as a {} instance.",
@@ -506,7 +506,7 @@ impl<'a> TypecheckSelectors<'a> {
             return true;
         }
 
-        self.ast_errors.push(
+        self.ast_errors.report(
             TypeError::InvalidSelector {
                 msg: Some(&format!("No state named \"{}\" exists.", name)),
             },
@@ -541,7 +541,7 @@ impl<'a> TypecheckSelectors<'a> {
         let mut expected_counts: Vec<usize> = local_arities.chain(builtin_arities).collect();
 
         if expected_counts.is_empty() {
-            self.ast_errors.push(
+            self.ast_errors.report(
                 TypeError::UndefinedMacro { name: macro_name },
                 self.range_from_span(name.token.span()),
             );
@@ -569,7 +569,7 @@ impl<'a> TypecheckSelectors<'a> {
             expected_counts.sort();
             expected_counts.dedup();
 
-            self.ast_errors.push(
+            self.ast_errors.report(
                 TypeError::WrongMacroArgCount {
                     name: macro_name,
                     expected: expected_counts,
@@ -581,7 +581,7 @@ impl<'a> TypecheckSelectors<'a> {
         };
 
         if matching_context != MacroReturnContext::Selector {
-            self.ast_errors.push(
+            self.ast_errors.report(
                 TypeError::WrongMacroContext {
                     name: macro_name,
                     expected: matching_context.name(),

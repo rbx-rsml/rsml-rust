@@ -85,7 +85,7 @@ impl Datatype {
     }
 }
 
-fn variant_type_name(ty: VariantType) -> &'static str {
+pub fn variant_type_name(ty: VariantType) -> &'static str {
     match ty {
         VariantType::Axes => "Axes",
         VariantType::BinaryString => "BinaryString",

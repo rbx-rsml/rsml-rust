@@ -1,0 +1,16 @@
+---
+source: src/parser/mod.rs
+expression: compiled
+---
+CompiledRsml {
+    root: Some(
+        RootTreeNode {
+            attributes: Attributes {
+                data: {},
+            },
+            static_attributes: {},
+            child_rules: [],
+        },
+    ),
+    nodes: [],
+}

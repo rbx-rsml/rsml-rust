@@ -7,7 +7,7 @@ use crate::{
     parser::{AstErrors, Construct, Node},
 };
 
-use crate::typechecker::{PushTypeError, ResolvedTypeKey, Typechecker, TypecheckerLookup, type_error::*};
+use crate::typechecker::{ReportTypeError, ResolvedTypeKey, Typechecker, TypecheckerLookup, type_error::*};
 use crate::datatype::StaticLookup;
 
 #[derive(Clone, Copy)]
@@ -644,7 +644,7 @@ impl<'a> Typechecker<'a> {
                 let name_lower = name.to_ascii_lowercase();
 
                 let Some(spec) = ANNOTATION_SPECS.get(name_lower.as_str()) else {
-                    ast_errors.push(
+                    ast_errors.report(
                         TypeError::UnknownAnnotation { name },
                         self.parsed.range_from_span(annotation.token.span()),
                     );
@@ -702,7 +702,7 @@ impl<'a> Typechecker<'a> {
             let valid_counts: Vec<usize> =
                 spec.signatures.iter().map(|signature| signature.head.len()).collect();
 
-            ast_errors.push(
+            ast_errors.report(
                 TypeError::WrongAnnotationArgCount {
                     name,
                     expected: valid_counts,
@@ -729,7 +729,7 @@ impl<'a> Typechecker<'a> {
             }
 
             let expected_description = describe_types(allowed_types);
-            ast_errors.push(
+            ast_errors.report(
                 TypeError::WrongAnnotationArgType {
                     arg_index: index,
                     expected: &expected_description,
@@ -757,7 +757,7 @@ impl<'a> Typechecker<'a> {
                     return;
                 }
 
-                ast_errors.push(
+                ast_errors.report(
                     TypeError::NotAllowedInContext {
                         name: "Tokens",
                         context: "tuple annotations",

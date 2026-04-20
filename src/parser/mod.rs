@@ -518,6 +518,8 @@ mod tests {
     parser_test!(directive_nobuiltins_alone, "--!nobuiltins");
     parser_test!(directive_nobuiltins_then_code, "--!nobuiltins\nSize = 100;");
     parser_test!(directive_nobuiltins_blocks_builtin_expansion, "--!nobuiltins\nFrame { Padding!(10px); }");
+    parser_test!(directive_strict_alone, "--!strict");
+    parser_test!(directive_nonstrict_alone, "--!nonstrict");
     parser_test!(directive_after_comment, "-- preface\n--!nobuiltins\nSize = 100;");
     parser_test!(directive_unknown, "--!foo\nSize = 100;");
     parser_test!(directive_empty, "--!\nSize = 100;");
@@ -533,6 +535,26 @@ mod tests {
     fn no_directive_leaves_flag_unset() {
         let parsed = RsmlParser::parse_source("Size = 100;");
         assert!(!parsed.directives.nobuiltins);
+    }
+
+    #[test]
+    fn directive_sets_strict_language_mode() {
+        use crate::types::LanguageMode;
+        let parsed = RsmlParser::parse_source("--!strict\nSize = 100;");
+        assert_eq!(parsed.directives.language_mode, Some(LanguageMode::Strict));
+    }
+
+    #[test]
+    fn directive_sets_nonstrict_language_mode() {
+        use crate::types::LanguageMode;
+        let parsed = RsmlParser::parse_source("--!nonstrict\nSize = 100;");
+        assert_eq!(parsed.directives.language_mode, Some(LanguageMode::Nonstrict));
+    }
+
+    #[test]
+    fn no_directive_leaves_language_mode_unset() {
+        let parsed = RsmlParser::parse_source("Size = 100;");
+        assert_eq!(parsed.directives.language_mode, None);
     }
 
     #[test]

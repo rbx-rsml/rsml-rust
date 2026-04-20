@@ -3,6 +3,21 @@ use std::path::PathBuf;
 use crate::types::Severity;
 use crate::typechecker::normalize_path::NormalizePath;
 
+/// Joins `items` into an Oxford-comma list with the given `conjunction`
+/// (e.g. `"or"`, `"and"`). Callers pre-format each item (adding backticks,
+/// wrapping in a unit, etc.) so this helper stays punctuation-only.
+fn oxford_join(items: &[String], conjunction: &str) -> String {
+    match items.len() {
+        0 => String::new(),
+        1 => items[0].clone(),
+        2 => format!("{} {} {}", items[0], conjunction, items[1]),
+        _ => {
+            let (last, leading) = items.split_last().unwrap();
+            format!("{}, {} {}", leading.join(", "), conjunction, last)
+        }
+    }
+}
+
 pub enum ExpectedDatatype {
     String,
     Number,
@@ -43,6 +58,8 @@ pub enum TypeError<'a> {
     UndefinedToken { name: &'a str, is_static: bool },
     UnknownEnum { name: String },
     UnknownEnumVariant { enum_name: String, variant: String },
+    UnknownProperty { name: String, missing: Vec<String>, present: Vec<String> },
+    PropertyTypeMismatch { name: String, expected: String, got: String },
 }
 
 impl<'a> TypeError<'a> {
@@ -65,7 +82,9 @@ impl<'a> TypeError<'a> {
             Self::WrongAnnotationArgType { .. } |
             Self::UndefinedToken { .. } |
             Self::UnknownEnum { .. } |
-            Self::UnknownEnumVariant { .. } => Severity::Error
+            Self::UnknownEnumVariant { .. } |
+            Self::UnknownProperty { .. } |
+            Self::PropertyTypeMismatch { .. } => Severity::Error
         }
     }
 
@@ -109,26 +128,18 @@ impl<'a> TypeError<'a> {
                 format!("Type Error (Undefined Macro): No macro named `{}` has been defined.", name),
 
             Self::WrongMacroArgCount { name, expected, got } => {
-                let expected_str = match expected.len() {
+                let mut sorted = expected.clone();
+                sorted.sort();
+
+                let expected_str = match sorted.len() {
                     0 => String::from("no arguments"),
-                    1 => format!("{} argument{}", expected[0], if expected[0] == 1 { "" } else { "s" }),
-                    2 => {
-                        let mut sorted = expected.clone();
-                        sorted.sort();
-                        format!("{} or {} arguments", sorted[0], sorted[1])
-                    }
+                    1 => format!("{} argument{}", sorted[0], if sorted[0] == 1 { "" } else { "s" }),
                     _ => {
-                        let mut sorted = expected.clone();
-                        sorted.sort();
-                        let (last, leading) = sorted.split_last().unwrap();
-                        let leading_str = leading
-                            .iter()
-                            .map(|n| n.to_string())
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                        format!("{}, or {} arguments", leading_str, last)
+                        let parts: Vec<String> = sorted.iter().map(|count| count.to_string()).collect();
+                        format!("{} arguments", oxford_join(&parts, "or"))
                     }
                 };
+
                 format!(
                     "Type Error (Wrong Macro Argument Count): Macro `{}` expects {}, but {} {} provided.",
                     name, expected_str, got, if *got == 1 { "was" } else { "were" }
@@ -195,6 +206,38 @@ impl<'a> TypeError<'a> {
                     "Type Error (Unknown Enum Variant): Enum `{}` has no variant `{}`.",
                     enum_name, variant
                 ),
+
+            Self::UnknownProperty { name, missing, present } => {
+                let missing_parts: Vec<String> = missing
+                    .iter()
+                    .map(|class_name| format!("`{}`", class_name))
+                    .collect();
+                let missing_list = oxford_join(&missing_parts, "or");
+
+                if present.is_empty() {
+                    format!(
+                        "Type Error (Unknown Property): Property `{}` does not exist on {}.",
+                        name, missing_list
+                    )
+                } else {
+                    let present_parts: Vec<String> = present
+                        .iter()
+                        .map(|class_name| format!("`{}`", class_name))
+                        .collect();
+                    let present_list = oxford_join(&present_parts, "or");
+
+                    format!(
+                        "Type Error (Unknown Property): Property `{}` does not exist on {} but it does exist on {}.",
+                        name, missing_list, present_list
+                    )
+                }
+            }
+
+            Self::PropertyTypeMismatch { name, expected, got } =>
+                format!(
+                    "Type Error (Property Type Mismatch): Property `{}` expects type `{}`, got `{}`.",
+                    name, expected, got
+                ),
         }
     }
 
@@ -224,6 +267,8 @@ impl<'a> ToString for TypeError<'a> {
             Self::UndefinedToken { .. } => "UNDEFINED_TOKEN",
             Self::UnknownEnum { .. } => "UNKNOWN_ENUM",
             Self::UnknownEnumVariant { .. } => "UNKNOWN_ENUM_VARIANT",
+            Self::UnknownProperty { .. } => "UNKNOWN_PROPERTY",
+            Self::PropertyTypeMismatch { .. } => "PROPERTY_TYPE_MISMATCH",
         })
     }
 }

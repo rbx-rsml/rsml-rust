@@ -1,0 +1,26 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    None {
+        node: Node {
+            token: SpannedToken(
+                0,
+                None,
+                0,
+            ),
+            leading_trivia: Some(
+                [
+                    SpannedToken(
+                        0,
+                        Directive(
+                            "strict",
+                        ),
+                        9,
+                    ),
+                ],
+            ),
+        },
+    },
+]

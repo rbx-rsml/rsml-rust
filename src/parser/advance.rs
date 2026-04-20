@@ -5,6 +5,7 @@ use crate::list::TokenKindList;
 use crate::parser::parse_error::{ParseError, ParseErrorMessage};
 use crate::parser::types::*;
 use crate::parser::RsmlParser;
+use crate::types::LanguageMode;
 
 type SymResult<T> = Result<T, T>;
 
@@ -124,6 +125,8 @@ impl<'a> RsmlParser<'a> {
         let name = text.split_whitespace().next().unwrap_or("");
         match name {
             "nobuiltins" => self.directives.nobuiltins = true,
+            "strict" => self.directives.language_mode = Some(LanguageMode::Strict),
+            "nonstrict" => self.directives.language_mode = Some(LanguageMode::Nonstrict),
             _ => self.ast_errors.push(
                 ParseError::UnknownDirective { name: name.to_string() },
                 self.range_from_span(span),
