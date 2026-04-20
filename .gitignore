@@ -22,3 +22,5 @@
 .gemini/
 
 /test
+
+src/main.rs
