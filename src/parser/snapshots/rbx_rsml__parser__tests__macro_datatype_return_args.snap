@@ -17,30 +17,69 @@ expression: parsed.ast
                 token: SpannedToken(
                     7,
                     Identifier(
-                        "MyColor",
+                        "Scale",
                     ),
-                    14,
+                    12,
                 ),
                 leading_trivia: None,
             },
         ),
-        args: None,
+        args: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        12,
+                        ParensOpen,
+                        13,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Some(
+                    [
+                        Node {
+                            node: Node {
+                                token: SpannedToken(
+                                    13,
+                                    MacroArgIdentifier(
+                                        Some(
+                                            "x",
+                                        ),
+                                    ),
+                                    15,
+                                ),
+                                leading_trivia: None,
+                            },
+                        },
+                    ],
+                ),
+                right: Some(
+                    Node {
+                        token: SpannedToken(
+                            15,
+                            ParensClose,
+                            16,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
         return_type: Some(
             (
                 Node {
                     token: SpannedToken(
-                        15,
-                        ReturnArrow,
                         17,
+                        ReturnArrow,
+                        19,
                     ),
                     leading_trivia: None,
                 },
                 Some(
                     Node {
                         token: SpannedToken(
-                            18,
+                            20,
                             Identifier(
-                                "Assignment",
+                                "Datatype",
                             ),
                             28,
                         ),
@@ -59,16 +98,18 @@ expression: parsed.ast
                     ),
                     leading_trivia: None,
                 },
-                content: Assignment(
+                content: Datatype(
                     Some(
                         Node {
                             node: Node {
                                 token: SpannedToken(
                                     31,
-                                    ColorHex(
-                                        "#ff0000",
+                                    MacroArgIdentifier(
+                                        Some(
+                                            "x",
+                                        ),
                                     ),
-                                    38,
+                                    33,
                                 ),
                                 leading_trivia: None,
                             },
@@ -78,9 +119,9 @@ expression: parsed.ast
                 close: Some(
                     Node {
                         token: SpannedToken(
-                            39,
+                            34,
                             ScopeClose,
-                            40,
+                            35,
                         ),
                         leading_trivia: None,
                     },

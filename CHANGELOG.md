@@ -1,3 +1,6 @@
+# 1.0.1
+- Renamed the `Assignment` macro return context to `Datatype`
+
 # 1.0.0
 ## Changes
 - Completely rewrote library:

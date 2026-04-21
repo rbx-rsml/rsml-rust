@@ -11,7 +11,7 @@ use crate::typechecker::{ReportTypeError, Typechecker, type_error::*};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MacroReturnContext {
     Construct,
-    Assignment,
+    Datatype,
     Selector,
 }
 
@@ -19,7 +19,7 @@ impl MacroReturnContext {
     pub fn name(&self) -> &'static str {
         match self {
             Self::Construct => "Construct",
-            Self::Assignment => "Assignment",
+            Self::Datatype => "Datatype",
             Self::Selector => "Selector",
         }
     }
@@ -42,7 +42,9 @@ pub type MacroRegistry<'a> = HashMap<MacroKey<'a>, MacroDefinition<'a>>;
 
 pub fn collect_macro_def_arg_names<'a>(args: &Option<Delimited<'a>>) -> Vec<&'a str> {
     let Some(args) = args else { return Vec::new() };
-    let Some(content) = &args.content else { return Vec::new() };
+    let Some(content) = &args.content else {
+        return Vec::new();
+    };
     content
         .iter()
         .filter_map(|construct| {
@@ -58,7 +60,9 @@ pub fn collect_macro_def_arg_names<'a>(args: &Option<Delimited<'a>>) -> Vec<&'a 
 
 pub(super) fn count_macro_call_args(body: &Option<Delimited>) -> usize {
     let Some(body) = body else { return 0 };
-    let Some(content) = &body.content else { return 0 };
+    let Some(content) = &body.content else {
+        return 0;
+    };
     if content.is_empty() {
         return 0;
     }
@@ -74,12 +78,10 @@ pub(super) fn count_macro_call_args(body: &Option<Delimited>) -> usize {
         + 1
 }
 
-pub fn macro_return_context(
-    return_type: &Option<(Node, Option<Node>)>,
-) -> MacroReturnContext {
+pub fn macro_return_context(return_type: &Option<(Node, Option<Node>)>) -> MacroReturnContext {
     if let Some((_, Some(ident))) = return_type {
         match ident.token.value() {
-            Token::Identifier("Assignment") => MacroReturnContext::Assignment,
+            Token::Identifier("Datatype") => MacroReturnContext::Datatype,
             Token::Identifier("Selector") => MacroReturnContext::Selector,
             _ => MacroReturnContext::Construct,
         }
@@ -102,11 +104,11 @@ impl<'a> Typechecker<'a> {
             MacroBodyContent::Construct(Some(content)) => {
                 self.typecheck_macro_body_content(content, &macro_args, ast_errors);
             }
-            MacroBodyContent::Assignment(Some(content)) => {
+            MacroBodyContent::Datatype(Some(content)) => {
                 self.validate_macro_arg_refs(content, Some(&macro_args), ast_errors);
                 self.validate_annotation(content, ast_errors);
                 if let Construct::MacroCall { name, body, .. } = content.as_ref() {
-                    self.validate_macro_call(name, body, MacroReturnContext::Assignment, ast_errors);
+                    self.validate_macro_call(name, body, MacroReturnContext::Datatype, ast_errors);
                 }
             }
             MacroBodyContent::Selector(Some(selectors)) => {
@@ -141,7 +143,7 @@ impl<'a> Typechecker<'a> {
                             self.validate_macro_call(
                                 name,
                                 body,
-                                MacroReturnContext::Assignment,
+                                MacroReturnContext::Datatype,
                                 ast_errors,
                             );
                         }
@@ -168,14 +170,20 @@ impl<'a> Typechecker<'a> {
 
                 Construct::Macro { .. } => {
                     ast_errors.report(
-                        TypeError::NotAllowedInContext { name: construct.name_plural(), context: "other macros" },
+                        TypeError::NotAllowedInContext {
+                            name: construct.name_plural(),
+                            context: "other macros",
+                        },
                         self.range_from_span(construct.span()),
                     );
                 }
 
                 Construct::Derive { .. } => {
                     ast_errors.report(
-                        TypeError::NotAllowedInContext { name: construct.name_plural(), context: "non-global scopes" },
+                        TypeError::NotAllowedInContext {
+                            name: construct.name_plural(),
+                            context: "non-global scopes",
+                        },
                         self.range_from_span(construct.span()),
                     );
                 }
@@ -363,7 +371,7 @@ where
             }
         }
 
-        MacroBodyContent::Assignment(Some(content)) => {
+        MacroBodyContent::Datatype(Some(content)) => {
             visit_construct_for_calls(content, cb);
         }
 
@@ -472,10 +480,9 @@ impl<'a> Typechecker<'a> {
             }
 
             match color.get(&callee) {
-                Some(DfsColor::Gray) => ast_errors.report(
-                    TypeError::RecursiveMacroCall,
-                    self.range_from_span(span),
-                ),
+                Some(DfsColor::Gray) => {
+                    ast_errors.report(TypeError::RecursiveMacroCall, self.range_from_span(span))
+                }
                 Some(DfsColor::Black) => {}
                 None => self.dfs_macro_cycle(callee, color, ast_errors),
             }

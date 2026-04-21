@@ -121,7 +121,7 @@ impl<'a> SpanEnd for SelectorNode<'a> {
 #[derive(Debug)]
 pub enum MacroBodyContent<'a> {
     Construct(Option<Vec<Construct<'a>>>),
-    Assignment(Option<Box<Construct<'a>>>),
+    Datatype(Option<Box<Construct<'a>>>),
     Selector(Option<Vec<SelectorNode<'a>>>),
 }
 
@@ -144,7 +144,7 @@ impl<'a> SpanEnd for MacroBody<'a> {
                 }
             }
 
-            MacroBodyContent::Assignment(Some(item)) => return item.end(),
+            MacroBodyContent::Datatype(Some(item)) => return item.end(),
 
             MacroBodyContent::Selector(Some(items)) => {
                 if let Some(last) = items.last() {

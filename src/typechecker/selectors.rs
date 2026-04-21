@@ -70,7 +70,7 @@ impl<'a> Typechecker<'a> {
                         self.validate_macro_arg_refs(right, None, ast_errors);
                         self.validate_annotation(right, ast_errors);
                         if let Construct::MacroCall { name, body, .. } = right.as_ref() {
-                            self.validate_macro_call(name, body, MacroReturnContext::Assignment, ast_errors);
+                            self.validate_macro_call(name, body, MacroReturnContext::Datatype, ast_errors);
                         }
                         self.resolve_token_assignment(left, right, &current_classes, ast_errors, definitions, resolved_types);
                     }

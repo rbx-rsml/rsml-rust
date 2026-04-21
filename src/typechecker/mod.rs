@@ -328,7 +328,7 @@ impl<'a> Typechecker<'a> {
                         typechecker.validate_macro_call(
                             name,
                             body,
-                            MacroReturnContext::Assignment,
+                            MacroReturnContext::Datatype,
                             &mut ast_errors,
                         );
                     }
@@ -1488,7 +1488,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn macro_call_construct_in_assignment_context_errors() {
+    async fn macro_call_construct_in_datatype_context_errors() {
         let result = typecheck("@macro Foo () { Frame {} }\nFrame { Size = Foo!(); }").await;
         assert!(
             result
@@ -1499,8 +1499,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn macro_call_assignment_in_construct_context_errors() {
-        let result = typecheck("@macro Foo () -> Assignment { 10 }\nFoo!();").await;
+    async fn macro_call_datatype_in_construct_context_errors() {
+        let result = typecheck("@macro Foo () -> Datatype { 10 }\nFoo!();").await;
         assert!(
             result
                 .errors
@@ -1510,9 +1510,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn macro_call_assignment_in_assignment_context_no_error() {
+    async fn macro_call_datatype_in_datatype_context_no_error() {
         let result =
-            typecheck("@macro Foo () -> Assignment { 10 }\nFrame { Size = Foo!(); }").await;
+            typecheck("@macro Foo () -> Datatype { 10 }\nFrame { Size = Foo!(); }").await;
         let macro_errors: Vec<_> = result
             .errors
             .iter()

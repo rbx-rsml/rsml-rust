@@ -484,8 +484,8 @@ mod tests {
 
     parser_test!(macro_construct_return, r#"@macro MyMacro -> Construct { Size = 100; }"#);
     parser_test!(macro_args_construct_return, r#"@macro MyMacro(&v) -> Construct { Size = &v; }"#);
-    parser_test!(macro_assignment_return, r#"@macro MyColor -> Assignment { #ff0000 }"#);
-    parser_test!(macro_assignment_return_args, r#"@macro Scale(&x) -> Assignment { &x }"#);
+    parser_test!(macro_datatype_return, r#"@macro MyColor -> Datatype { #ff0000 }"#);
+    parser_test!(macro_datatype_return_args, r#"@macro Scale(&x) -> Datatype { &x }"#);
     parser_test!(macro_selector_return, r#"@macro MySel -> Selector { Frame .tag }"#);
     parser_test!(macro_selector_return_args, r#"@macro MySel(&c) -> Selector { Frame .tag :hover }"#);
     parser_test!(macro_nested_rule, r#"@macro Theme(&c) -> Construct { Frame { Color = &c; } }"#);

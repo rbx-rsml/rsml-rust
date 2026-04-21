@@ -12,11 +12,11 @@ use phf_macros::phf_set;
 
 static MACRO_RETURN_TYPES: phf::Set<&str> = phf_set! {
     "Construct",
-    "Assignment",
+    "Datatype",
     "Selector",
 };
 
-static MACRO_RETURN_TYPE_NAMES: [&str; 3] = ["Construct", "Assignment", "Selector"];
+static MACRO_RETURN_TYPE_NAMES: [&str; 3] = ["Construct", "Datatype", "Selector"];
 
 impl<'a> RsmlParser<'a> {
     /// Many declarations in rsml just have a datatype after them, so the same
@@ -894,7 +894,7 @@ impl<'a> RsmlParser<'a> {
         return_type_str: Option<&str>,
     ) -> Parsed<'a> {
         match return_type_str {
-            Some("Assignment") => self.parse_macro_body_assignment(
+            Some("Datatype") => self.parse_macro_body_datatype(
                 body_open_node,
                 declaration_node,
                 name_node,
@@ -1049,7 +1049,7 @@ impl<'a> RsmlParser<'a> {
         }
     }
 
-    fn parse_macro_body_assignment(
+    fn parse_macro_body_datatype(
         &mut self,
         body_open_node: Node<'a>,
         declaration_node: Node<'a>,
@@ -1073,7 +1073,7 @@ impl<'a> RsmlParser<'a> {
                     return_type,
                     body: Some(MacroBody {
                         open: body_open_node,
-                        content: MacroBodyContent::Assignment(None),
+                        content: MacroBodyContent::Datatype(None),
                         close: None,
                     }),
                 }),
@@ -1090,7 +1090,7 @@ impl<'a> RsmlParser<'a> {
                     return_type,
                     body: Some(MacroBody {
                         open: body_open_node,
-                        content: MacroBodyContent::Assignment(None),
+                        content: MacroBodyContent::Datatype(None),
                         close: Some(node),
                     }),
                 }),
@@ -1116,7 +1116,7 @@ impl<'a> RsmlParser<'a> {
                             return_type,
                             body: Some(MacroBody {
                                 open: body_open_node,
-                                content: MacroBodyContent::Assignment(datatype.map(Box::new)),
+                                content: MacroBodyContent::Datatype(datatype.map(Box::new)),
                                 close: None,
                             }),
                         }),
@@ -1138,7 +1138,7 @@ impl<'a> RsmlParser<'a> {
                             return_type,
                             body: Some(MacroBody {
                                 open: body_open_node,
-                                content: MacroBodyContent::Assignment(datatype.map(Box::new)),
+                                content: MacroBodyContent::Datatype(datatype.map(Box::new)),
                                 close: None,
                             }),
                         }),
@@ -1157,7 +1157,7 @@ impl<'a> RsmlParser<'a> {
                 return_type,
                 body: Some(MacroBody {
                     open: body_open_node,
-                    content: MacroBodyContent::Assignment(datatype.map(Box::new)),
+                    content: MacroBodyContent::Datatype(datatype.map(Box::new)),
                     close: None,
                 }),
             };
@@ -1181,7 +1181,7 @@ impl<'a> RsmlParser<'a> {
                 return_type,
                 body: Some(MacroBody {
                     open: body_open_node,
-                    content: MacroBodyContent::Assignment(datatype.map(Box::new)),
+                    content: MacroBodyContent::Datatype(datatype.map(Box::new)),
                     close: close_node,
                 }),
             }),
