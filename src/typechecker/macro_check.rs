@@ -318,20 +318,17 @@ impl<'a> Typechecker<'a> {
             }
 
             Construct::Table { body } => {
-                if let Some(content) = &body.content {
-                    for item in content {
-                        self.validate_macro_arg_refs(item, macro_args, ast_errors);
-                    }
+                let Some(content) = &body.content else { return };
+                for item in content {
+                    self.validate_macro_arg_refs(item, macro_args, ast_errors);
                 }
             }
 
             Construct::AnnotatedTable { body, .. } => {
-                if let Some(body) = body {
-                    if let Some(content) = &body.content {
-                        for item in content {
-                            self.validate_macro_arg_refs(item, macro_args, ast_errors);
-                        }
-                    }
+                let Some(body) = body else { return };
+                let Some(content) = &body.content else { return };
+                for item in content {
+                    self.validate_macro_arg_refs(item, macro_args, ast_errors);
                 }
             }
 

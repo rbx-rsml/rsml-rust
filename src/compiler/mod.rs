@@ -4,14 +4,14 @@ use rbx_types::Variant;
 
 use crate::datatype::{Datatype, StaticLookup, evaluate_construct};
 use crate::lexer::Token;
-use crate::parser::{ParsedRsml, RsmlParser};
 use crate::parser::types::{Construct, Delimited, MacroBodyContent, Node, SelectorNode};
+use crate::parser::{ParsedRsml, RsmlParser};
 use crate::typechecker::{
     MacroDefinition, MacroKey, MacroRegistry, collect_macro_def_arg_names, macro_return_context,
 };
 
-pub mod tree_node;
 mod selector;
+pub mod tree_node;
 
 use selector::build_selector_string;
 use tree_node::*;
@@ -166,28 +166,35 @@ fn compile_construct<'a>(
         }
 
         Construct::Tween { name, body, .. } => {
-            if let TreeNodeType::Node(node_idx) = *current_idx {
-                if let Some(name_node) = name {
-                    if let Token::Identifier(tween_name) = name_node.token.value() {
-                        if let Some(body) = body {
-                            let idx = *current_idx;
-                            let active_scope_depth = current_scope_depth(macro_ctx);
-                            let lookup = CompilerLookup {
-                                tree_nodes,
-                                idx,
-                                macro_ctx: Some(&*macro_ctx),
-                                active_scope_depth,
-                            };
+            let TreeNodeType::Node(node_idx) = *current_idx else {
+                return;
+            };
+            let Some(name_node) = name else { return };
+            let Token::Identifier(tween_name) = name_node.token.value() else {
+                return;
+            };
+            let Some(body) = body else { return };
 
-                            if let Some(datatype) = evaluate_construct(body, None, &lookup) {
-                                if let Some(node) = tree_nodes[node_idx].as_mut() {
-                                    node.tweens.insert(tween_name.to_string(), datatype);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            let idx = *current_idx;
+            let active_scope_depth = current_scope_depth(macro_ctx);
+            let lookup = CompilerLookup {
+                tree_nodes,
+                idx,
+                macro_ctx: Some(&*macro_ctx),
+                active_scope_depth,
+            };
+
+            let Some(datatype) = evaluate_construct(body, None, &lookup) else {
+                return;
+            };
+            let Some(node) = tree_nodes[node_idx].as_mut() else {
+                return;
+            };
+            let Some(variant) = datatype.coerce_to_variant(None) else {
+                return;
+            };
+
+            node.tweens.insert(tween_name.to_string(), variant);
         }
 
         Construct::MacroCall { name, body, .. } => {
@@ -344,8 +351,10 @@ fn compile_macro_call<'a>(
         if let Some(pair) = from_local {
             pair
         } else if !macro_ctx.nobuiltins
-            && let Some(pair) =
-                crate::builtins::BUILTINS.registry.get(&key).and_then(|def| {
+            && let Some(pair) = crate::builtins::BUILTINS
+                .registry
+                .get(&key)
+                .and_then(|def| {
                     def.body
                         .map(|b| (def.arg_names.iter().map(|s| s.to_string()).collect(), b))
                 })
@@ -478,11 +487,7 @@ fn collect_call_args<'a>(body: &'a Option<Delimited<'a>>) -> Vec<&'a Construct<'
         .collect()
 }
 
-fn resolve_static_attribute(
-    name: &str,
-    tree_nodes: &CompiledRsml,
-    idx: TreeNodeType,
-) -> Datatype {
+fn resolve_static_attribute(name: &str, tree_nodes: &CompiledRsml, idx: TreeNodeType) -> Datatype {
     match tree_nodes.get(idx) {
         AnyTreeNode::Root(node) => node
             .and_then(|n| n.static_attributes.get(name))

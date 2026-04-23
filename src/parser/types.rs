@@ -280,10 +280,8 @@ impl<'a> Construct<'a> {
             | Self::Tween { declaration, .. } => declaration.token.start(),
 
             Self::Rule { selectors, body } => {
-                if let Some(selectors) = selectors {
-                    if let Some(first) = selectors.first() {
-                        return first.start();
-                    }
+                if let Some(first) = selectors.as_ref().and_then(|s| s.first()) {
+                    return first.start();
                 }
 
                 if let Some(body) = body {

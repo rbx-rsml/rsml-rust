@@ -102,12 +102,13 @@ impl<'a> RsmlParser<'a> {
     pub(crate) fn parse_directives(&mut self) {
         let node = self.next_node();
 
-        if let Some(node) = &node {
-            if let Some(trivia) = &node.leading_trivia {
-                for token in trivia {
-                    if let Token::Directive(text) = token.value() {
-                        self.apply_directive(text.trim(), token.span());
-                    }
+        'directives: {
+            let Some(node) = &node else { break 'directives };
+            let Some(trivia) = &node.leading_trivia else { break 'directives };
+
+            for token in trivia {
+                if let Token::Directive(text) = token.value() {
+                    self.apply_directive(text.trim(), token.span());
                 }
             }
         }

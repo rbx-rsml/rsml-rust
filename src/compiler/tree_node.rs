@@ -33,10 +33,10 @@ impl RootTreeNode {
 pub struct TreeNode {
     pub selector: Option<String>,
     pub priority: Option<i32>,
-    pub tweens: HashMap<String, Datatype>,
     pub attributes: Attributes,
     pub static_attributes: HashMap<String, Datatype>,
     pub properties: Attributes,
+    pub tweens: Attributes,
     pub child_rules: Vec<usize>,
     pub parent: TreeNodeType,
 }
@@ -47,9 +47,9 @@ impl TreeNode {
             attributes: Attributes::new(),
             static_attributes: HashMap::new(),
             properties: Attributes::new(),
+            tweens: Attributes::new(),
             child_rules: vec![],
             priority: None,
-            tweens: HashMap::new(),
             selector,
             parent,
         }

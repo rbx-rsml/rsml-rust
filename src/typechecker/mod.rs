@@ -259,42 +259,45 @@ impl<'a> Typechecker<'a> {
                     body,
                     ..
                 } => {
-                    if let Some(name_node) = name {
-                        if let Token::Identifier(name_str) = name_node.token.value() {
-                            let arg_names = collect_macro_def_arg_names(args);
-                            let arg_count = arg_names.len();
-                            let context = macro_return_context(return_type);
-                            let key = MacroKey {
-                                name: *name_str,
-                                arity: arg_count,
-                            };
+                    'register: {
+                        let Some(name_node) = name else { break 'register };
+                        let Token::Identifier(name_str) = name_node.token.value() else {
+                            break 'register;
+                        };
 
-                            let builtin_collision = !typechecker.parsed.directives.nobuiltins
-                                && crate::builtins::BUILTINS.registry.contains_key(&key);
+                        let arg_names = collect_macro_def_arg_names(args);
+                        let arg_count = arg_names.len();
+                        let context = macro_return_context(return_type);
+                        let key = MacroKey {
+                            name: *name_str,
+                            arity: arg_count,
+                        };
 
-                            let local_collision =
-                                typechecker.macro_registry.contains_key(&key);
+                        let builtin_collision = !typechecker.parsed.directives.nobuiltins
+                            && crate::builtins::BUILTINS.registry.contains_key(&key);
 
-                            if builtin_collision || local_collision {
-                                ast_errors.report(
-                                    TypeError::DuplicateMacro {
-                                        name: name_str,
-                                        arg_count,
-                                    },
-                                    Range::from_span(&typechecker.parsed.rope, construct.span()),
-                                );
-                            } else {
-                                typechecker.macro_registry.insert(
-                                    key,
-                                    MacroDefinition {
-                                        arg_names,
-                                        body: body.as_ref().map(|b| &b.content),
-                                        return_context: context,
-                                    },
-                                );
-                            }
+                        let local_collision = typechecker.macro_registry.contains_key(&key);
+
+                        if builtin_collision || local_collision {
+                            ast_errors.report(
+                                TypeError::DuplicateMacro {
+                                    name: name_str,
+                                    arg_count,
+                                },
+                                Range::from_span(&typechecker.parsed.rope, construct.span()),
+                            );
+                        } else {
+                            typechecker.macro_registry.insert(
+                                key,
+                                MacroDefinition {
+                                    arg_names,
+                                    body: body.as_ref().map(|b| &b.content),
+                                    return_context: context,
+                                },
+                            );
                         }
                     }
+
                     typechecker.typecheck_macro(args, body, &mut ast_errors);
                 }
 
@@ -573,29 +576,32 @@ impl<'a> Typechecker<'a> {
         let mut ok = true;
 
         // Top-level shorthand `:Variant` — derive enum name from the LHS.
-        if let Construct::Node { node } = right {
-            if let Token::StateSelectorOrEnumPart(Some(variant)) = node.token.value() {
-                let lhs_name = match left.token.value() {
-                    Token::Identifier(n)
-                    | Token::TokenIdentifier(n)
-                    | Token::StaticTokenIdentifier(n) => Some(*n),
-                    _ => None,
-                };
+        'shorthand: {
+            let Construct::Node { node } = right else { break 'shorthand };
+            let Token::StateSelectorOrEnumPart(Some(variant)) = node.token.value() else {
+                break 'shorthand;
+            };
 
-                if let Some(lhs_name) = lhs_name {
-                    let enum_name = shorthand_rebind(lhs_name);
-                    let variant_span = strip_sigil_span(node.token.span());
-                    ok &= self.check_enum_name_and_variant(
-                        enum_name,
-                        variant,
-                        variant_span,
-                        variant_span,
-                        ast_errors,
-                    );
-                }
+            let lhs_name = match left.token.value() {
+                Token::Identifier(n)
+                | Token::TokenIdentifier(n)
+                | Token::StaticTokenIdentifier(n) => Some(*n),
+                _ => None,
+            };
 
-                return ok;
+            if let Some(lhs_name) = lhs_name {
+                let enum_name = shorthand_rebind(lhs_name);
+                let variant_span = strip_sigil_span(node.token.span());
+                ok &= self.check_enum_name_and_variant(
+                    enum_name,
+                    variant,
+                    variant_span,
+                    variant_span,
+                    ast_errors,
+                );
             }
+
+            return ok;
         }
 
         ok &= self.validate_enum_refs_inner(right, ast_errors);
