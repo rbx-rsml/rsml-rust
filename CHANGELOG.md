@@ -1,3 +1,6 @@
+# 1.0.2
+- Changed tweens to use `Attributes`.
+
 # 1.0.1
 - Renamed the `Assignment` macro return context to `Datatype`
 
