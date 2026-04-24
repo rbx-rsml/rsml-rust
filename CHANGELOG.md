@@ -1,4 +1,4 @@
-# 1.1.0
+# Unreleased
 - Fixed tweens not being compiled correctly.
 - the `typechecker` is now conditionally enabled via the `typechecker` feature.
 - the `compiler` is now conditionally enabled via the `compiler` feature.
