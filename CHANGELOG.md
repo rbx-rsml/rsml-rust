@@ -2,6 +2,7 @@
 - Fixed tweens not being compiled correctly.
 - the `typechecker` is now conditionally enabled via the `typechecker` feature.
 - the `compiler` is now conditionally enabled via the `compiler` feature.
+- Fixed math operations between numbers not registering as number types.
 
 # 1.0.2
 - Changed tweens to use `Attributes`.

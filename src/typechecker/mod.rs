@@ -2936,4 +2936,90 @@ mod tests {
             result.errors
         );
     }
+
+    #[tokio::test]
+    async fn tween_negative_number_accepted() {
+        let result = typecheck("@tween Slide (-0.5, :Quad, :Out);").await;
+        assert!(
+            !result.errors.iter().any(|err| err.contains("Invalid Tween Argument")),
+            "unexpected tween argument error for negative number, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn tween_numeric_math_accepted() {
+        let result = typecheck("@tween Slide (0.5 + 0.1, :Quad, :Out);").await;
+        assert!(
+            !result.errors.iter().any(|err| err.contains("Invalid Tween Argument")),
+            "unexpected tween argument error for numeric math, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn tween_non_numeric_math_rejected() {
+        let result = typecheck("@tween Slide (vec3(0, 5, 0) * 2, :Quad, :Out);").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Invalid Tween Argument") && err.contains("number (time)")),
+            "expected `number (time)` tween error for non-numeric math, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn tween_numeric_annotation_accepted() {
+        let result = typecheck("@tween Slide (abs(-0.5), :Quad, :Out);").await;
+        assert!(
+            !result.errors.iter().any(|err| err.contains("Invalid Tween Argument")),
+            "unexpected tween argument error for numeric annotation, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn tween_non_numeric_annotation_rejected() {
+        let result = typecheck("@tween Slide (vec3(0, 5, 0), :Quad, :Out);").await;
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Invalid Tween Argument") && err.contains("number (time)")),
+            "expected `number (time)` tween error for non-numeric annotation, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn tween_static_token_number_accepted() {
+        let result = typecheck("$!Dur = 0.5; @tween Slide ($!Dur, :Quad, :Out);").await;
+        assert!(
+            !result.errors.iter().any(|err| err.contains("Invalid Tween Argument")),
+            "unexpected tween argument error for static token number, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn tween_lerp_numeric_accepted() {
+        let result = typecheck("@tween Slide (lerp(0, 5, .5), :Quad, :Out);").await;
+        assert!(
+            !result.errors.iter().any(|err| err.contains("Invalid Tween Argument")),
+            "unexpected tween argument error for numeric lerp, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn tween_lerp_numeric_math_accepted() {
+        let result = typecheck("@tween Slide (lerp(0, 5, .5) / 2, :Quad, :Out);").await;
+        assert!(
+            !result.errors.iter().any(|err| err.contains("Invalid Tween Argument")),
+            "unexpected tween argument error for numeric lerp math, got: {:?}",
+            result.errors
+        );
+    }
 }

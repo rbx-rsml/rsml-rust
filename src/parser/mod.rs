@@ -419,6 +419,12 @@ mod tests {
     parser_test!(tween_five_args, r#"@tween Slide (0.5, :Quad, :Out, 3, true);"#);
     parser_test!(tween_six_args, r#"@tween Slide (0.5, :Quad, :Out, 3, true, 0.1);"#);
     parser_test!(tween_too_many_args, r#"@tween Slide (0.5, :Quad, :Out, 3, true, 0.1, 99);"#);
+    parser_test!(tween_negative_time, r#"@tween Slide -0.5;"#);
+    parser_test!(tween_negative_time_in_tuple, r#"@tween Slide (-0.5, :Quad, :Out);"#);
+    parser_test!(tween_negative_repeat_count, r#"@tween Slide (0.5, :Quad, :Out, -1);"#);
+    parser_test!(tween_negative_delay, r#"@tween Slide (0.5, :Quad, :Out, 3, true, -0.1);"#);
+    parser_test!(tween_math_numeric_time, r#"@tween Slide (0.5 + 0.1, :Quad, :Out);"#);
+    parser_test!(tween_math_chained_numeric_time, r#"@tween Slide (0.5 + 0.1 - 0.2, :Quad, :Out);"#);
 
     parser_test!(assign_property_string, r#"Text = "hello";"#);
     parser_test!(assign_property_number, r#"Size = 42;"#);

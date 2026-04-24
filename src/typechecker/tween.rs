@@ -1,21 +1,12 @@
+use rbx_types::Variant;
+
 use crate::{
+    datatype::{Datatype, evaluate_construct},
     lexer::{SpannedToken, Token},
     parser::{AstErrors, Construct, Delimited, Node},
 };
 
-use crate::typechecker::{ReportTypeError, Typechecker, type_error::*};
-
-fn is_number(construct: &Construct) -> bool {
-    matches!(
-        construct,
-        Construct::Node {
-            node: Node {
-                token: SpannedToken(_, Token::Number(_), _),
-                ..
-            },
-        }
-    )
-}
+use crate::typechecker::{ReportTypeError, Typechecker, TypecheckerLookup, type_error::*};
 
 fn is_enum(construct: &Construct, expected_name: &str) -> bool {
     match construct {
@@ -110,6 +101,14 @@ fn is_boolean(construct: &Construct) -> bool {
 }
 
 impl<'a> Typechecker<'a> {
+    fn is_number(&self, construct: &Construct) -> bool {
+        let lookup = TypecheckerLookup { scopes: &self.static_scopes };
+        matches!(
+            evaluate_construct(construct, None, &lookup),
+            Some(Datatype::Variant(Variant::Float64(_)))
+        )
+    }
+
     pub(super) fn typecheck_tween(
         &self,
         body: &Construct<'a>,
@@ -117,7 +116,7 @@ impl<'a> Typechecker<'a> {
     ) {
         match body {
             // Case 1: bare number — `@tween Prop .5;`
-            construct if is_number(construct) => (),
+            construct if self.is_number(construct) => (),
 
             // Case 2: tuple — `@tween Prop (.5, :InOut, :In);`
             Construct::Table {
@@ -133,7 +132,7 @@ impl<'a> Typechecker<'a> {
                     return;
                 }
 
-                if !is_number(args[0]) {
+                if !self.is_number(args[0]) {
                     ast_errors.report(
                         TypeError::InvalidTweenArg { expected: "number (time)" },
                         self.parsed.range_from_span(args[0].span()),
@@ -173,7 +172,7 @@ impl<'a> Typechecker<'a> {
                 }
 
                 if let Some(arg) = args.get(3) {
-                    if !is_number(arg) {
+                    if !self.is_number(arg) {
                         ast_errors.report(
                             TypeError::InvalidTweenArg { expected: "number (repeat count)" },
                             self.parsed.range_from_span(arg.span()),
@@ -191,7 +190,7 @@ impl<'a> Typechecker<'a> {
                 }
 
                 if let Some(arg) = args.get(5) {
-                    if !is_number(arg) {
+                    if !self.is_number(arg) {
                         ast_errors.report(
                             TypeError::InvalidTweenArg { expected: "number (delay time)" },
                             self.parsed.range_from_span(arg.span()),

@@ -1,0 +1,179 @@
+---
+source: src/parser/mod.rs
+assertion_line: 427
+expression: parsed.ast
+---
+[
+    Tween {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                TweenDeclaration,
+                6,
+            ),
+            leading_trivia: None,
+        },
+        name: Some(
+            Node {
+                token: SpannedToken(
+                    7,
+                    Identifier(
+                        "Slide",
+                    ),
+                    12,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        body: Some(
+            Table {
+                body: Delimited {
+                    left: Node {
+                        token: SpannedToken(
+                            13,
+                            ParensOpen,
+                            14,
+                        ),
+                        leading_trivia: None,
+                    },
+                    content: Some(
+                        [
+                            MathOperation {
+                                left: MathOperation {
+                                    left: Node {
+                                        node: Node {
+                                            token: SpannedToken(
+                                                14,
+                                                Number(
+                                                    "0.5",
+                                                ),
+                                                17,
+                                            ),
+                                            leading_trivia: None,
+                                        },
+                                    },
+                                    operators: [
+                                        Node {
+                                            token: SpannedToken(
+                                                18,
+                                                OpAdd,
+                                                19,
+                                            ),
+                                            leading_trivia: None,
+                                        },
+                                    ],
+                                    right: Some(
+                                        Node {
+                                            node: Node {
+                                                token: SpannedToken(
+                                                    20,
+                                                    Number(
+                                                        "0.1",
+                                                    ),
+                                                    23,
+                                                ),
+                                                leading_trivia: None,
+                                            },
+                                        },
+                                    ),
+                                },
+                                operators: [
+                                    Node {
+                                        token: SpannedToken(
+                                            24,
+                                            OpSub,
+                                            25,
+                                        ),
+                                        leading_trivia: None,
+                                    },
+                                ],
+                                right: Some(
+                                    Node {
+                                        node: Node {
+                                            token: SpannedToken(
+                                                26,
+                                                Number(
+                                                    "0.2",
+                                                ),
+                                                29,
+                                            ),
+                                            leading_trivia: None,
+                                        },
+                                    },
+                                ),
+                            },
+                            Node {
+                                node: Node {
+                                    token: SpannedToken(
+                                        29,
+                                        Comma,
+                                        30,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            },
+                            Node {
+                                node: Node {
+                                    token: SpannedToken(
+                                        31,
+                                        StateSelectorOrEnumPart(
+                                            Some(
+                                                "Quad",
+                                            ),
+                                        ),
+                                        36,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            },
+                            Node {
+                                node: Node {
+                                    token: SpannedToken(
+                                        36,
+                                        Comma,
+                                        37,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            },
+                            Node {
+                                node: Node {
+                                    token: SpannedToken(
+                                        38,
+                                        StateSelectorOrEnumPart(
+                                            Some(
+                                                "Out",
+                                            ),
+                                        ),
+                                        42,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            },
+                        ],
+                    ),
+                    right: Some(
+                        Node {
+                            token: SpannedToken(
+                                42,
+                                ParensClose,
+                                43,
+                            ),
+                            leading_trivia: None,
+                        },
+                    ),
+                },
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    43,
+                    SemiColon,
+                    44,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]
