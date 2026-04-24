@@ -1,12 +1,17 @@
 [package]
 name = "rbx-rsml"
-version = "1.0.2"
+version = "1.0.3"
 edition = "2024"
 description = "A lexer and parser for the RSML language."
 homepage = "https://www.rsml.style"
 repository = "https://github.com/rbx-rsml/rsml-rust.git"
 readme = "README.md"
 license = "MIT"
+
+[features]
+default = []
+compiler = []
+typechecker = ["dep:rangemap", "dep:indexmap", "dep:rbx_reflection", "dep:tokio"]
 
 [dependencies]
 logos = "0.15.1"
@@ -19,14 +24,20 @@ enum-kinds = "0.5.1"
 array-concat = "0.5.5"
 serde = "1.0.219"
 serde_json = "1.0.143"
-rangemap = "1.6.0"
-indexmap = "2"
-rbx_reflection = "6.1.0"
-rbx_reflection_database = "2.0.2"
-rbx_types = { version = "3.1.0", features = ["serde"] }
-rbx_types_ops = "0.0.11"
+rangemap = { version = "1.6.0", optional = true }
+indexmap = { version = "2", optional = true }
+
+# rbx_reflection = "6.1.0"
+# rbx_reflection_database = "2.0.2"
+# rbx_types = { version = "3.1.0", features = ["serde"] }
+# rbx_types_ops = "0.0.11"
+rbx_reflection = { git = "https://github.com/cameronpcampbell/rbx-dom.git", optional = true }
+rbx_reflection_database = { git = "https://github.com/cameronpcampbell/rbx-dom.git" }
+rbx_types = { git = "https://github.com/cameronpcampbell/rbx-dom.git" }
+rbx_types_ops = { git = "https://github.com/rbx-rsml/rbx_types_ops.git" }
+
 palette = "0.7.6"
-tokio = { version = "1.47.1", features = ["fs", "macros", "rt"] }
+tokio = { version = "1.47.1", features = ["fs", "macros", "rt"], optional = true }
 
 [dev-dependencies]
 insta = "1.42.2"

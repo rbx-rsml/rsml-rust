@@ -69,7 +69,26 @@ impl<'a> RsmlParser<'a> {
 
         let (node_status, body_nodes) =
             self.parse_datatype(node, TOKEN_KIND_CONSTRUCT_DELIMITERS);
-        let body_nodes = body_nodes.map(|x| Box::new(x));
+
+        // When the RHS is a macro call, `parse_macro_call_body` greedily consumes
+        // a trailing `;` as the MacroCall's own terminator. That semicolon
+        // semantically belongs to the Assignment — move it up.
+        let body_nodes = match body_nodes {
+            Some(Construct::MacroCall { name, body, terminator: Some(term) }) => {
+                let rebuilt = Box::new(Construct::MacroCall { name, body, terminator: None });
+
+                let next_node = match node_status {
+                    NodeStatus::Err(next) => Some(next),
+                    _ => None,
+                };
+
+                return Parsed (next_node, Some(Construct::Assignment {
+                    left: left_node, middle: Some(middle_node), right: Some(rebuilt), terminator: Some(term)
+                }));
+            },
+
+            other => other.map(Box::new),
+        };
 
         let terminator = match node_status {
             NodeStatus::Exists => match self.advance_until(token_kind_list![ SemiColon ], &TOKEN_KIND_CONSTRUCT_DELIMITERS) {

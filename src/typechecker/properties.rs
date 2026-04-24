@@ -1,4 +1,6 @@
-use rbx_reflection::{DataType, PropertyDescriptor, PropertyKind, ReflectionDatabase, Scriptability};
+use rbx_reflection::{
+    DataType, PropertyDescriptor, PropertyKind, ReflectionDatabase, Scriptability,
+};
 use rbx_types::{Variant, VariantType};
 
 use crate::datatype::variant_type_name;
@@ -61,17 +63,11 @@ fn variant_assignable(expected: VariantType, got: VariantType) -> bool {
     matches!(
         (expected, got),
         (
-            VariantType::Float32
-            | VariantType::Float64
-            | VariantType::Int32
-            | VariantType::Int64,
-            VariantType::Float32
-            | VariantType::Float64
-            | VariantType::Int32
-            | VariantType::Int64,
+            VariantType::Float32 | VariantType::Float64 | VariantType::Int32 | VariantType::Int64,
+            VariantType::Float32 | VariantType::Float64 | VariantType::Int32 | VariantType::Int64,
         ) | (VariantType::Color3, VariantType::Color3uint8)
-          | (VariantType::Color3uint8, VariantType::Color3)
-          | (VariantType::Content, VariantType::ContentId)
-          | (VariantType::ContentId, VariantType::Content)
+            | (VariantType::Color3uint8, VariantType::Color3)
+            | (VariantType::Content, VariantType::ContentId)
+            | (VariantType::ContentId, VariantType::Content)
     )
 }

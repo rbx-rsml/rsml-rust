@@ -4,11 +4,11 @@ use rbx_types::Variant;
 
 use crate::datatype::{Datatype, StaticLookup, evaluate_construct};
 use crate::lexer::Token;
-use crate::parser::types::{Construct, Delimited, MacroBodyContent, Node, SelectorNode};
-use crate::parser::{ParsedRsml, RsmlParser};
-use crate::typechecker::{
+use crate::macro_registry::{
     MacroDefinition, MacroKey, MacroRegistry, collect_macro_def_arg_names, macro_return_context,
 };
+use crate::parser::types::{Construct, Delimited, MacroBodyContent, Node, SelectorNode};
+use crate::parser::{ParsedRsml, RsmlParser};
 
 mod selector;
 pub mod tree_node;
@@ -165,7 +165,7 @@ fn compile_construct<'a>(
             }
         }
 
-        Construct::Tween { name, body, .. } => {
+        Construct::Tween { name, .. } => {
             let TreeNodeType::Node(node_idx) = *current_idx else {
                 return;
             };
@@ -173,7 +173,6 @@ fn compile_construct<'a>(
             let Token::Identifier(tween_name) = name_node.token.value() else {
                 return;
             };
-            let Some(body) = body else { return };
 
             let idx = *current_idx;
             let active_scope_depth = current_scope_depth(macro_ctx);
@@ -184,13 +183,13 @@ fn compile_construct<'a>(
                 active_scope_depth,
             };
 
-            let Some(datatype) = evaluate_construct(body, None, &lookup) else {
+            let Some(datatype) = evaluate_construct(construct, None, &lookup) else {
+                return;
+            };
+            let Some(variant @ Variant::TweenInfo(_)) = datatype.coerce_to_variant(None) else {
                 return;
             };
             let Some(node) = tree_nodes[node_idx].as_mut() else {
-                return;
-            };
-            let Some(variant) = datatype.coerce_to_variant(None) else {
                 return;
             };
 

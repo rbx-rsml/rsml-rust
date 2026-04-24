@@ -14,8 +14,8 @@ use phf_macros::phf_set;
 use ropey::Rope;
 use crate::types::Range;
 
+use crate::macro_registry::{MacroKey, MacroRegistry, MacroReturnContext};
 use crate::typechecker::{DefinitionKind, ReportTypeError, ResolvedTypes, Typechecker, type_error::*};
-use crate::typechecker::macro_check::{MacroKey, MacroRegistry, MacroReturnContext};
 
 impl<'a> Typechecker<'a> {
     pub(super) fn typecheck_rule(
@@ -521,7 +521,7 @@ impl<'a> TypecheckSelectors<'a> {
         name: &Node<'a>,
         body: &Option<Delimited<'a>>,
     ) {
-        use crate::typechecker::macro_check::count_macro_call_args;
+        use crate::macro_registry::count_macro_call_args;
 
         let Token::MacroCallIdentifier(Some(macro_name)) = name.token.value() else {
             return;

@@ -21,12 +21,14 @@ CompiledRsml {
                     "Frame",
                 ),
                 priority: None,
-                tweens: {},
                 attributes: Attributes {
                     data: {},
                 },
                 static_attributes: {},
                 properties: Attributes {
+                    data: {},
+                },
+                tweens: Attributes {
                     data: {},
                 },
                 child_rules: [
@@ -41,7 +43,6 @@ CompiledRsml {
                     "::UIScale",
                 ),
                 priority: None,
-                tweens: {},
                 attributes: Attributes {
                     data: {},
                 },
@@ -52,6 +53,9 @@ CompiledRsml {
                             1.5,
                         ),
                     },
+                },
+                tweens: Attributes {
+                    data: {},
                 },
                 child_rules: [],
                 parent: Node(

@@ -21,12 +21,14 @@ CompiledRsml {
                     ":hover",
                 ),
                 priority: None,
-                tweens: {},
                 attributes: Attributes {
                     data: {},
                 },
                 static_attributes: {},
                 properties: Attributes {
+                    data: {},
+                },
+                tweens: Attributes {
                     data: {},
                 },
                 child_rules: [],

@@ -14,7 +14,7 @@ use crate::{
 
 use self::luaurc::Luaurc;
 use crate::types::LanguageMode;
-pub use macro_check::{
+pub use crate::macro_registry::{
     MacroDefinition, MacroKey, MacroRegistry, MacroReturnContext, collect_macro_def_arg_names,
     macro_return_context,
 };

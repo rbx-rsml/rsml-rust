@@ -1,0 +1,193 @@
+---
+source: src/parser/mod.rs
+assertion_line: 420
+expression: parsed.ast
+---
+[
+    Tween {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                TweenDeclaration,
+                6,
+            ),
+            leading_trivia: None,
+        },
+        name: Some(
+            Node {
+                token: SpannedToken(
+                    7,
+                    Identifier(
+                        "Slide",
+                    ),
+                    12,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        body: Some(
+            Table {
+                body: Delimited {
+                    left: Node {
+                        token: SpannedToken(
+                            13,
+                            ParensOpen,
+                            14,
+                        ),
+                        leading_trivia: None,
+                    },
+                    content: Some(
+                        [
+                            Node {
+                                node: Node {
+                                    token: SpannedToken(
+                                        14,
+                                        Number(
+                                            "0.5",
+                                        ),
+                                        17,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            },
+                            Node {
+                                node: Node {
+                                    token: SpannedToken(
+                                        17,
+                                        Comma,
+                                        18,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            },
+                            Node {
+                                node: Node {
+                                    token: SpannedToken(
+                                        19,
+                                        StateSelectorOrEnumPart(
+                                            Some(
+                                                "Quad",
+                                            ),
+                                        ),
+                                        24,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            },
+                            Node {
+                                node: Node {
+                                    token: SpannedToken(
+                                        24,
+                                        Comma,
+                                        25,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            },
+                            Node {
+                                node: Node {
+                                    token: SpannedToken(
+                                        26,
+                                        StateSelectorOrEnumPart(
+                                            Some(
+                                                "Out",
+                                            ),
+                                        ),
+                                        30,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            },
+                            Node {
+                                node: Node {
+                                    token: SpannedToken(
+                                        30,
+                                        Comma,
+                                        31,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            },
+                            Node {
+                                node: Node {
+                                    token: SpannedToken(
+                                        32,
+                                        Number(
+                                            "3",
+                                        ),
+                                        33,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            },
+                            Node {
+                                node: Node {
+                                    token: SpannedToken(
+                                        33,
+                                        Comma,
+                                        34,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            },
+                            Node {
+                                node: Node {
+                                    token: SpannedToken(
+                                        35,
+                                        Boolean(
+                                            "true",
+                                        ),
+                                        39,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            },
+                            Node {
+                                node: Node {
+                                    token: SpannedToken(
+                                        39,
+                                        Comma,
+                                        40,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            },
+                            Node {
+                                node: Node {
+                                    token: SpannedToken(
+                                        41,
+                                        Number(
+                                            "0.1",
+                                        ),
+                                        44,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            },
+                        ],
+                    ),
+                    right: Some(
+                        Node {
+                            token: SpannedToken(
+                                44,
+                                ParensClose,
+                                45,
+                            ),
+                            leading_trivia: None,
+                        },
+                    ),
+                },
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    45,
+                    SemiColon,
+                    46,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]

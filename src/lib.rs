@@ -7,14 +7,21 @@ pub mod types;
 mod macros;
 
 pub mod builtins;
-pub mod compiler;
 pub mod datatype;
 pub mod lexer;
 pub mod list;
+pub mod macro_registry;
 pub mod parser;
 pub mod range_from_span;
+
+#[cfg(feature = "compiler")]
+pub mod compiler;
+
+#[cfg(feature = "typechecker")]
 pub mod typechecker;
 
+#[cfg(feature = "compiler")]
 pub use compiler::RsmlCompiler;
+
 pub use lexer::RsmlLexer;
 pub use parser::RsmlParser;

@@ -373,6 +373,8 @@ impl<'a> RsmlParser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parser::*;
+
+    #[cfg(feature = "compiler")]
     use crate::compiler::RsmlCompiler;
 
     macro_rules! parser_test {
@@ -383,6 +385,7 @@ mod tests {
                 insta::assert_debug_snapshot!(parsed.ast);
             }
 
+            #[cfg(feature = "compiler")]
             paste::paste! {
                 #[test]
                 fn [<compiler_ $name>]() {
@@ -412,6 +415,10 @@ mod tests {
     parser_test!(tween_string_value, r#"@tween Slide "ease-in";"#);
     parser_test!(tween_missing_name, r#"@tween ;"#);
     parser_test!(tween_missing_semicolon, r#"@tween MyTween 0.5"#);
+    parser_test!(tween_four_args, r#"@tween Slide (0.5, :Quad, :Out, 3);"#);
+    parser_test!(tween_five_args, r#"@tween Slide (0.5, :Quad, :Out, 3, true);"#);
+    parser_test!(tween_six_args, r#"@tween Slide (0.5, :Quad, :Out, 3, true, 0.1);"#);
+    parser_test!(tween_too_many_args, r#"@tween Slide (0.5, :Quad, :Out, 3, true, 0.1, 99);"#);
 
     parser_test!(assign_property_string, r#"Text = "hello";"#);
     parser_test!(assign_property_number, r#"Size = 42;"#);
@@ -501,6 +508,10 @@ mod tests {
     parser_test!(macro_call_complex_args, r#"Apply!(#ff0000, 10px, "hello");"#);
     parser_test!(macro_call_missing_semicolon, r#"MyMacro!()"#);
     parser_test!(macro_call_missing_close_paren, r#"MyMacro!(10px;"#);
+
+    parser_test!(macro_call_as_property_value, r#"Frame { FontFace = Test!(); }"#);
+    parser_test!(macro_call_as_property_value_with_args, r#"Frame { Size = Scale!(1.5); }"#);
+    parser_test!(macro_call_as_property_value_missing_semicolon, r#"Frame { FontFace = Test!() }"#);
 
     parser_test!(builtin_padding_one_arg, r#"Frame { Padding!(10px); }"#);
     parser_test!(builtin_padding_two_args, r#"Frame { Padding!(10px, 20px); }"#);

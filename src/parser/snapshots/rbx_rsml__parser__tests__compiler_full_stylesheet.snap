@@ -39,7 +39,6 @@ CompiledRsml {
                     "Frame",
                 ),
                 priority: None,
-                tweens: {},
                 attributes: Attributes {
                     data: {},
                 },
@@ -67,6 +66,9 @@ CompiledRsml {
                         ),
                     },
                 },
+                tweens: Attributes {
+                    data: {},
+                },
                 child_rules: [
                     1,
                     2,
@@ -80,7 +82,6 @@ CompiledRsml {
                     "TextLabel",
                 ),
                 priority: None,
-                tweens: {},
                 attributes: Attributes {
                     data: {},
                 },
@@ -99,6 +100,9 @@ CompiledRsml {
                         ),
                     },
                 },
+                tweens: Attributes {
+                    data: {},
+                },
                 child_rules: [],
                 parent: Node(
                     0,
@@ -111,7 +115,6 @@ CompiledRsml {
                     ":hover",
                 ),
                 priority: None,
-                tweens: {},
                 attributes: Attributes {
                     data: {},
                 },
@@ -127,6 +130,9 @@ CompiledRsml {
                         ),
                     },
                 },
+                tweens: Attributes {
+                    data: {},
+                },
                 child_rules: [],
                 parent: Node(
                     0,
@@ -139,7 +145,6 @@ CompiledRsml {
                     "#Sidebar, .panel",
                 ),
                 priority: None,
-                tweens: {},
                 attributes: Attributes {
                     data: {},
                 },
@@ -159,6 +164,9 @@ CompiledRsml {
                             },
                         ),
                     },
+                },
+                tweens: Attributes {
+                    data: {},
                 },
                 child_rules: [],
                 parent: Root,

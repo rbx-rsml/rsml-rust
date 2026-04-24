@@ -21,7 +21,6 @@ CompiledRsml {
                     "Frame",
                 ),
                 priority: None,
-                tweens: {},
                 attributes: Attributes {
                     data: {},
                 },
@@ -35,6 +34,9 @@ CompiledRsml {
                             true,
                         ),
                     },
+                },
+                tweens: Attributes {
+                    data: {},
                 },
                 child_rules: [],
                 parent: Root,

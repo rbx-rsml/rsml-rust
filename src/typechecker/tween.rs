@@ -97,6 +97,18 @@ fn is_comma(construct: &Construct) -> bool {
     )
 }
 
+fn is_boolean(construct: &Construct) -> bool {
+    matches!(
+        construct,
+        Construct::Node {
+            node: Node {
+                token: SpannedToken(_, Token::Boolean(_), _),
+                ..
+            },
+        }
+    )
+}
+
 impl<'a> Typechecker<'a> {
     pub(super) fn typecheck_tween(
         &self,
@@ -123,7 +135,7 @@ impl<'a> Typechecker<'a> {
 
                 if !is_number(args[0]) {
                     ast_errors.report(
-                        TypeError::InvalidTweenArg { expected: "number" },
+                        TypeError::InvalidTweenArg { expected: "number (time)" },
                         self.parsed.range_from_span(args[0].span()),
                     );
                 }
@@ -160,7 +172,34 @@ impl<'a> Typechecker<'a> {
                     }
                 }
 
-                for arg in args.iter().skip(3) {
+                if let Some(arg) = args.get(3) {
+                    if !is_number(arg) {
+                        ast_errors.report(
+                            TypeError::InvalidTweenArg { expected: "number (repeat count)" },
+                            self.parsed.range_from_span(arg.span()),
+                        );
+                    }
+                }
+
+                if let Some(arg) = args.get(4) {
+                    if !is_boolean(arg) {
+                        ast_errors.report(
+                            TypeError::InvalidTweenArg { expected: "boolean (reverses)" },
+                            self.parsed.range_from_span(arg.span()),
+                        );
+                    }
+                }
+
+                if let Some(arg) = args.get(5) {
+                    if !is_number(arg) {
+                        ast_errors.report(
+                            TypeError::InvalidTweenArg { expected: "number (delay time)" },
+                            self.parsed.range_from_span(arg.span()),
+                        );
+                    }
+                }
+
+                for arg in args.iter().skip(6) {
                     ast_errors.report(
                         TypeError::InvalidType { expected: Some(ExpectedDatatype::Tween) },
                         self.parsed.range_from_span(arg.span()),

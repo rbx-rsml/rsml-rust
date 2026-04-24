@@ -1,0 +1,122 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Rule {
+        selectors: Some(
+            [
+                Token(
+                    Node {
+                        token: SpannedToken(
+                            0,
+                            Identifier(
+                                "Frame",
+                            ),
+                            5,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            ],
+        ),
+        body: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        6,
+                        ScopeOpen,
+                        7,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Some(
+                    [
+                        Assignment {
+                            left: Node {
+                                token: SpannedToken(
+                                    8,
+                                    Identifier(
+                                        "FontFace",
+                                    ),
+                                    16,
+                                ),
+                                leading_trivia: None,
+                            },
+                            middle: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        17,
+                                        Equals,
+                                        18,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                            right: Some(
+                                MacroCall {
+                                    name: Node {
+                                        token: SpannedToken(
+                                            19,
+                                            MacroCallIdentifier(
+                                                Some(
+                                                    "Test",
+                                                ),
+                                            ),
+                                            24,
+                                        ),
+                                        leading_trivia: None,
+                                    },
+                                    body: Some(
+                                        Delimited {
+                                            left: Node {
+                                                token: SpannedToken(
+                                                    24,
+                                                    ParensOpen,
+                                                    25,
+                                                ),
+                                                leading_trivia: None,
+                                            },
+                                            content: None,
+                                            right: Some(
+                                                Node {
+                                                    token: SpannedToken(
+                                                        25,
+                                                        ParensClose,
+                                                        26,
+                                                    ),
+                                                    leading_trivia: None,
+                                                },
+                                            ),
+                                        },
+                                    ),
+                                    terminator: None,
+                                },
+                            ),
+                            terminator: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        26,
+                                        SemiColon,
+                                        27,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                        },
+                    ],
+                ),
+                right: Some(
+                    Node {
+                        token: SpannedToken(
+                            28,
+                            ScopeClose,
+                            29,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+    },
+]

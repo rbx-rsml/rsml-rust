@@ -1,5 +1,7 @@
 use palette::Srgb;
-use rbx_types::{Color3uint8, Content, EnumItem, UDim, Variant};
+use rbx_types::{
+    Color3uint8, Content, EasingDirection, EasingStyle, EnumItem, TweenInfo, UDim, Variant,
+};
 use rbx_types_ops::BasicOperations;
 
 use crate::lexer::Token;
@@ -95,15 +97,31 @@ pub fn evaluate_construct(
             .as_ref()
             .and_then(|r| evaluate_construct(r, key, lookup)),
 
+        Construct::Tween { body, .. } => {
+            let body = body.as_deref()?;
+
+            let info = match body {
+                Construct::Table {
+                    body: Delimited { content: Some(items), .. },
+                } => {
+                    let args: Vec<&Construct> =
+                        items.iter().filter(|item| !is_comma(item)).collect();
+                    tween_info_from_args(&args, lookup)?
+                }
+                _ => {
+                    let datatype = evaluate_construct(body, None, lookup)?;
+                    tween_info_from_bare(datatype.coerce_to_variant(None)?)?
+                }
+            };
+
+            Some(Datatype::Variant(Variant::TweenInfo(info)))
+        }
+
         _ => None,
     }
 }
 
-fn evaluate_token(
-    node: &Node,
-    key: Option<&str>,
-    lookup: &dyn StaticLookup,
-) -> Option<Datatype> {
+fn evaluate_token(node: &Node, key: Option<&str>, lookup: &dyn StaticLookup) -> Option<Datatype> {
     match node.token.value() {
         Token::Number(s) => parse_number_str(s).map(|n| Datatype::Variant(Variant::Float64(n))),
 
@@ -121,19 +139,15 @@ fn evaluate_token(
 
         Token::StringSingle(s) => Some(Datatype::Variant(Variant::String(s.to_string()))),
 
-        Token::StringMulti(multi) => {
-            Some(Datatype::Variant(Variant::String(multi.content.to_string())))
-        }
+        Token::StringMulti(multi) => Some(Datatype::Variant(Variant::String(
+            multi.content.to_string(),
+        ))),
 
-        Token::RbxAsset(slice) => {
-            Some(Datatype::Variant(Variant::String(slice.to_string())))
-        }
+        Token::RbxAsset(slice) => Some(Datatype::Variant(Variant::String(slice.to_string()))),
 
-        Token::RbxContent(slice) => {
-            Some(Datatype::Variant(Variant::Content(Content::from(
-                slice.to_string(),
-            ))))
-        }
+        Token::RbxContent(slice) => Some(Datatype::Variant(Variant::Content(Content::from(
+            slice.to_string(),
+        )))),
 
         Token::Boolean(s) => {
             let val = *s == "true";
@@ -152,29 +166,21 @@ fn evaluate_token(
             })
         }
 
-        Token::ColorTailwind(slice) => {
-            TAILWIND_COLORS
-                .get(&slice.to_lowercase())
-                .map(|color| Datatype::Oklab(***color))
-        }
+        Token::ColorTailwind(slice) => TAILWIND_COLORS
+            .get(&slice.to_lowercase())
+            .map(|color| Datatype::Oklab(***color)),
 
-        Token::ColorSkin(slice) => {
-            SKIN_COLORS
-                .get(&slice.to_lowercase())
-                .map(|color| Datatype::Oklab(***color))
-        }
+        Token::ColorSkin(slice) => SKIN_COLORS
+            .get(&slice.to_lowercase())
+            .map(|color| Datatype::Oklab(***color)),
 
-        Token::ColorCss(slice) => {
-            CSS_COLORS
-                .get(&slice.to_lowercase())
-                .map(|color| Datatype::Oklab(***color))
-        }
+        Token::ColorCss(slice) => CSS_COLORS
+            .get(&slice.to_lowercase())
+            .map(|color| Datatype::Oklab(***color)),
 
-        Token::ColorBrick(slice) => {
-            BRICK_COLORS
-                .get(&slice.to_lowercase())
-                .map(|color| Datatype::Oklab(***color))
-        }
+        Token::ColorBrick(slice) => BRICK_COLORS
+            .get(&slice.to_lowercase())
+            .map(|color| Datatype::Oklab(***color)),
 
         Token::TokenIdentifier(attr_name) => Some(lookup.resolve_dynamic(attr_name)),
 
@@ -197,10 +203,7 @@ fn evaluate_token(
     }
 }
 
-fn evaluate_delimited_to_vec(
-    delimited: &Delimited,
-    lookup: &dyn StaticLookup,
-) -> Vec<Datatype> {
+fn evaluate_delimited_to_vec(delimited: &Delimited, lookup: &dyn StaticLookup) -> Vec<Datatype> {
     let Some(content) = &delimited.content else {
         return vec![];
     };
@@ -276,4 +279,119 @@ pub(crate) fn shorthand_rebind<'a>(key: &'a str) -> &'a str {
 fn parse_number_str(s: &str) -> Option<f64> {
     let cleaned: String = s.chars().filter(|c| *c != '_').collect();
     cleaned.parse::<f64>().ok()
+}
+
+fn is_comma(construct: &Construct) -> bool {
+    matches!(construct, Construct::Node { node } if matches!(node.token.value(), Token::Comma))
+}
+
+fn variant_to_f32(v: &Variant) -> Option<f32> {
+    match v {
+        Variant::Float32(n) => Some(*n),
+        Variant::Float64(n) => Some(*n as f32),
+        Variant::Int32(n) => Some(*n as f32),
+        Variant::Int64(n) => Some(*n as f32),
+        _ => None,
+    }
+}
+
+fn variant_to_i32(v: &Variant) -> Option<i32> {
+    match v {
+        Variant::Int32(n) => Some(*n),
+        Variant::Int64(n) => Some(*n as i32),
+        Variant::Float32(n) => Some(*n as i32),
+        Variant::Float64(n) => Some(*n as i32),
+        _ => None,
+    }
+}
+
+fn datatype_to_easing_style(d: Datatype) -> Option<EasingStyle> {
+    match d {
+        Datatype::Variant(Variant::EnumItem(item)) => EasingStyle::from_u8(item.value as u8),
+        _ => None,
+    }
+}
+
+fn datatype_to_easing_direction(d: Datatype) -> Option<EasingDirection> {
+    match d {
+        Datatype::Variant(Variant::EnumItem(item)) => EasingDirection::from_u8(item.value as u8),
+        _ => None,
+    }
+}
+
+fn tween_info_from_bare(variant: Variant) -> Option<TweenInfo> {
+    match variant {
+        Variant::Float32(t) => Some(TweenInfo::from_time(t)),
+        Variant::Float64(t) => Some(TweenInfo::from_time(t as f32)),
+        Variant::Int32(t) => Some(TweenInfo::from_time(t as f32)),
+        Variant::Int64(t) => Some(TweenInfo::from_time(t as f32)),
+        Variant::TweenInfo(info) => Some(info),
+        _ => None,
+    }
+}
+
+fn tween_info_from_args(
+    args: &[&Construct],
+    lookup: &dyn StaticLookup,
+) -> Option<TweenInfo> {
+    if args.is_empty() || args.len() > 6 {
+        return None;
+    }
+
+    let time = {
+        let datatype = evaluate_construct(args[0], None, lookup)?;
+        variant_to_f32(&datatype.coerce_to_variant(None)?)?
+    };
+
+    let easing_style = match args.get(1) {
+        Some(arg) => {
+            datatype_to_easing_style(evaluate_construct(arg, Some("EasingStyle"), lookup)?)?
+        }
+        None => EasingStyle::default(),
+    };
+
+    let easing_direction = match args.get(2) {
+        Some(arg) => datatype_to_easing_direction(evaluate_construct(
+            arg,
+            Some("EasingDirection"),
+            lookup,
+        )?)?,
+        None => EasingDirection::default(),
+    };
+
+    let repeat_count = match args.get(3) {
+        Some(arg) => {
+            let datatype = evaluate_construct(arg, None, lookup)?;
+            variant_to_i32(&datatype.coerce_to_variant(None)?)?
+        }
+        None => 0,
+    };
+
+    let reverses = match args.get(4) {
+        Some(arg) => {
+            let datatype = evaluate_construct(arg, None, lookup)?;
+            match datatype.coerce_to_variant(None)? {
+                Variant::Bool(b) => b,
+                _ => return None,
+            }
+        }
+        None => false,
+    };
+
+    let delay_time = match args.get(5) {
+        Some(arg) => {
+            let datatype = evaluate_construct(arg, None, lookup)?;
+            variant_to_f32(&datatype.coerce_to_variant(None)?)?
+        }
+        None => 0.0,
+    };
+
+    Some(TweenInfo::new(
+        time,
+        easing_style,
+        easing_direction,
+        repeat_count,
+        reverses,
+        delay_time,
+    ))
 }

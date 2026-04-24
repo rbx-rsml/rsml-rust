@@ -1,10 +1,10 @@
 use std::sync::LazyLock;
 
 use crate::lexer::{RsmlLexer, Token};
-use crate::parser::{Construct, ParsedRsml, RsmlParser};
-use crate::typechecker::{
+use crate::macro_registry::{
     MacroDefinition, MacroKey, MacroRegistry, collect_macro_def_arg_names, macro_return_context,
 };
+use crate::parser::{Construct, ParsedRsml, RsmlParser};
 
 const BUILTINS_SOURCE: &str = include_str!("../builtins.rsml");
 

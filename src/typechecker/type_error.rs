@@ -29,7 +29,7 @@ impl ToString for ExpectedDatatype {
         match self {
             Self::String => "string",
             Self::Number => "number",
-            Self::Tween => "number or (number, EasingStyle?, EasingDirection?)"
+            Self::Tween => "number or (number, EasingStyle?, EasingDirection?, number?, boolean?, number?)"
         }.into()
     }
 }

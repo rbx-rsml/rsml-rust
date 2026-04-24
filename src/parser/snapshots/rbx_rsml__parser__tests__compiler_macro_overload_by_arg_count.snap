@@ -21,12 +21,14 @@ CompiledRsml {
                     "Frame",
                 ),
                 priority: None,
-                tweens: {},
                 attributes: Attributes {
                     data: {},
                 },
                 static_attributes: {},
                 properties: Attributes {
+                    data: {},
+                },
+                tweens: Attributes {
                     data: {},
                 },
                 child_rules: [
@@ -42,7 +44,6 @@ CompiledRsml {
                     "::Inner",
                 ),
                 priority: None,
-                tweens: {},
                 attributes: Attributes {
                     data: {},
                 },
@@ -57,6 +58,9 @@ CompiledRsml {
                         ),
                     },
                 },
+                tweens: Attributes {
+                    data: {},
+                },
                 child_rules: [],
                 parent: Node(
                     0,
@@ -69,7 +73,6 @@ CompiledRsml {
                     "::Inner",
                 ),
                 priority: None,
-                tweens: {},
                 attributes: Attributes {
                     data: {},
                 },
@@ -83,6 +86,9 @@ CompiledRsml {
                             },
                         ),
                     },
+                },
+                tweens: Attributes {
+                    data: {},
                 },
                 child_rules: [],
                 parent: Node(

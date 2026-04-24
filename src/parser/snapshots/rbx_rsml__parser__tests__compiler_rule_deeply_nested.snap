@@ -21,12 +21,14 @@ CompiledRsml {
                     ".tag",
                 ),
                 priority: None,
-                tweens: {},
                 attributes: Attributes {
                     data: {},
                 },
                 static_attributes: {},
                 properties: Attributes {
+                    data: {},
+                },
+                tweens: Attributes {
                     data: {},
                 },
                 child_rules: [
@@ -41,7 +43,6 @@ CompiledRsml {
                     ":hover",
                 ),
                 priority: None,
-                tweens: {},
                 attributes: Attributes {
                     data: {},
                 },
@@ -56,6 +57,9 @@ CompiledRsml {
                             },
                         ),
                     },
+                },
+                tweens: Attributes {
+                    data: {},
                 },
                 child_rules: [],
                 parent: Node(

@@ -21,12 +21,14 @@ CompiledRsml {
                     "Frame",
                 ),
                 priority: None,
-                tweens: {},
                 attributes: Attributes {
                     data: {},
                 },
                 static_attributes: {},
                 properties: Attributes {
+                    data: {},
+                },
+                tweens: Attributes {
                     data: {},
                 },
                 child_rules: [
@@ -41,7 +43,6 @@ CompiledRsml {
                     "TextLabel",
                 ),
                 priority: None,
-                tweens: {},
                 attributes: Attributes {
                     data: {},
                 },
@@ -52,6 +53,9 @@ CompiledRsml {
                             "hi",
                         ),
                     },
+                },
+                tweens: Attributes {
+                    data: {},
                 },
                 child_rules: [],
                 parent: Node(
