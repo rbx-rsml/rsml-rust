@@ -134,7 +134,7 @@ impl<'a> Typechecker<'a> {
 
                 if !self.is_number(args[0]) {
                     ast_errors.report(
-                        TypeError::InvalidTweenArg { expected: "number (time)" },
+                        TypeError::InvalidTweenArg { expected: "number", arg_name: Some("time") },
                         self.parsed.range_from_span(args[0].span()),
                     );
                 }
@@ -142,13 +142,13 @@ impl<'a> Typechecker<'a> {
                 if let Some(arg) = args.get(1) {
                     if !is_enum(arg, "EasingStyle") {
                         ast_errors.report(
-                            TypeError::InvalidTweenArg { expected: "Enum.EasingStyle" },
+                            TypeError::InvalidTweenArg { expected: "Enum.EasingStyle", arg_name: None },
                             self.parsed.range_from_span(arg.span()),
                         );
                     } else if let Some(variant) = get_enum_variant(arg) {
                         if !validate_enum_variant(variant, "EasingStyle") {
                             ast_errors.report(
-                                TypeError::InvalidTweenArg { expected: "a valid Enum.EasingStyle variant" },
+                                TypeError::InvalidTweenArg { expected: "a valid Enum.EasingStyle variant", arg_name: None },
                                 self.parsed.range_from_span(arg.span()),
                             );
                         }
@@ -158,13 +158,13 @@ impl<'a> Typechecker<'a> {
                 if let Some(arg) = args.get(2) {
                     if !is_enum(arg, "EasingDirection") {
                         ast_errors.report(
-                            TypeError::InvalidTweenArg { expected: "Enum.EasingDirection" },
+                            TypeError::InvalidTweenArg { expected: "Enum.EasingDirection", arg_name: None },
                             self.parsed.range_from_span(arg.span()),
                         );
                     } else if let Some(variant) = get_enum_variant(arg) {
                         if !validate_enum_variant(variant, "EasingDirection") {
                             ast_errors.report(
-                                TypeError::InvalidTweenArg { expected: "a valid Enum.EasingDirection variant" },
+                                TypeError::InvalidTweenArg { expected: "a valid Enum.EasingDirection variant", arg_name: None },
                                 self.parsed.range_from_span(arg.span()),
                             );
                         }
@@ -174,7 +174,7 @@ impl<'a> Typechecker<'a> {
                 if let Some(arg) = args.get(3) {
                     if !self.is_number(arg) {
                         ast_errors.report(
-                            TypeError::InvalidTweenArg { expected: "number (repeat count)" },
+                            TypeError::InvalidTweenArg { expected: "number", arg_name: Some("repeat count") },
                             self.parsed.range_from_span(arg.span()),
                         );
                     }
@@ -183,7 +183,7 @@ impl<'a> Typechecker<'a> {
                 if let Some(arg) = args.get(4) {
                     if !is_boolean(arg) {
                         ast_errors.report(
-                            TypeError::InvalidTweenArg { expected: "boolean (reverses)" },
+                            TypeError::InvalidTweenArg { expected: "boolean", arg_name: Some("reverses") },
                             self.parsed.range_from_span(arg.span()),
                         );
                     }
@@ -192,7 +192,7 @@ impl<'a> Typechecker<'a> {
                 if let Some(arg) = args.get(5) {
                     if !self.is_number(arg) {
                         ast_errors.report(
-                            TypeError::InvalidTweenArg { expected: "number (delay time)" },
+                            TypeError::InvalidTweenArg { expected: "number", arg_name: Some("delay time") },
                             self.parsed.range_from_span(arg.span()),
                         );
                     }

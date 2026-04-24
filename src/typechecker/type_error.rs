@@ -43,7 +43,7 @@ pub enum TypeError<'a> {
     UnknownDerive { path: Option<&'a str> },
     CyclicDerive { kind: CyclicKind<'a> },
     InvalidType { expected: Option<ExpectedDatatype> },
-    InvalidTweenArg { expected: &'a str },
+    InvalidTweenArg { expected: &'a str, arg_name: Option<&'a str> },
     InvalidSelector { msg: Option<&'a str> },
     InvalidMacroArg { msg: &'a str },
     UndefinedMacro { name: &'a str },
@@ -113,8 +113,16 @@ impl<'a> TypeError<'a> {
                 None => String::from("Type Error (Invalid Type)")
             },
 
-            Self::InvalidTweenArg { expected } =>
-                format!("Type Error (Invalid Tween Argument): Expected `{}`.", expected),
+            Self::InvalidTweenArg { expected, arg_name } => match arg_name {
+                Some(name) => format!(
+                    "Type Error (Invalid Tween Argument): Expected `{}` for {}.",
+                    expected, name
+                ),
+                None => format!(
+                    "Type Error (Invalid Tween Argument): Expected `{}`.",
+                    expected
+                ),
+            },
 
             Self::InvalidSelector { msg } => match msg {
                 Some(msg) => format!("Type Error (Invalid Selector): {}", msg),

@@ -2964,8 +2964,8 @@ mod tests {
             result
                 .errors
                 .iter()
-                .any(|err| err.contains("Invalid Tween Argument") && err.contains("number (time)")),
-            "expected `number (time)` tween error for non-numeric math, got: {:?}",
+                .any(|err| err.contains("Invalid Tween Argument") && err.contains("`number` for time")),
+            "expected `number` for time tween error for non-numeric math, got: {:?}",
             result.errors
         );
     }
@@ -2987,8 +2987,8 @@ mod tests {
             result
                 .errors
                 .iter()
-                .any(|err| err.contains("Invalid Tween Argument") && err.contains("number (time)")),
-            "expected `number (time)` tween error for non-numeric annotation, got: {:?}",
+                .any(|err| err.contains("Invalid Tween Argument") && err.contains("`number` for time")),
+            "expected `number` for time tween error for non-numeric annotation, got: {:?}",
             result.errors
         );
     }
