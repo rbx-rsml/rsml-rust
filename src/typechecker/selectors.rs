@@ -236,48 +236,12 @@ impl<'a> TypecheckSelectors<'a> {
     fn from_new(&mut self, part: &'a Node<'a>) {
         match part.token.value() {
             Token::TagSelectorOrEnumPart(_) | Token::NameSelector(_) | Token::QuerySelector(_) => {
-                self.classes.insert("Instance".to_string());
-                self.consume_past_comma();
+                self.consume_compound_tail(part.token.value().kind(), vec!["Instance".to_string()]);
             }
 
             Token::Identifier(class) => {
-                let validated_class = self.validate_class(class, &part.token);
-
-                match self.consume_with_error(
-                    TokenKind::Identifier,
-                    token_kind_list![PseudoSelector, StateSelectorOrEnumPart],
-                    Some(token_kind_list![TagSelectorOrEnumPart, NameSelector]),
-                ) {
-                    ConsumeResult::Some(part) => match part.token.value() {
-                        Token::PseudoSelector(class) => {
-                            let validated_class =
-                                self.validate_instance_class(class, &part.token, "Pseudo");
-                            self.classes.insert(validated_class.to_string());
-                            self.consume_past_comma();
-                        }
-
-                        Token::StateSelectorOrEnumPart(Some(class)) => {
-                            self.classes.insert(validated_class.to_string());
-                            self.validate_state(class, &part.token);
-                            self.consume_past_comma();
-                        }
-
-                        _ => (),
-                    },
-
-                    ConsumeResult::Err(delimiter) => {
-                        if matches!(delimiter.token.value(), Token::Comma) {
-                            self.classes.insert(validated_class.to_string());
-                        }
-
-                        let Some(part) = self.next() else { return };
-                        self.begin_iteration(part);
-                    }
-
-                    ConsumeResult::None => {
-                        self.classes.insert(validated_class.to_string());
-                    }
-                }
+                let validated_class = self.validate_class(class, &part.token).to_string();
+                self.consume_compound_tail(TokenKind::Identifier, vec![validated_class]);
             }
 
             Token::PseudoSelector(class) => {
@@ -308,38 +272,8 @@ impl<'a> TypecheckSelectors<'a> {
                     );
                 }
 
-                let validated_class = self.validate_class(class, &part.token);
-                self.classes.insert(validated_class.to_string());
-
-                match self.consume_with_error(
-                    TokenKind::Identifier,
-                    token_kind_list![PseudoSelector, StateSelectorOrEnumPart],
-                    Some(token_kind_list![TagSelectorOrEnumPart, NameSelector]),
-                ) {
-                    ConsumeResult::Some(part) => match part.token.value() {
-                        Token::PseudoSelector(class) => {
-                            self.classes.pop();
-                            let validated_class =
-                                self.validate_instance_class(class, &part.token, "Pseudo");
-                            self.classes.insert(validated_class.to_string());
-                            self.consume_past_comma();
-                        }
-
-                        Token::StateSelectorOrEnumPart(Some(state)) => {
-                            self.validate_state(state, &part.token);
-                            self.consume_past_comma();
-                        }
-
-                        _ => (),
-                    },
-
-                    ConsumeResult::Err(_) => {
-                        let Some(part) = self.next() else { return };
-                        self.begin_iteration(part);
-                    }
-
-                    ConsumeResult::None => (),
-                }
+                let validated_class = self.validate_class(class, &part.token).to_string();
+                self.consume_compound_tail(TokenKind::Identifier, vec![validated_class]);
             }
 
             Token::PseudoSelector(class) => {
@@ -355,8 +289,12 @@ impl<'a> TypecheckSelectors<'a> {
             }
 
             Token::TagSelectorOrEnumPart(_) | Token::NameSelector(_) | Token::QuerySelector(_) => {
-                self.classes.insert("Instance".to_string());
-                self.consume_past_comma();
+                let initial = if after_combinator {
+                    vec!["Instance".to_string()]
+                } else {
+                    self.parent_classes.clone()
+                };
+                self.consume_compound_tail(part.token.value().kind(), initial);
             }
 
             Token::ChildrenSelector | Token::DescendantsSelector => {
@@ -376,11 +314,59 @@ impl<'a> TypecheckSelectors<'a> {
         }
     }
 
-    fn consume_with_error<const N: usize>(
+    /// Consumes the tail of a compound selector after the leading token has
+    /// already been processed. `initial_classes` is the type to charge this
+    /// part with when no class-overriding token follows. A trailing Identifier
+    /// or PseudoSelector overrides it; a State preserves it; further Tag or
+    /// Name tokens are tolerated silently.
+    fn consume_compound_tail(&mut self, origin_kind: TokenKind, initial_classes: Vec<String>) {
+        match self.consume_with_error(
+            origin_kind,
+            token_kind_list![Identifier, PseudoSelector, StateSelectorOrEnumPart],
+            Some(token_kind_list![TagSelectorOrEnumPart, NameSelector]),
+        ) {
+            ConsumeResult::Some(part) => match part.token.value() {
+                Token::Identifier(class) => {
+                    let validated = self.validate_class(class, &part.token);
+                    self.classes.insert(validated.to_string());
+                    self.consume_past_comma();
+                }
+
+                Token::PseudoSelector(class) => {
+                    let validated = self.validate_instance_class(class, &part.token, "Pseudo");
+                    self.classes.insert(validated.to_string());
+                    self.consume_past_comma();
+                }
+
+                Token::StateSelectorOrEnumPart(Some(state)) => {
+                    self.classes.extend(initial_classes);
+                    self.validate_state(state, &part.token);
+                    self.consume_past_comma();
+                }
+
+                _ => (),
+            },
+
+            ConsumeResult::Err(delimiter) => {
+                if matches!(delimiter.token.value(), Token::Comma) {
+                    self.classes.extend(initial_classes);
+                }
+
+                let Some(part) = self.next() else { return };
+                self.begin_iteration(part);
+            }
+
+            ConsumeResult::None => {
+                self.classes.extend(initial_classes);
+            }
+        }
+    }
+
+    fn consume_with_error<const N: usize, const M: usize>(
         &mut self,
         origin_kind: TokenKind,
         allow_list: &TokenKindList<N>,
-        error_exclude_list: Option<&TokenKindList<N>>,
+        error_exclude_list: Option<&TokenKindList<M>>,
     ) -> ConsumeResult<'a> {
         self.consume(allow_list, |checker, part| {
             checker.error(

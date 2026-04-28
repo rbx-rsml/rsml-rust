@@ -515,9 +515,13 @@ mod tests {
     parser_test!(macro_call_missing_semicolon, r#"MyMacro!()"#);
     parser_test!(macro_call_missing_close_paren, r#"MyMacro!(10px;"#);
 
-    parser_test!(macro_call_as_property_value, r#"Frame { FontFace = Test!(); }"#);
-    parser_test!(macro_call_as_property_value_with_args, r#"Frame { Size = Scale!(1.5); }"#);
-    parser_test!(macro_call_as_property_value_missing_semicolon, r#"Frame { FontFace = Test!() }"#);
+    parser_test!(macro_call_undefined_as_property_value, r#"Frame { FontFace = Test!(); }"#);
+    parser_test!(macro_call_undefined_as_property_value_with_args, r#"Frame { Size = Scale!(1.5); }"#);
+    parser_test!(macro_call_undefined_as_property_value_missing_semicolon, r#"Frame { FontFace = Test!() }"#);
+
+    parser_test!(macro_call_defined_as_property_value, r#"@macro Test -> Datatype { "Arial" } Frame { FontFace = Test!(); }"#);
+    parser_test!(macro_call_defined_as_property_value_with_args, r#"@macro Scale(&n) -> Datatype { &n } Frame { Size = Scale!(1.5); }"#);
+    parser_test!(macro_call_defined_as_property_value_missing_semicolon, r#"@macro Test -> Datatype { "Arial" } Frame { FontFace = Test!() }"#);
 
     parser_test!(builtin_padding_one_arg, r#"Frame { Padding!(10px); }"#);
     parser_test!(builtin_padding_two_args, r#"Frame { Padding!(10px, 20px); }"#);
@@ -537,6 +541,8 @@ mod tests {
     parser_test!(directive_nobuiltins_blocks_builtin_expansion, "--!nobuiltins\nFrame { Padding!(10px); }");
     parser_test!(directive_strict_alone, "--!strict");
     parser_test!(directive_nonstrict_alone, "--!nonstrict");
+    parser_test!(directive_static_alone, "--!static");
+    parser_test!(directive_static_with_macro_and_static_token, "--!static\n@macro Big -> Datatype { 100 }\n$!brand = #f00;");
     parser_test!(directive_after_comment, "-- preface\n--!nobuiltins\nSize = 100;");
     parser_test!(directive_unknown, "--!foo\nSize = 100;");
     parser_test!(directive_empty, "--!\nSize = 100;");
@@ -572,6 +578,18 @@ mod tests {
     fn no_directive_leaves_language_mode_unset() {
         let parsed = RsmlParser::parse_source("Size = 100;");
         assert_eq!(parsed.directives.language_mode, None);
+    }
+
+    #[test]
+    fn directive_sets_static_file_flag() {
+        let parsed = RsmlParser::parse_source("--!static\n$!brand = #f00;");
+        assert!(parsed.directives.static_file);
+    }
+
+    #[test]
+    fn no_directive_leaves_static_file_flag_unset() {
+        let parsed = RsmlParser::parse_source("Size = 100;");
+        assert!(!parsed.directives.static_file);
     }
 
     #[test]

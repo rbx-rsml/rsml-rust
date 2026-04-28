@@ -70,6 +70,7 @@ pub enum AnyTreeNodeMut<'a> {
 pub struct CompiledRsml {
     root: Option<RootTreeNode>,
     nodes: Vec<Option<TreeNode>>,
+    pub is_static: bool,
 }
 
 impl CompiledRsml {
@@ -77,6 +78,7 @@ impl CompiledRsml {
         Self {
             root: Some(RootTreeNode::new()),
             nodes: vec![],
+            is_static: false,
         }
     }
 

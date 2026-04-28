@@ -132,6 +132,20 @@ fn strip_sigil_span(span: (usize, usize)) -> (usize, usize) {
     (start.saturating_add(1).min(end), end)
 }
 
+fn report_static_violation(
+    construct: &Construct<'_>,
+    parsed: &ParsedRsml<'_>,
+    ast_errors: &mut AstErrors,
+) {
+    ast_errors.report(
+        TypeError::NotAllowedInContext {
+            name: construct.name_plural(),
+            context: "static-only rsml files",
+        },
+        Range::from_span(&parsed.rope, construct.span()),
+    );
+}
+
 impl DefinitionKind {
     fn selector_hint(classes: &Vec<String>) -> String {
         classes.join(" | ")
@@ -211,7 +225,13 @@ impl<'a> Typechecker<'a> {
         let mut resolved_types: ResolvedTypes = HashMap::new();
         let mut dependencies = HashSet::new();
 
+        let is_static_file = typechecker.parsed.directives.static_file;
+
         for construct in &typechecker.parsed.ast {
+            if is_static_file && !construct.allowed_in_static_file() {
+                report_static_violation(construct, typechecker.parsed, &mut ast_errors);
+            }
+
             match construct {
                 Construct::Derive {
                     body: Some(derive_body),
@@ -3020,6 +3040,168 @@ mod tests {
             !result.errors.iter().any(|err| err.contains("Invalid Tween Argument")),
             "unexpected tween argument error for numeric lerp math, got: {:?}",
             result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn static_file_allows_macro_and_static_token() {
+        let result = typecheck(
+            "--!static\n@macro Big -> Datatype { 100 }\n$!brand = #f00;",
+        )
+        .await;
+
+        assert!(
+            !result.errors.iter().any(|err| err.contains("static-only file")),
+            "unexpected static-only file error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn static_file_rejects_rule() {
+        let result = typecheck("--!static\nFrame { Size = 100; }").await;
+
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Rules") && err.contains("static-only rsml files")),
+            "expected rule rejection in static file, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn static_file_rejects_dynamic_token() {
+        let result = typecheck("--!static\n$brand = #f00;").await;
+
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Token assignments") && err.contains("static-only rsml files")),
+            "expected dynamic token rejection in static file, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn static_file_rejects_property_assignment() {
+        let result = typecheck("--!static\nSize = 100;").await;
+
+        assert!(
+            result.errors.iter().any(|err| {
+                err.contains("Property assignments") && err.contains("static-only rsml files")
+            }),
+            "expected property assignment rejection in static file, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn static_file_rejects_top_level_macro_call() {
+        let result = typecheck("--!static\n@macro M -> Construct { Size = 1; }\nM!();").await;
+
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Macro calls") && err.contains("static-only rsml files")),
+            "expected macro call rejection in static file, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn static_file_allows_derive() {
+        let result = typecheck("--!static\n@derive \"./other\";").await;
+
+        assert!(
+            !result.errors.iter().any(|err| err.contains("static-only file")),
+            "unexpected static-only file error for derive, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn no_static_directive_allows_rules() {
+        let result = typecheck("Frame { Size = 100; }").await;
+
+        assert!(
+            !result.errors.iter().any(|err| err.contains("static-only file")),
+            "unexpected static-only file error without directive, got: {:?}",
+            result.errors
+        );
+    }
+
+    async fn typecheck_with_target(
+        current_source: &str,
+        target_source: &str,
+    ) -> Vec<String> {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let target_path = dir.path().join("target.rsml");
+        let current_path = dir.path().join("current.rsml");
+        std::fs::write(&target_path, target_source).expect("write target");
+        std::fs::write(&current_path, current_source).expect("write current");
+
+        let lexer = RsmlLexer::new(current_source);
+        let parsed = RsmlParser::new(lexer);
+        let canonical_current = current_path.canonicalize().expect("canonicalize current");
+
+        let TypecheckedRsml { errors, .. } =
+            Typechecker::new(&parsed, &canonical_current, None).await;
+
+        errors
+            .0
+            .iter()
+            .map(|diagnostic| diagnostic.message.clone())
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn static_file_derive_from_static_passes() {
+        let errors = typecheck_with_target(
+            "--!static\n@derive \"./target\";",
+            "--!static\n@macro Big -> Datatype { 100 }",
+        )
+        .await;
+
+        assert!(
+            !errors.iter().any(|err| err.contains("Non-Static Derive")),
+            "unexpected Non-Static Derive error, got: {:?}",
+            errors
+        );
+    }
+
+    #[tokio::test]
+    async fn static_file_derive_from_non_static_errors() {
+        let errors = typecheck_with_target(
+            "--!static\n@derive \"./target\";",
+            "Frame { Size = 100; }",
+        )
+        .await;
+
+        assert!(
+            errors
+                .iter()
+                .any(|err| err.contains("Non-Static Derive") && err.contains("target.rsml")),
+            "expected Non-Static Derive error mentioning target.rsml, got: {:?}",
+            errors
+        );
+    }
+
+    #[tokio::test]
+    async fn non_static_file_derive_from_non_static_passes() {
+        let errors = typecheck_with_target(
+            "@derive \"./target\";",
+            "Frame { Size = 100; }",
+        )
+        .await;
+
+        assert!(
+            !errors.iter().any(|err| err.contains("Non-Static Derive")),
+            "unexpected Non-Static Derive error, got: {:?}",
+            errors
         );
     }
 }

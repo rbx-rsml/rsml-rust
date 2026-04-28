@@ -67,4 +67,5 @@ CompiledRsml {
             },
         ),
     ],
+    is_static: false,
 }

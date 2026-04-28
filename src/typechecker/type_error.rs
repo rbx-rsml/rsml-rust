@@ -42,6 +42,7 @@ pub enum CyclicKind<'a> {
 pub enum TypeError<'a> {
     UnknownDerive { path: Option<&'a str> },
     CyclicDerive { kind: CyclicKind<'a> },
+    NonStaticDerive { path: &'a str },
     InvalidType { expected: Option<ExpectedDatatype> },
     InvalidTweenArg { expected: &'a str, arg_name: Option<&'a str> },
     InvalidSelector { msg: Option<&'a str> },
@@ -67,6 +68,7 @@ impl<'a> TypeError<'a> {
         match self {
             Self::UnknownDerive { .. } |
             Self::CyclicDerive { .. } |
+            Self::NonStaticDerive { .. } |
             Self::InvalidType { .. } |
             Self::InvalidTweenArg { .. } |
             Self::InvalidSelector { .. } |
@@ -107,6 +109,11 @@ impl<'a> TypeError<'a> {
                         ancestry_chain
                     ),
                 },
+
+            Self::NonStaticDerive { path } => format!(
+                "Type Error (Non-Static Derive): Static-only files may only derive from other static-only files. `{}` is not static-only.",
+                path,
+            ),
 
             Self::InvalidType { expected } => match expected {
                 Some(expected) => format!("Type Error (Invalid Type): Expected type `{}`.", expected.to_string()),
@@ -259,6 +266,7 @@ impl<'a> ToString for TypeError<'a> {
         format!("TYPE_ERROR({})", match self {
             Self::UnknownDerive { .. } => "UNKNOWN_DERIVE",
             Self::CyclicDerive { .. } => "CYCLIC_DERIVE",
+            Self::NonStaticDerive { .. } => "NON_STATIC_DERIVE",
             Self::InvalidType { .. } => "INVALID_TYPE",
             Self::InvalidTweenArg { .. } => "INVALID_TWEEN_ARG",
             Self::InvalidSelector { .. } => "INVALID_SELECTOR",

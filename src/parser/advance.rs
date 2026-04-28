@@ -128,6 +128,7 @@ impl<'a> RsmlParser<'a> {
             "nobuiltins" => self.directives.nobuiltins = true,
             "strict" => self.directives.language_mode = Some(LanguageMode::Strict),
             "nonstrict" => self.directives.language_mode = Some(LanguageMode::Nonstrict),
+            "static" => self.directives.static_file = true,
             _ => self.ast_errors.push(
                 ParseError::UnknownDirective { name: name.to_string() },
                 self.range_from_span(span),

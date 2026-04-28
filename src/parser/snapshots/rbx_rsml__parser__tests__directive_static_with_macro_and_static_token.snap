@@ -1,0 +1,147 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Macro {
+        declaration: Node {
+            token: SpannedToken(
+                10,
+                MacroDeclaration,
+                16,
+            ),
+            leading_trivia: Some(
+                [
+                    SpannedToken(
+                        0,
+                        Directive(
+                            "static",
+                        ),
+                        9,
+                    ),
+                ],
+            ),
+        },
+        name: Some(
+            Node {
+                token: SpannedToken(
+                    17,
+                    Identifier(
+                        "Big",
+                    ),
+                    20,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        args: None,
+        return_type: Some(
+            (
+                Node {
+                    token: SpannedToken(
+                        21,
+                        ReturnArrow,
+                        23,
+                    ),
+                    leading_trivia: None,
+                },
+                Some(
+                    Node {
+                        token: SpannedToken(
+                            24,
+                            Identifier(
+                                "Datatype",
+                            ),
+                            32,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            ),
+        ),
+        body: Some(
+            MacroBody {
+                open: Node {
+                    token: SpannedToken(
+                        33,
+                        ScopeOpen,
+                        34,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Datatype(
+                    Some(
+                        Node {
+                            node: Node {
+                                token: SpannedToken(
+                                    35,
+                                    Number(
+                                        "100",
+                                    ),
+                                    38,
+                                ),
+                                leading_trivia: None,
+                            },
+                        },
+                    ),
+                ),
+                close: Some(
+                    Node {
+                        token: SpannedToken(
+                            39,
+                            ScopeClose,
+                            40,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+    },
+    Assignment {
+        left: Node {
+            token: SpannedToken(
+                41,
+                StaticTokenIdentifier(
+                    "brand",
+                ),
+                48,
+            ),
+            leading_trivia: None,
+        },
+        middle: Some(
+            Node {
+                token: SpannedToken(
+                    49,
+                    Equals,
+                    50,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        right: Some(
+            Node {
+                node: Node {
+                    token: SpannedToken(
+                        51,
+                        ColorHex(
+                            "#f00",
+                        ),
+                        55,
+                    ),
+                    leading_trivia: None,
+                },
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    55,
+                    SemiColon,
+                    56,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]

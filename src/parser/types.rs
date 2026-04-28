@@ -11,6 +11,7 @@ use crate::parser::parse_error::ParseError;
 pub struct Directives {
     pub nobuiltins: bool,
     pub language_mode: Option<LanguageMode>,
+    pub static_file: bool,
 }
 
 pub struct ParsedRsml<'a> {
@@ -303,6 +304,19 @@ impl<'a> Construct<'a> {
 
     pub fn span(&self) -> (usize, usize) {
         (self.start(), self.end())
+    }
+
+    pub fn allowed_in_static_file(&self) -> bool {
+        match self {
+            Self::Macro { .. }
+            | Self::Derive { .. }
+            | Self::Node { .. }
+            | Self::None { .. } => true,
+            Self::Assignment { left, .. } => {
+                matches!(left.token.value(), Token::StaticTokenIdentifier(_))
+            }
+            _ => false,
+        }
     }
 }
 

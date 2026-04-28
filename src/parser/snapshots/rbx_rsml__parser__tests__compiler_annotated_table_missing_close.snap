@@ -26,4 +26,5 @@ CompiledRsml {
         },
     ),
     nodes: [],
+    is_static: false,
 }

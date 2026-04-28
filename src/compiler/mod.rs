@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use rbx_types::Variant;
 
 use crate::datatype::{Datatype, StaticLookup, evaluate_construct};
-use crate::lexer::Token;
+use crate::lexer::{MultilineString, Token};
 use crate::macro_registry::{
     MacroDefinition, MacroKey, MacroRegistry, collect_macro_def_arg_names, macro_return_context,
 };
@@ -39,6 +39,8 @@ impl<'a> RsmlCompiler<'a> {
     pub fn new(parsed: ParsedRsml<'a>) -> CompiledRsml {
         let compiler = Self { parsed };
         let mut tree_nodes = CompiledRsml::new();
+        tree_nodes.is_static = compiler.parsed.directives.static_file;
+        let is_static = tree_nodes.is_static;
         let mut current_idx = TreeNodeType::Root;
 
         let local = collect_user_macros(&compiler.parsed.ast);
@@ -50,6 +52,12 @@ impl<'a> RsmlCompiler<'a> {
         };
 
         for construct in &compiler.parsed.ast {
+            if is_static && !construct.allowed_in_static_file() {
+                continue;
+            }
+            if is_static && !derive_is_compliant_in_static(construct) {
+                continue;
+            }
             compile_construct(construct, &mut tree_nodes, &mut current_idx, &mut macro_ctx);
         }
 
@@ -58,6 +66,42 @@ impl<'a> RsmlCompiler<'a> {
 
     pub fn from_source(source: &'a str) -> CompiledRsml {
         Self::new(RsmlParser::from_source(source))
+    }
+}
+
+fn derive_is_compliant_in_static(construct: &Construct<'_>) -> bool {
+    match construct {
+        Construct::Derive { body: Some(body), .. } => derive_target_is_static(body),
+        _ => true,
+    }
+}
+
+fn derive_target_is_static(body: &Construct<'_>) -> bool {
+    let Some(literal_path) = extract_derive_string_literal(body) else {
+        return true;
+    };
+
+    let mut path = std::path::PathBuf::from(literal_path.trim());
+    path.set_extension("rsml");
+
+    let Ok(canonical) = path.canonicalize() else {
+        return true;
+    };
+    let Ok(source) = std::fs::read_to_string(canonical) else {
+        return true;
+    };
+
+    RsmlParser::from_source(&source).directives.static_file
+}
+
+fn extract_derive_string_literal<'a>(body: &'a Construct<'a>) -> Option<&'a str> {
+    let Construct::Node { node } = body else {
+        return None;
+    };
+    match node.token.value() {
+        Token::StringSingle(content) => Some(*content),
+        Token::StringMulti(MultilineString { content, .. }) => Some(*content),
+        _ => None,
     }
 }
 

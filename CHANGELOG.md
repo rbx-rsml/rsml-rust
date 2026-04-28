@@ -1,4 +1,12 @@
 # Unreleased
+## Changes
+- Added a `--!static` directive — files marked static-only do not compile into a Roblox `StyleSheet` and may only contain macro definitions, static token assignments, and derives to other static files.
+
+## Fixes
+- Fixed nested tag (`.`), name (`#`), and query (`@`) selectors resolving to `Instance` instead of inheriting the parent's class. The parent's class is now inherited unless a `>` or `>>` combinator is used.
+- Fixed a class identifier following a tag or name selector (e.g. `.Tag Frame {}`) being silently dropped,å it now correctly resolves to that class.
+
+# 1.0.3
 - Fixed tweens not being compiled correctly.
 - the `typechecker` is now conditionally enabled via the `typechecker` feature.
 - the `compiler` is now conditionally enabled via the `compiler` feature.

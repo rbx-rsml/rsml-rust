@@ -170,6 +170,17 @@ impl<'a> Typechecker<'a> {
                         self.parsed.range_from_span(span),
                     );
                 } else {
+                    if self.parsed.directives.static_file
+                        && !derived_file_is_static(&canonicalized).await
+                    {
+                        ast_errors.report(
+                            TypeError::NonStaticDerive {
+                                path: &canonicalized.to_string_lossy(),
+                            },
+                            self.parsed.range_from_span(span),
+                        );
+                    }
+
                     dependencies.insert(canonicalized.clone());
                     derives.insert(canonicalized, span.0..=span.1);
                 }
@@ -187,4 +198,13 @@ impl<'a> Typechecker<'a> {
             }
         }
     }
+}
+
+async fn derived_file_is_static(path: &Path) -> bool {
+    let Ok(source) = tokio::fs::read_to_string(path).await else {
+        return true;
+    };
+    crate::parser::RsmlParser::from_source(&source)
+        .directives
+        .static_file
 }
