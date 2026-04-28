@@ -157,11 +157,39 @@ impl<'a> Typechecker<'a> {
         dependencies: &mut HashSet<PathBuf>,
         derives: &mut HashMap<PathBuf, RangeInclusive<usize>>,
     ) {
-        let mut path = self.resolve_derive_alias(content.trim(), current_path, luaurc);
-        path.set_extension("rsml");
+        let trimmed = content.trim();
+        let mut path = self.resolve_derive_alias(trimmed, current_path, luaurc);
+
+        match path.extension() {
+            None => {
+                path.set_extension("rsml");
+            }
+            Some(ext) if ext.eq_ignore_ascii_case("rsml") => {}
+            Some(_) => {
+                ast_errors.report(
+                    TypeError::InvalidDeriveTarget {
+                        path: trimmed,
+                        reason: "must be a `.rsml` file",
+                    },
+                    self.parsed.range_from_span(span),
+                );
+                return;
+            }
+        }
 
         match path.canonicalize() {
             Ok(canonicalized) => {
+                if !canonicalized.is_file() {
+                    ast_errors.report(
+                        TypeError::InvalidDeriveTarget {
+                            path: &canonicalized.to_string_lossy(),
+                            reason: "is not a file",
+                        },
+                        self.parsed.range_from_span(span),
+                    );
+                    return;
+                }
+
                 if &canonicalized == current_path {
                     ast_errors.report(
                         TypeError::CyclicDerive {

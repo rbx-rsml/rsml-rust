@@ -55,8 +55,12 @@ impl<'a> RsmlCompiler<'a> {
             if is_static && !construct.allowed_in_static_file() {
                 continue;
             }
-            if is_static && !derive_is_compliant_in_static(construct) {
-                continue;
+            if let Construct::Derive { body: Some(body), .. } = construct {
+                match classify_derive(body) {
+                    DeriveClass::Invalid => continue,
+                    DeriveClass::NonStatic if is_static => continue,
+                    _ => {}
+                }
             }
             compile_construct(construct, &mut tree_nodes, &mut current_idx, &mut macro_ctx);
         }
@@ -69,29 +73,47 @@ impl<'a> RsmlCompiler<'a> {
     }
 }
 
-fn derive_is_compliant_in_static(construct: &Construct<'_>) -> bool {
-    match construct {
-        Construct::Derive { body: Some(body), .. } => derive_target_is_static(body),
-        _ => true,
-    }
+enum DeriveClass {
+    /// Body isn't a single string literal (e.g. a table of paths). The
+    /// typechecker handles per-item validation; the compiler keeps these as-is.
+    Other,
+    /// Resolves to a valid `.rsml` file with `--!static`.
+    Static,
+    /// Resolves to a valid `.rsml` file without `--!static`.
+    NonStatic,
+    /// Wrong extension, missing, points at a directory, or unreadable.
+    Invalid,
 }
 
-fn derive_target_is_static(body: &Construct<'_>) -> bool {
+fn classify_derive(body: &Construct<'_>) -> DeriveClass {
     let Some(literal_path) = extract_derive_string_literal(body) else {
-        return true;
+        return DeriveClass::Other;
     };
 
     let mut path = std::path::PathBuf::from(literal_path.trim());
-    path.set_extension("rsml");
+    match path.extension() {
+        None => {
+            path.set_extension("rsml");
+        }
+        Some(ext) if ext.eq_ignore_ascii_case("rsml") => {}
+        Some(_) => return DeriveClass::Invalid,
+    }
 
     let Ok(canonical) = path.canonicalize() else {
-        return true;
+        return DeriveClass::Invalid;
     };
-    let Ok(source) = std::fs::read_to_string(canonical) else {
-        return true;
+    if !canonical.is_file() {
+        return DeriveClass::Invalid;
+    }
+    let Ok(source) = std::fs::read_to_string(&canonical) else {
+        return DeriveClass::Invalid;
     };
 
-    RsmlParser::from_source(&source).directives.static_file
+    if RsmlParser::from_source(&source).directives.static_file {
+        DeriveClass::Static
+    } else {
+        DeriveClass::NonStatic
+    }
 }
 
 fn extract_derive_string_literal<'a>(body: &'a Construct<'a>) -> Option<&'a str> {

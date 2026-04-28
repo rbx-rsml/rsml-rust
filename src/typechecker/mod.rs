@@ -3204,4 +3204,49 @@ mod tests {
             errors
         );
     }
+
+    #[tokio::test]
+    async fn derive_with_non_rsml_extension_errors() {
+        let result = typecheck("@derive \"./foo.txt\";").await;
+
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|err| err.contains("Invalid Derive Target") && err.contains(".rsml")),
+            "expected non-rsml-extension error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn derive_pointing_to_directory_errors() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let target_dir = dir.path().join("target.rsml");
+        std::fs::create_dir(&target_dir).expect("create target dir");
+        let current_path = dir.path().join("current.rsml");
+        std::fs::write(&current_path, "@derive \"./target\";").expect("write current");
+
+        let source = std::fs::read_to_string(&current_path).expect("read current");
+        let lexer = RsmlLexer::new(&source);
+        let parsed = RsmlParser::new(lexer);
+        let canonical_current = current_path.canonicalize().expect("canonicalize");
+
+        let TypecheckedRsml { errors, .. } =
+            Typechecker::new(&parsed, &canonical_current, None).await;
+
+        let messages: Vec<String> = errors
+            .0
+            .iter()
+            .map(|diagnostic| diagnostic.message.clone())
+            .collect();
+
+        assert!(
+            messages
+                .iter()
+                .any(|err| err.contains("Invalid Derive Target") && err.contains("not a file")),
+            "expected directory-not-a-file error, got: {:?}",
+            messages
+        );
+    }
 }

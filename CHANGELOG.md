@@ -5,6 +5,9 @@
 ## Fixes
 - Fixed nested tag (`.`), name (`#`), and query (`@`) selectors resolving to `Instance` instead of inheriting the parent's class. The parent's class is now inherited unless a `>` or `>>` combinator is used.
 - Fixed a class identifier following a tag or name selector (e.g. `.Tag Frame {}`) being silently dropped,å it now correctly resolves to that class.
+- Derive targets must now resolve to an existing `.rsml` file. Non-`.rsml` extensions and paths that point at a directory now produce an `INVALID_DERIVE_TARGET` diagnostic.
+- The compiler now drops derives whose target doesn't resolve to a real `.rsml` file. In `--!static` files it also drops derives whose target isn't itself static.
+
 
 # 1.0.3
 - Fixed tweens not being compiled correctly.
