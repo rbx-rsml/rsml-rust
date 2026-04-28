@@ -1,0 +1,29 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Schema {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                SchemaDeclaration,
+                7,
+            ),
+            leading_trivia: None,
+        },
+        name: Some(
+            Node {
+                token: SpannedToken(
+                    15,
+                    Identifier(
+                        "Color3",
+                    ),
+                    21,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        body: None,
+    },
+]

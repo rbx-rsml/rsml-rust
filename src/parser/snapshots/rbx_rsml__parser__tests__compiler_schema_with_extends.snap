@@ -1,0 +1,44 @@
+---
+source: src/parser/mod.rs
+expression: compiled
+---
+CompiledRsml {
+    root: Some(
+        RootTreeNode {
+            attributes: Attributes {
+                data: {},
+            },
+            static_attributes: {},
+            child_rules: [
+                0,
+            ],
+        },
+    ),
+    nodes: [
+        Some(
+            TreeNode {
+                selector: Some(
+                    "Frame",
+                ),
+                priority: None,
+                attributes: Attributes {
+                    data: {},
+                },
+                static_attributes: {},
+                properties: Attributes {
+                    data: {
+                        "BackgroundColor3": String(
+                            "$Bg",
+                        ),
+                    },
+                },
+                tweens: Attributes {
+                    data: {},
+                },
+                child_rules: [],
+                parent: Root,
+            },
+        ),
+    ],
+    is_static: false,
+}

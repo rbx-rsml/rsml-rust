@@ -102,6 +102,20 @@ impl<'a> Typechecker<'a> {
                     self.typecheck_macro(args, body, ast_errors);
                 }
 
+                Construct::Schema { .. } => {
+                    ast_errors.report(
+                        TypeError::NotAllowedInContext {
+                            name: construct.name_plural(),
+                            context: "rules",
+                        },
+                        Range::from_span(&self.parsed.rope, construct.span()),
+                    );
+                }
+
+                Construct::Extends { name, .. } => {
+                    self.expand_extends(name, ast_errors, definitions, resolved_types);
+                }
+
                 _ => (),
             }
         }

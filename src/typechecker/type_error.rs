@@ -62,6 +62,10 @@ pub enum TypeError<'a> {
     UnknownEnumVariant { enum_name: String, variant: String },
     UnknownProperty { name: String, missing: Vec<String>, present: Vec<String> },
     PropertyTypeMismatch { name: String, expected: String, got: String },
+    UnknownSchema { name: &'a str },
+    DuplicateSchema { name: &'a str },
+    DuplicateSchemaField { schema: &'a str, field: &'a str },
+    UnknownTypeName { name: &'a str },
 }
 
 impl<'a> TypeError<'a> {
@@ -88,7 +92,11 @@ impl<'a> TypeError<'a> {
             Self::UnknownEnum { .. } |
             Self::UnknownEnumVariant { .. } |
             Self::UnknownProperty { .. } |
-            Self::PropertyTypeMismatch { .. } => Severity::Error
+            Self::PropertyTypeMismatch { .. } |
+            Self::UnknownSchema { .. } |
+            Self::DuplicateSchema { .. } |
+            Self::DuplicateSchemaField { .. } |
+            Self::UnknownTypeName { .. } => Severity::Error
         }
     }
 
@@ -260,6 +268,21 @@ impl<'a> TypeError<'a> {
                     "Type Error (Property Type Mismatch): Property `{}` expects type `{}`, got `{}`.",
                     name, expected, got
                 ),
+
+            Self::UnknownSchema { name } =>
+                format!("Type Error (Unknown Schema): No schema named `{}` has been defined.", name),
+
+            Self::DuplicateSchema { name } =>
+                format!("Type Error (Duplicate Schema): Schema `{}` has already been defined.", name),
+
+            Self::DuplicateSchemaField { schema, field } =>
+                format!(
+                    "Type Error (Duplicate Schema Field): Schema `{}` already declares a field `{}`.",
+                    schema, field
+                ),
+
+            Self::UnknownTypeName { name } =>
+                format!("Type Error (Unknown Type): No type named `{}` exists.", name),
         }
     }
 
@@ -293,6 +316,10 @@ impl<'a> ToString for TypeError<'a> {
             Self::UnknownEnumVariant { .. } => "UNKNOWN_ENUM_VARIANT",
             Self::UnknownProperty { .. } => "UNKNOWN_PROPERTY",
             Self::PropertyTypeMismatch { .. } => "PROPERTY_TYPE_MISMATCH",
+            Self::UnknownSchema { .. } => "UNKNOWN_SCHEMA",
+            Self::DuplicateSchema { .. } => "DUPLICATE_SCHEMA",
+            Self::DuplicateSchemaField { .. } => "DUPLICATE_SCHEMA_FIELD",
+            Self::UnknownTypeName { .. } => "UNKNOWN_TYPE_NAME",
         })
     }
 }

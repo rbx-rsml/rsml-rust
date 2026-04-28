@@ -1,5 +1,6 @@
 # Unreleased
 ## Changes
+- Added `@schema Name { $Field: Type; ... }` and `@extends Name;` syntax.
 - Added a `--!static` directive — files marked static-only do not compile into a Roblox `StyleSheet` and may only contain macro definitions, static token assignments, and derives to other static files.
 
 ## Fixes

@@ -85,6 +85,49 @@ impl Datatype {
     }
 }
 
+pub fn variant_type_from_name(name: &str) -> Option<VariantType> {
+    Some(match name {
+        "Axes" => VariantType::Axes,
+        "BinaryString" => VariantType::BinaryString,
+        "boolean" | "bool" | "Bool" => VariantType::Bool,
+        "BrickColor" => VariantType::BrickColor,
+        "CFrame" => VariantType::CFrame,
+        "Color3" => VariantType::Color3,
+        "Color3uint8" => VariantType::Color3uint8,
+        "ColorSequence" => VariantType::ColorSequence,
+        "ContentId" => VariantType::ContentId,
+        "Enum" => VariantType::Enum,
+        "EnumItem" => VariantType::EnumItem,
+        "Faces" => VariantType::Faces,
+        "number" | "float" | "Float" => VariantType::Float64,
+        "integer" | "int" | "Int" => VariantType::Int32,
+        "NumberRange" => VariantType::NumberRange,
+        "NumberSequence" => VariantType::NumberSequence,
+        "PhysicalProperties" => VariantType::PhysicalProperties,
+        "Ray" => VariantType::Ray,
+        "Rect" => VariantType::Rect,
+        "Ref" => VariantType::Ref,
+        "Region3" => VariantType::Region3,
+        "Region3int16" => VariantType::Region3int16,
+        "SharedString" => VariantType::SharedString,
+        "string" | "String" => VariantType::String,
+        "UDim" => VariantType::UDim,
+        "UDim2" => VariantType::UDim2,
+        "Vector2" => VariantType::Vector2,
+        "Vector2int16" => VariantType::Vector2int16,
+        "Vector3" => VariantType::Vector3,
+        "Vector3int16" => VariantType::Vector3int16,
+        "Tags" => VariantType::Tags,
+        "Attributes" => VariantType::Attributes,
+        "Font" => VariantType::Font,
+        "UniqueId" => VariantType::UniqueId,
+        "MaterialColors" => VariantType::MaterialColors,
+        "SecurityCapabilities" => VariantType::SecurityCapabilities,
+        "Content" => VariantType::Content,
+        _ => return None,
+    })
+}
+
 pub fn variant_type_name(ty: VariantType) -> &'static str {
     match ty {
         VariantType::Axes => "Axes",

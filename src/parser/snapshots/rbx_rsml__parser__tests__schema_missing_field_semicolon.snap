@@ -1,0 +1,82 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Schema {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                SchemaDeclaration,
+                7,
+            ),
+            leading_trivia: None,
+        },
+        name: Some(
+            Node {
+                token: SpannedToken(
+                    8,
+                    Identifier(
+                        "Theme",
+                    ),
+                    13,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        body: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        14,
+                        ScopeOpen,
+                        15,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Some(
+                    [
+                        SchemaField {
+                            name: Node {
+                                token: SpannedToken(
+                                    16,
+                                    TokenIdentifier(
+                                        "Bg",
+                                    ),
+                                    19,
+                                ),
+                                leading_trivia: None,
+                            },
+                            colon: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        19,
+                                        StateSelectorOrEnumPart(
+                                            None,
+                                        ),
+                                        20,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                            type_name: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        21,
+                                        Identifier(
+                                            "Color3",
+                                        ),
+                                        27,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                            terminator: None,
+                        },
+                    ],
+                ),
+                right: None,
+            },
+        ),
+    },
+]

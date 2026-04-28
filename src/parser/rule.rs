@@ -293,6 +293,10 @@ impl<'a> RsmlParser<'a> {
 
                 node = parser.parse_tween(node).handle_construct(&mut body_content)?;
 
+                node = parser.parse_schema(node).handle_construct(&mut body_content)?;
+
+                node = parser.parse_extends(node).handle_construct(&mut body_content)?;
+
                 node = parser.parse_static_token_assignment(node).handle_construct(&mut body_content)?;
 
                 node = parser.parse_token_assignment(node).handle_construct(&mut body_content)?;

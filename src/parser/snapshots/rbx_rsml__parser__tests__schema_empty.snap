@@ -1,0 +1,51 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Schema {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                SchemaDeclaration,
+                7,
+            ),
+            leading_trivia: None,
+        },
+        name: Some(
+            Node {
+                token: SpannedToken(
+                    8,
+                    Identifier(
+                        "Theme",
+                    ),
+                    13,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        body: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        14,
+                        ScopeOpen,
+                        15,
+                    ),
+                    leading_trivia: None,
+                },
+                content: None,
+                right: Some(
+                    Node {
+                        token: SpannedToken(
+                            16,
+                            ScopeClose,
+                            17,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+    },
+]

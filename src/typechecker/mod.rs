@@ -5,12 +5,17 @@ use std::{
 };
 
 use crate::{
-    datatype::{Datatype, StaticLookup, evaluate_construct, shorthand_rebind},
+    datatype::{Datatype, StaticLookup, evaluate_construct, shorthand_rebind, variant_type_from_name},
     lexer::Token,
-    parser::{AstErrors, Construct, Delimited, Node, ParsedRsml},
+    parser::{AstErrors, Construct, Delimited, Node, ParsedRsml, SchemaField as AstSchemaField},
     range_from_span::RangeFromSpan,
+    schema_registry::{
+        SchemaDefinition, SchemaField as RegistrySchemaField, SchemaRegistry,
+        collect_schema_fields,
+    },
     types::{Diagnostic, Range},
 };
+
 
 use self::luaurc::Luaurc;
 use crate::types::LanguageMode;
@@ -171,6 +176,7 @@ pub struct TypecheckedRsml {
 pub struct Typechecker<'a> {
     pub parsed: &'a ParsedRsml<'a>,
     macro_registry: MacroRegistry<'a>,
+    pub(crate) schema_registry: SchemaRegistry<'a>,
     pub(crate) static_scopes: Vec<HashMap<String, Datatype>>,
     pub(crate) declared_tokens: Vec<HashSet<ResolvedTypeKey>>,
     pub(crate) language_mode: LanguageMode,
@@ -211,6 +217,7 @@ impl<'a> Typechecker<'a> {
         let mut typechecker: Typechecker<'a> = Self {
             parsed,
             macro_registry: MacroRegistry::new(),
+            schema_registry: SchemaRegistry::new(),
             static_scopes: vec![HashMap::new()],
             declared_tokens: vec![HashSet::new()],
             language_mode,
@@ -327,6 +334,19 @@ impl<'a> Typechecker<'a> {
                         body,
                         MacroReturnContext::Construct,
                         &mut ast_errors,
+                    );
+                }
+
+                Construct::Schema { name, body, .. } => {
+                    typechecker.register_schema(name, body, &mut ast_errors);
+                }
+
+                Construct::Extends { name, .. } => {
+                    typechecker.expand_extends(
+                        name,
+                        &mut ast_errors,
+                        &mut definitions,
+                        &mut resolved_types,
                     );
                 }
 
@@ -787,6 +807,124 @@ impl<'a> Typechecker<'a> {
         };
         for item in content {
             self.validate_token_refs(item, ast_errors);
+        }
+    }
+
+    pub(crate) fn register_schema(
+        &mut self,
+        name: &Option<Node<'a>>,
+        body: &Option<Delimited<'a, AstSchemaField<'a>>>,
+        ast_errors: &mut AstErrors,
+    ) {
+        let Some(name_node) = name else { return };
+        let Token::Identifier(schema_name) = name_node.token.value() else {
+            return;
+        };
+
+        if self.schema_registry.contains_key(schema_name) {
+            ast_errors.report(
+                TypeError::DuplicateSchema { name: schema_name },
+                self.parsed.range_from_span(name_node.token.span()),
+            );
+            return;
+        }
+
+        let raw_fields = collect_schema_fields(body);
+        let mut fields: Vec<RegistrySchemaField<'a>> = Vec::with_capacity(raw_fields.len());
+        let mut seen: HashSet<&str> = HashSet::with_capacity(raw_fields.len());
+
+        for (index, field) in raw_fields.iter().enumerate() {
+            if !seen.insert(field.name) {
+                let field_node = body
+                    .as_ref()
+                    .and_then(|b| b.content.as_ref())
+                    .and_then(|c| c.get(index));
+
+                if let Some(field_node) = field_node {
+                    ast_errors.report(
+                        TypeError::DuplicateSchemaField {
+                            schema: schema_name,
+                            field: field.name,
+                        },
+                        self.parsed.range_from_span(field_node.name.token.span()),
+                    );
+                }
+                continue;
+            }
+
+            if variant_type_from_name(field.type_name).is_none() {
+                let field_node = body
+                    .as_ref()
+                    .and_then(|b| b.content.as_ref())
+                    .and_then(|c| c.get(index));
+
+                let span = field_node
+                    .and_then(|f| {
+                        f.type_name
+                            .as_ref()
+                            .map(|n| n.token.span())
+                            .or_else(|| f.colon.as_ref().map(|n| n.token.span()))
+                    })
+                    .unwrap_or_else(|| name_node.token.span());
+
+                ast_errors.report(
+                    TypeError::UnknownTypeName {
+                        name: field.type_name,
+                    },
+                    self.parsed.range_from_span(span),
+                );
+                continue;
+            }
+
+            fields.push(field.clone());
+        }
+
+        self.schema_registry
+            .insert(*schema_name, SchemaDefinition { fields });
+    }
+
+    pub(crate) fn expand_extends(
+        &mut self,
+        name: &Option<Node<'a>>,
+        ast_errors: &mut AstErrors,
+        definitions: &mut Definitions,
+        resolved_types: &mut ResolvedTypes,
+    ) {
+        let Some(name_node) = name else { return };
+        let Token::Identifier(schema_name) = name_node.token.value() else {
+            return;
+        };
+
+        let Some(definition) = self.schema_registry.get(schema_name) else {
+            ast_errors.report(
+                TypeError::UnknownSchema { name: schema_name },
+                self.parsed.range_from_span(name_node.token.span()),
+            );
+            return;
+        };
+
+        let fields: Vec<RegistrySchemaField<'a>> = definition.fields.clone();
+        let (start, end) = name_node.token.span();
+
+        for field in fields {
+            let key = ResolvedTypeKey::Token {
+                name: field.name.to_string(),
+                is_static: false,
+            };
+
+            resolved_types.insert(key.clone(), Datatype::None);
+
+            if let Some(frame) = self.declared_tokens.last_mut() {
+                frame.insert(key);
+            }
+
+            definitions.insert(
+                start..=end,
+                DefinitionKind::Token {
+                    name: field.name.to_string(),
+                    is_static: false,
+                },
+            );
         }
     }
 }
@@ -3247,6 +3385,100 @@ mod tests {
                 .any(|err| err.contains("Invalid Derive Target") && err.contains("not a file")),
             "expected directory-not-a-file error, got: {:?}",
             messages
+        );
+    }
+
+    #[tokio::test]
+    async fn schema_extends_makes_fields_visible() {
+        let result = typecheck(
+            "@schema Theme { $Bg: Color3; }\n@extends Theme;\nFrame { BackgroundColor3 = $Bg; }",
+        )
+        .await;
+
+        assert!(
+            !result.errors.iter().any(|err| err.contains("Undefined Token")),
+            "unexpected Undefined Token error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn schema_without_extends_leaves_token_undefined() {
+        let result = typecheck(
+            "@schema Theme { $Bg: Color3; }\nFrame { BackgroundColor3 = $Bg; }",
+        )
+        .await;
+
+        assert!(
+            result.errors.iter().any(|err| err.contains("Undefined Token") && err.contains("Bg")),
+            "expected Undefined Token error for $Bg, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn extends_unknown_schema_errors() {
+        let result = typecheck("@extends Missing;").await;
+
+        assert!(
+            result.errors.iter().any(|err| err.contains("Unknown Schema") && err.contains("Missing")),
+            "expected Unknown Schema error for Missing, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn duplicate_schema_errors() {
+        let result =
+            typecheck("@schema Theme { $A: Color3; }\n@schema Theme { $B: Color3; }").await;
+
+        assert!(
+            result.errors.iter().any(|err| err.contains("Duplicate Schema")),
+            "expected Duplicate Schema error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn duplicate_schema_field_errors() {
+        let result = typecheck("@schema Theme { $Bg: Color3; $Bg: UDim2; }").await;
+
+        assert!(
+            result.errors.iter().any(|err| err.contains("Duplicate Schema Field") && err.contains("Bg")),
+            "expected Duplicate Schema Field error for Bg, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn schema_unknown_type_errors() {
+        let result = typecheck("@schema Theme { $Bg: Bogus; }").await;
+
+        assert!(
+            result.errors.iter().any(|err| err.contains("Unknown Type") && err.contains("Bogus")),
+            "expected Unknown Type error for Bogus, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn extends_inside_rule_scopes_to_rule() {
+        let result = typecheck(
+            "@schema Theme { $Bg: Color3; }\nFrame { @extends Theme; BackgroundColor3 = $Bg; }\nTextLabel { TextColor3 = $Bg; }",
+        )
+        .await;
+
+        let undefined: Vec<&String> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Undefined Token") && err.contains("Bg"))
+            .collect();
+
+        assert_eq!(
+            undefined.len(),
+            1,
+            "expected exactly one Undefined Token error from the outer scope, got: {:?}",
+            result.errors
         );
     }
 }

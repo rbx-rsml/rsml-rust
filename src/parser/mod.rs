@@ -83,6 +83,14 @@ impl<'a> RsmlParser<'a> {
             node = parser.parse_tween(node).handle_construct(&mut parser.ast)?;
 
             node = parser
+                .parse_schema(node)
+                .handle_construct(&mut parser.ast)?;
+
+            node = parser
+                .parse_extends(node)
+                .handle_construct(&mut parser.ast)?;
+
+            node = parser
                 .parse_static_token_assignment(node)
                 .handle_construct(&mut parser.ast)?;
 
@@ -613,6 +621,27 @@ mod tests {
 
     parser_test!(query_selector, r#"@media { }"#);
     parser_test!(query_selector_unknown, r#"@foobar { }"#);
+
+    parser_test!(schema_basic, r#"@schema Theme { $Bg: Color3; }"#);
+    parser_test!(
+        schema_multi_field,
+        "@schema Theme {\n    $BgPrimary: Color3;\n    $FgPrimary: Color3;\n    $Accent: Color3;\n}"
+    );
+    parser_test!(schema_empty, r#"@schema Theme { }"#);
+    parser_test!(schema_no_space_colon, r#"@schema Theme { $Bg:Color3; }"#);
+    parser_test!(schema_missing_name, r#"@schema { $Bg: Color3; }"#);
+    parser_test!(schema_missing_brace, r#"@schema Theme"#);
+    parser_test!(schema_missing_close_brace, r#"@schema Theme { $Bg: Color3;"#);
+    parser_test!(schema_missing_field_type, r#"@schema Theme { $Bg: ; }"#);
+    parser_test!(schema_missing_field_semicolon, r#"@schema Theme { $Bg: Color3 }"#);
+
+    parser_test!(extends_basic, r#"@extends Theme;"#);
+    parser_test!(extends_missing_semicolon, r#"@extends Theme"#);
+    parser_test!(extends_missing_name, r#"@extends ;"#);
+    parser_test!(
+        schema_with_extends,
+        "@schema Theme { $Bg: Color3; }\n@extends Theme;\nFrame { BackgroundColor3 = $Bg; }"
+    );
 
     parser_test!(empty_source, r#""#);
     parser_test!(multiple_top_level, "@priority 5;\nFrame { Size = 100; }");

@@ -160,6 +160,36 @@ impl<'a> SpanEnd for MacroBody<'a> {
     }
 }
 
+/// A single `$Name: Type;` entry inside a `@schema` body. The colon may be the
+/// `StateSelectorOrEnumPart` token in either form: with `Some(type_name)` the
+/// regex consumed the type identifier together with the colon (no space), so
+/// `type_name` is `None`; otherwise the type identifier is the next node.
+#[derive(Debug)]
+pub struct SchemaField<'a> {
+    pub name: Node<'a>,
+    pub colon: Option<Node<'a>>,
+    pub type_name: Option<Node<'a>>,
+    pub terminator: Option<Node<'a>>,
+}
+
+impl<'a> SpanEnd for SchemaField<'a> {
+    fn end(&self) -> usize {
+        if let Some(terminator) = &self.terminator {
+            return terminator.token.end();
+        }
+
+        if let Some(type_name) = &self.type_name {
+            return type_name.token.end();
+        }
+
+        if let Some(colon) = &self.colon {
+            return colon.token.end();
+        }
+
+        self.name.token.end()
+    }
+}
+
 #[derive(Debug)]
 pub enum Construct<'a> {
     Macro {
@@ -192,6 +222,18 @@ pub enum Construct<'a> {
         declaration: Node<'a>,
         name: Option<Node<'a>>,
         body: Option<Box<Construct<'a>>>,
+        terminator: Option<Node<'a>>,
+    },
+
+    Schema {
+        declaration: Node<'a>,
+        name: Option<Node<'a>>,
+        body: Option<Delimited<'a, SchemaField<'a>>>,
+    },
+
+    Extends {
+        declaration: Node<'a>,
+        name: Option<Node<'a>>,
         terminator: Option<Node<'a>>,
     },
 
@@ -257,6 +299,8 @@ impl<'a> Construct<'a> {
             Self::Derive { .. } => "Derives",
             Self::Priority { .. } => "Priorities",
             Self::Tween { .. } => "Tweens",
+            Self::Schema { .. } => "Schemas",
+            Self::Extends { .. } => "Extends",
             Self::Rule { .. } => "Rules",
             Self::Assignment { left, .. } => match left.token.value() {
                 Token::Identifier(_) => "Property assignments",
@@ -278,7 +322,9 @@ impl<'a> Construct<'a> {
 
             Self::Derive { declaration, .. }
             | Self::Priority { declaration, .. }
-            | Self::Tween { declaration, .. } => declaration.token.start(),
+            | Self::Tween { declaration, .. }
+            | Self::Schema { declaration, .. }
+            | Self::Extends { declaration, .. } => declaration.token.start(),
 
             Self::Rule { selectors, body } => {
                 if let Some(first) = selectors.as_ref().and_then(|s| s.first()) {
@@ -310,6 +356,8 @@ impl<'a> Construct<'a> {
         match self {
             Self::Macro { .. }
             | Self::Derive { .. }
+            | Self::Schema { .. }
+            | Self::Extends { .. }
             | Self::Node { .. }
             | Self::None { .. } => true,
             Self::Assignment { left, .. } => {
@@ -403,6 +451,38 @@ impl<'a> SpanEnd for Construct<'a> {
 
                 if let Some(body) = body {
                     return body.end();
+                }
+
+                if let Some(name) = name {
+                    return name.token.end();
+                }
+
+                declaration.token.end()
+            }
+
+            Self::Schema {
+                declaration,
+                name,
+                body,
+            } => {
+                if let Some(body) = body {
+                    return body.end();
+                }
+
+                if let Some(name) = name {
+                    return name.token.end();
+                }
+
+                declaration.token.end()
+            }
+
+            Self::Extends {
+                declaration,
+                name,
+                terminator,
+            } => {
+                if let Some(terminator) = terminator {
+                    return terminator.token.end();
                 }
 
                 if let Some(name) = name {

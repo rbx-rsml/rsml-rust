@@ -266,7 +266,10 @@ fn compile_construct<'a>(
             compile_macro_call(name, body, tree_nodes, current_idx, macro_ctx);
         }
 
-        Construct::Derive { .. } | Construct::Macro { .. } => {}
+        Construct::Derive { .. }
+        | Construct::Macro { .. }
+        | Construct::Schema { .. }
+        | Construct::Extends { .. } => {}
 
         _ => {}
     }

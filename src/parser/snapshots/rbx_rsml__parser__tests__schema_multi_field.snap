@@ -1,0 +1,192 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Schema {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                SchemaDeclaration,
+                7,
+            ),
+            leading_trivia: None,
+        },
+        name: Some(
+            Node {
+                token: SpannedToken(
+                    8,
+                    Identifier(
+                        "Theme",
+                    ),
+                    13,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        body: Some(
+            Delimited {
+                left: Node {
+                    token: SpannedToken(
+                        14,
+                        ScopeOpen,
+                        15,
+                    ),
+                    leading_trivia: None,
+                },
+                content: Some(
+                    [
+                        SchemaField {
+                            name: Node {
+                                token: SpannedToken(
+                                    20,
+                                    TokenIdentifier(
+                                        "BgPrimary",
+                                    ),
+                                    30,
+                                ),
+                                leading_trivia: None,
+                            },
+                            colon: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        30,
+                                        StateSelectorOrEnumPart(
+                                            None,
+                                        ),
+                                        31,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                            type_name: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        32,
+                                        Identifier(
+                                            "Color3",
+                                        ),
+                                        38,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                            terminator: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        38,
+                                        SemiColon,
+                                        39,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                        },
+                        SchemaField {
+                            name: Node {
+                                token: SpannedToken(
+                                    44,
+                                    TokenIdentifier(
+                                        "FgPrimary",
+                                    ),
+                                    54,
+                                ),
+                                leading_trivia: None,
+                            },
+                            colon: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        54,
+                                        StateSelectorOrEnumPart(
+                                            None,
+                                        ),
+                                        55,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                            type_name: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        56,
+                                        Identifier(
+                                            "Color3",
+                                        ),
+                                        62,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                            terminator: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        62,
+                                        SemiColon,
+                                        63,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                        },
+                        SchemaField {
+                            name: Node {
+                                token: SpannedToken(
+                                    68,
+                                    TokenIdentifier(
+                                        "Accent",
+                                    ),
+                                    75,
+                                ),
+                                leading_trivia: None,
+                            },
+                            colon: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        75,
+                                        StateSelectorOrEnumPart(
+                                            None,
+                                        ),
+                                        76,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                            type_name: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        77,
+                                        Identifier(
+                                            "Color3",
+                                        ),
+                                        83,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                            terminator: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        83,
+                                        SemiColon,
+                                        84,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                        },
+                    ],
+                ),
+                right: Some(
+                    Node {
+                        token: SpannedToken(
+                            85,
+                            ScopeClose,
+                            86,
+                        ),
+                        leading_trivia: None,
+                    },
+                ),
+            },
+        ),
+    },
+]

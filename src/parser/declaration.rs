@@ -483,6 +483,285 @@ impl<'a> RsmlParser<'a> {
         )
     }
 
+    pub(crate) fn parse_extends(&mut self, node: Node<'a>) -> Parsed<'a> {
+        if !node_token_matches!(node, ExtendsDeclaration) {
+            return Parsed(Some(node), None);
+        }
+
+        let declaration_node = node;
+
+        let name_node = match self.advance_until(
+            token_kind_list!("schema name", [Identifier]),
+            &TOKEN_KIND_CONSTRUCT_DELIMITERS,
+        ) {
+            Some(Ok(node)) => Some(node),
+            Some(Err(node)) => {
+                if node_token_matches!(node, SemiColon) {
+                    return Parsed(
+                        self.advance(),
+                        Some(Construct::Extends {
+                            declaration: declaration_node,
+                            name: None,
+                            terminator: Some(node),
+                        }),
+                    );
+                }
+
+                return Parsed(
+                    Some(node),
+                    Some(Construct::Extends {
+                        declaration: declaration_node,
+                        name: None,
+                        terminator: None,
+                    }),
+                );
+            }
+            None => {
+                return Parsed(
+                    None,
+                    Some(Construct::Extends {
+                        declaration: declaration_node,
+                        name: None,
+                        terminator: None,
+                    }),
+                );
+            }
+        };
+
+        let terminator = match self.advance_until(
+            token_kind_list![SemiColon],
+            &TOKEN_KIND_CONSTRUCT_DELIMITERS,
+        ) {
+            Some(Ok(node)) => Some(node),
+            Some(Err(node)) => {
+                let construct = Construct::Extends {
+                    declaration: declaration_node,
+                    name: name_node,
+                    terminator: None,
+                };
+
+                self.ast_errors.push(
+                    ParseError::MissingToken {
+                        msg: Some(ParseErrorMessage::Expected(TokenKind::SemiColon.name())),
+                    },
+                    self.range_from_span(clamp_span_to_end(construct.end())),
+                );
+
+                return Parsed(Some(node), Some(construct));
+            }
+            None => {
+                let construct = Construct::Extends {
+                    declaration: declaration_node,
+                    name: name_node,
+                    terminator: None,
+                };
+
+                self.ast_errors.push(
+                    ParseError::MissingToken {
+                        msg: Some(ParseErrorMessage::Expected(TokenKind::SemiColon.name())),
+                    },
+                    self.range_from_span(clamp_span_to_end(construct.end())),
+                );
+
+                return Parsed(None, Some(construct));
+            }
+        };
+
+        Parsed(
+            self.advance(),
+            Some(Construct::Extends {
+                declaration: declaration_node,
+                name: name_node,
+                terminator,
+            }),
+        )
+    }
+
+    pub(crate) fn parse_schema(&mut self, node: Node<'a>) -> Parsed<'a> {
+        if !node_token_matches!(node, SchemaDeclaration) {
+            return Parsed(Some(node), None);
+        }
+
+        let declaration_node = node;
+
+        let name_node = match self.advance_until(
+            token_kind_list!("schema name", [Identifier]),
+            &TOKEN_KIND_CONSTRUCT_DELIMITERS,
+        ) {
+            Some(Ok(node)) => Some(node),
+            Some(Err(node)) => {
+                return Parsed(
+                    Some(node),
+                    Some(Construct::Schema {
+                        declaration: declaration_node,
+                        name: None,
+                        body: None,
+                    }),
+                );
+            }
+            None => {
+                return Parsed(
+                    None,
+                    Some(Construct::Schema {
+                        declaration: declaration_node,
+                        name: None,
+                        body: None,
+                    }),
+                );
+            }
+        };
+
+        let body_open_node = match self.advance_until(
+            token_kind_list![ScopeOpen],
+            &TOKEN_KIND_CONSTRUCT_DELIMITERS,
+        ) {
+            Some(Ok(node)) => node,
+            Some(Err(node)) => {
+                return Parsed(
+                    Some(node),
+                    Some(Construct::Schema {
+                        declaration: declaration_node,
+                        name: name_node,
+                        body: None,
+                    }),
+                );
+            }
+            None => {
+                return Parsed(
+                    None,
+                    Some(Construct::Schema {
+                        declaration: declaration_node,
+                        name: name_node,
+                        body: None,
+                    }),
+                );
+            }
+        };
+
+        self.parse_schema_body(declaration_node, name_node, body_open_node)
+    }
+
+    fn parse_schema_body(
+        &mut self,
+        declaration_node: Node<'a>,
+        name_node: Option<Node<'a>>,
+        body_open_node: Node<'a>,
+    ) -> Parsed<'a> {
+        let mut fields: Vec<SchemaField<'a>> = Vec::new();
+
+        loop {
+            let next = match self.advance_until(
+                token_kind_list!(
+                    "field declaration or `}`",
+                    [TokenIdentifier, ScopeClose]
+                ),
+                &TOKEN_KIND_CONSTRUCT_DELIMITERS,
+            ) {
+                Some(Ok(node)) => node,
+                Some(Err(node)) => {
+                    let construct = Construct::Schema {
+                        declaration: declaration_node,
+                        name: name_node,
+                        body: Some(Delimited::new(
+                            body_open_node,
+                            if fields.is_empty() { None } else { Some(fields) },
+                            None,
+                        )),
+                    };
+
+                    self.ast_errors.push(
+                        ParseError::MissingToken {
+                            msg: Some(ParseErrorMessage::Expected(TokenKind::ScopeClose.name())),
+                        },
+                        self.range_from_span(clamp_span_to_end(construct.end())),
+                    );
+
+                    return Parsed(Some(node), Some(construct));
+                }
+                None => {
+                    let construct = Construct::Schema {
+                        declaration: declaration_node,
+                        name: name_node,
+                        body: Some(Delimited::new(
+                            body_open_node,
+                            if fields.is_empty() { None } else { Some(fields) },
+                            None,
+                        )),
+                    };
+
+                    self.ast_errors.push(
+                        ParseError::MissingToken {
+                            msg: Some(ParseErrorMessage::Expected(TokenKind::ScopeClose.name())),
+                        },
+                        self.range_from_span(clamp_span_to_end(construct.end())),
+                    );
+
+                    return Parsed(None, Some(construct));
+                }
+            };
+
+            if node_token_matches!(next, ScopeClose) {
+                return Parsed(
+                    self.advance(),
+                    Some(Construct::Schema {
+                        declaration: declaration_node,
+                        name: name_node,
+                        body: Some(Delimited::new(
+                            body_open_node,
+                            if fields.is_empty() { None } else { Some(fields) },
+                            Some(next),
+                        )),
+                    }),
+                );
+            }
+
+            let field = self.parse_schema_field(next);
+            fields.push(field);
+        }
+    }
+
+    fn parse_schema_field(&mut self, name_node: Node<'a>) -> SchemaField<'a> {
+        let colon_node = match self.advance_until(
+            token_kind_list!("\":\"", [StateSelectorOrEnumPart]),
+            &TOKEN_KIND_CONSTRUCT_DELIMITERS,
+        ) {
+            Some(Ok(node)) => Some(node),
+            _ => None,
+        };
+
+        let inline_type = colon_node.as_ref().and_then(|n| match n.token.value() {
+            Token::StateSelectorOrEnumPart(Some(_)) => Some(()),
+            _ => None,
+        });
+
+        let type_name_node = if inline_type.is_some() {
+            None
+        } else {
+            match self.advance_until(
+                token_kind_list!("type name", [Identifier]),
+                &TOKEN_KIND_CONSTRUCT_DELIMITERS,
+            ) {
+                Some(Ok(node)) => Some(node),
+                _ => None,
+            }
+        };
+
+        let terminator = match self.advance_until(
+            token_kind_list![SemiColon],
+            &TOKEN_KIND_CONSTRUCT_DELIMITERS,
+        ) {
+            Some(Ok(node)) => Some(node),
+            _ => None,
+        };
+
+        SchemaField {
+            name: name_node,
+            colon: colon_node,
+            type_name: type_name_node,
+            terminator,
+        }
+    }
+
     pub(crate) fn parse_macro(&mut self, node: Node<'a>) -> Parsed<'a> {
         if !node_token_matches!(node, MacroDeclaration) {
             return Parsed(Some(node), None);
@@ -986,6 +1265,14 @@ impl<'a> RsmlParser<'a> {
                 .handle_construct(&mut body_content)?;
             node = parser
                 .parse_tween(node)
+                .handle_construct(&mut body_content)?;
+
+            node = parser
+                .parse_schema(node)
+                .handle_construct(&mut body_content)?;
+
+            node = parser
+                .parse_extends(node)
                 .handle_construct(&mut body_content)?;
 
             node = parser

@@ -13,6 +13,7 @@ pub mod list;
 pub mod macro_registry;
 pub mod parser;
 pub mod range_from_span;
+pub mod schema_registry;
 
 #[cfg(feature = "compiler")]
 pub mod compiler;

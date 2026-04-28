@@ -1,0 +1,27 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Extends {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                ExtendsDeclaration,
+                8,
+            ),
+            leading_trivia: None,
+        },
+        name: None,
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    9,
+                    SemiColon,
+                    10,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]
