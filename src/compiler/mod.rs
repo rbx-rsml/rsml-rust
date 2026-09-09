@@ -30,32 +30,60 @@ pub type BindingFrame<'a> = HashMap<String, BoundArg<'a>>;
 
 pub struct MacroContext<'a> {
     pub local: MacroRegistry<'a>,
+    pub imported_macros: HashMap<(String, usize), crate::cross_file_imports::ImportedMacroDef>,
     pub bindings: Vec<BindingFrame<'a>>,
     pub active_expansions: HashSet<MacroKey<'a>>,
+    pub active_imported_expansions: HashSet<(String, usize)>,
     pub nobuiltins: bool,
 }
 
 impl<'a> RsmlCompiler<'a> {
     pub fn new(parsed: ParsedRsml<'a>) -> CompiledRsml {
+        Self::compile(parsed, Vec::new())
+    }
+
+    fn compile(
+        parsed: ParsedRsml<'a>,
+        imported_macro_sources: Vec<ParsedRsml<'a>>,
+    ) -> CompiledRsml {
         let compiler = Self { parsed };
         let mut tree_nodes = CompiledRsml::new();
         tree_nodes.is_static = compiler.parsed.directives.static_file;
         let is_static = tree_nodes.is_static;
         let mut current_idx = TreeNodeType::Root;
 
-        let local = collect_user_macros(&compiler.parsed.ast);
+        let mut local = MacroRegistry::new();
+        for imported in &imported_macro_sources {
+            local.extend(collect_user_macros(&imported.ast));
+        }
+        local.extend(collect_user_macros(&compiler.parsed.ast));
+
+        let (imported_macros, imported_statics) = collect_imports(&compiler.parsed.ast);
         let mut macro_ctx = MacroContext {
             local,
+            imported_macros,
             bindings: vec![HashMap::new()],
             active_expansions: HashSet::new(),
+            active_imported_expansions: HashSet::new(),
             nobuiltins: compiler.parsed.directives.nobuiltins,
         };
+
+        for (name, value) in imported_statics {
+            if let Some(static_val) = value.coerce_to_static(Some(&name)) {
+                if let Some(node) = tree_nodes.get_root_mut() {
+                    node.static_attributes.insert(name, static_val);
+                }
+            }
+        }
 
         for construct in &compiler.parsed.ast {
             if is_static && !construct.allowed_in_static_file() {
                 continue;
             }
-            if let Construct::Derive { body: Some(body), .. } = construct {
+            if let Construct::Derive {
+                body: Some(body), ..
+            } = construct
+            {
                 match classify_derive(body) {
                     DeriveClass::Invalid => continue,
                     DeriveClass::NonStatic if is_static => continue,
@@ -70,6 +98,22 @@ impl<'a> RsmlCompiler<'a> {
 
     pub fn from_source(source: &'a str) -> CompiledRsml {
         Self::new(RsmlParser::from_source(source))
+    }
+
+    /// Compiles `source` with macros declared by already-resolved derived
+    /// sources. Sources are applied in iterator order and macros declared in
+    /// the root source take precedence.
+    pub fn from_source_with_macro_sources(
+        source: &'a str,
+        macro_sources: impl IntoIterator<Item = &'a str>,
+    ) -> CompiledRsml {
+        let parsed = RsmlParser::from_source(source);
+        let imported_macro_sources = macro_sources
+            .into_iter()
+            .map(RsmlParser::from_source)
+            .collect();
+
+        Self::compile(parsed, imported_macro_sources)
     }
 }
 
@@ -127,10 +171,89 @@ fn extract_derive_string_literal<'a>(body: &'a Construct<'a>) -> Option<&'a str>
     }
 }
 
+/// Walks the AST for `@derive` constructs that carry a `@with` clause and
+/// pulls the requested public macros + static tokens out of each derived
+/// file. Diagnostics on import failures are the typechecker's job; the
+/// compiler silently drops anything it can't resolve.
+fn collect_imports<'a>(
+    ast: &'a [Construct<'a>],
+) -> (
+    HashMap<(String, usize), crate::cross_file_imports::ImportedMacroDef>,
+    Vec<(String, Datatype)>,
+) {
+    use crate::cross_file_imports::{
+        ImportSelector, build_import_selector_silent, load_public_symbols,
+    };
+
+    let mut macros: HashMap<(String, usize), crate::cross_file_imports::ImportedMacroDef> =
+        HashMap::new();
+    let mut statics: Vec<(String, Datatype)> = Vec::new();
+
+    for construct in ast {
+        let Construct::Derive {
+            body: Some(body),
+            with_clause: Some(with_clause),
+            ..
+        } = construct
+        else {
+            continue;
+        };
+
+        let Some(literal) = extract_derive_string_literal(body) else {
+            continue;
+        };
+
+        let mut path = std::path::PathBuf::from(literal.trim());
+        if path.extension().is_none() {
+            path.set_extension("rsml");
+        }
+        let Ok(canonical) = path.canonicalize() else {
+            continue;
+        };
+
+        let Some(symbols) = load_public_symbols(&canonical) else {
+            continue;
+        };
+
+        let Some(selector) = build_import_selector_silent(with_clause) else {
+            continue;
+        };
+
+        match selector {
+            ImportSelector::All => {
+                for ((name, arity), def) in &symbols.macros {
+                    macros.insert((name.clone(), *arity), def.clone());
+                }
+                for (name, def) in &symbols.statics {
+                    statics.push((name.clone(), def.value.clone()));
+                }
+            }
+            ImportSelector::Named(items) => {
+                for item in items {
+                    if item.is_static_token {
+                        if let Some(def) = symbols.statics.get(&item.name) {
+                            statics.push((item.name.clone(), def.value.clone()));
+                        }
+                    } else {
+                        for ((mname, arity), mdef) in &symbols.macros {
+                            if mname == &item.name {
+                                macros.insert((mname.clone(), *arity), mdef.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    (macros, statics)
+}
+
 fn collect_user_macros<'a>(ast: &'a [Construct<'a>]) -> MacroRegistry<'a> {
     let mut registry = MacroRegistry::new();
     for construct in ast {
         if let Construct::Macro {
+            pub_modifier,
             name: Some(name_node),
             args,
             body,
@@ -150,6 +273,7 @@ fn collect_user_macros<'a>(ast: &'a [Construct<'a>]) -> MacroRegistry<'a> {
                         arg_names,
                         body: body.as_ref().map(|b| &b.content),
                         return_context: macro_return_context(return_type),
+                        is_public: pub_modifier.is_some(),
                     },
                 );
             }
@@ -410,7 +534,12 @@ fn compile_macro_call<'a>(
         return;
     }
 
-    let (arg_names, body): (Vec<String>, &MacroBodyContent<'a>) = {
+    let imported_key = (macro_name_str.to_string(), arg_count);
+    if macro_ctx.active_imported_expansions.contains(&imported_key) {
+        return;
+    }
+
+    let (arg_names, body): (Vec<String>, &'a MacroBodyContent<'a>) = {
         let from_local = macro_ctx.local.get(&key).and_then(|def| {
             def.body
                 .map(|b| (def.arg_names.iter().map(|s| s.to_string()).collect(), b))
@@ -426,6 +555,18 @@ fn compile_macro_call<'a>(
                     def.body
                         .map(|b| (def.arg_names.iter().map(|s| s.to_string()).collect(), b))
                 })
+        {
+            pair
+        } else if let Some(pair) = macro_ctx
+            .imported_macros
+            .get(&imported_key)
+            .and_then(|def| {
+                def.body.map(|b| {
+                    let names: Vec<String> = def.arg_names.iter().map(|s| s.to_string()).collect();
+                    let coerced: &'a MacroBodyContent<'a> = b;
+                    (names, coerced)
+                })
+            })
         {
             pair
         } else {
@@ -513,6 +654,16 @@ fn expand_selectors_into<'a>(
                         .registry
                         .get(&key)
                         .and_then(|def| def.body)
+                })
+                .or_else(|| {
+                    macro_ctx
+                        .imported_macros
+                        .get(&(macro_name_str.to_string(), arg_count))
+                        .and_then(|def| def.body)
+                        .map(|b| {
+                            let coerced: &'a MacroBodyContent<'a> = b;
+                            coerced
+                        })
                 });
 
             let Some(MacroBodyContent::Selector(Some(inner))) = matched_body else {
@@ -572,5 +723,58 @@ fn resolve_static_attribute(name: &str, tree_nodes: &CompiledRsml, idx: TreeNode
                 Datatype::None
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RsmlCompiler;
+    use rbx_types::Variant;
+
+    #[test]
+    fn compiles_macros_from_imported_sources() {
+        let macro_source = r#"
+@macro Fade -> Construct {
+    BackgroundTransparency = 0.5;
+}
+"#;
+        let source = r#"
+Frame {
+    Fade!();
+}
+"#;
+
+        let mut compiled = RsmlCompiler::from_source_with_macro_sources(source, [macro_source]);
+        let root = compiled.take_root().unwrap();
+        let frame = compiled.take_node(root.child_rules[0]).unwrap();
+
+        assert!(frame.properties.get("BackgroundTransparency").is_some());
+    }
+
+    #[test]
+    fn root_macros_override_imported_macros() {
+        let macro_source = r#"
+@macro Fade -> Construct {
+    BackgroundTransparency = 0.5;
+}
+"#;
+        let source = r#"
+@macro Fade -> Construct {
+    BackgroundTransparency = 0.75;
+}
+
+Frame {
+    Fade!();
+}
+"#;
+
+        let mut compiled = RsmlCompiler::from_source_with_macro_sources(source, [macro_source]);
+        let root = compiled.take_root().unwrap();
+        let frame = compiled.take_node(root.child_rules[0]).unwrap();
+
+        assert_eq!(
+            frame.properties.get("BackgroundTransparency"),
+            Some(&Variant::Float64(0.75))
+        );
     }
 }

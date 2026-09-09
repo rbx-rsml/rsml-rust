@@ -26,6 +26,7 @@ expression: parsed.ast
                 },
             },
         ),
+        with_clause: None,
         terminator: Some(
             Node {
                 token: SpannedToken(
@@ -118,6 +119,7 @@ expression: parsed.ast
         ),
     },
     Assignment {
+        pub_modifier: None,
         left: Node {
             token: SpannedToken(
                 48,
@@ -164,6 +166,7 @@ expression: parsed.ast
         ),
     },
     Assignment {
+        pub_modifier: None,
         left: Node {
             token: SpannedToken(
                 74,
@@ -210,6 +213,7 @@ expression: parsed.ast
         ),
     },
     Macro {
+        pub_modifier: None,
         declaration: Node {
             token: SpannedToken(
                 92,
@@ -308,6 +312,7 @@ expression: parsed.ast
                     Some(
                         [
                             Assignment {
+                                pub_modifier: None,
                                 left: Node {
                                     token: SpannedToken(
                                         136,
@@ -401,6 +406,7 @@ expression: parsed.ast
                 content: Some(
                     [
                         Assignment {
+                            pub_modifier: None,
                             left: Node {
                                 token: SpannedToken(
                                     178,
@@ -447,6 +453,7 @@ expression: parsed.ast
                             ),
                         },
                         Assignment {
+                            pub_modifier: None,
                             left: Node {
                                 token: SpannedToken(
                                     217,
@@ -698,6 +705,7 @@ expression: parsed.ast
                                     content: Some(
                                         [
                                             Assignment {
+                                                pub_modifier: None,
                                                 left: Node {
                                                     token: SpannedToken(
                                                         292,
@@ -744,6 +752,7 @@ expression: parsed.ast
                                                 ),
                                             },
                                             Assignment {
+                                                pub_modifier: None,
                                                 left: Node {
                                                     token: SpannedToken(
                                                         316,
@@ -836,6 +845,7 @@ expression: parsed.ast
                                     content: Some(
                                         [
                                             Assignment {
+                                                pub_modifier: None,
                                                 left: Node {
                                                     token: SpannedToken(
                                                         368,
@@ -965,6 +975,7 @@ expression: parsed.ast
                 content: Some(
                     [
                         Assignment {
+                            pub_modifier: None,
                             left: Node {
                                 token: SpannedToken(
                                     432,

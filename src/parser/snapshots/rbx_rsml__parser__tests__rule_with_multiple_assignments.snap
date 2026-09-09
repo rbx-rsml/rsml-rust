@@ -33,6 +33,7 @@ expression: parsed.ast
                 content: Some(
                     [
                         Assignment {
+                            pub_modifier: None,
                             left: Node {
                                 token: SpannedToken(
                                     12,
@@ -79,6 +80,7 @@ expression: parsed.ast
                             ),
                         },
                         Assignment {
+                            pub_modifier: None,
                             left: Node {
                                 token: SpannedToken(
                                     28,

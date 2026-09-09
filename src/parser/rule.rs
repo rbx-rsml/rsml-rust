@@ -83,6 +83,7 @@ impl<'a> RsmlParser<'a> {
                 };
 
                 return Parsed (next_node, Some(Construct::Assignment {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     left: left_node, middle: Some(middle_node), right: Some(rebuilt), terminator: Some(term)
                 }));
             },
@@ -94,9 +95,11 @@ impl<'a> RsmlParser<'a> {
             NodeStatus::Exists => match self.advance_until(token_kind_list![ SemiColon ], &TOKEN_KIND_CONSTRUCT_DELIMITERS) {
                 Some(Ok(node)) => node,
                 Some(Err(node)) => return Parsed (Some(node), Some(Construct::Assignment {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     left: left_node, middle: Some(middle_node), right: body_nodes, terminator: None
                 })),
                 None => return Parsed (None, Some(Construct::Assignment {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     left: left_node, middle: Some(middle_node), right: body_nodes, terminator: None
                 })),
             },
@@ -107,6 +110,7 @@ impl<'a> RsmlParser<'a> {
 
                 } else {
                     let construct = Construct::Assignment {
+                        pub_modifier: self.pending_pub_modifier.take(),
                         left: left_node, middle: Some(middle_node), right: body_nodes, terminator: None
                     };
 
@@ -121,6 +125,7 @@ impl<'a> RsmlParser<'a> {
 
             NodeStatus::None => {
                 let construct = Construct::Assignment {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     left: left_node, middle: Some(middle_node), right: body_nodes, terminator: None
                 };
 
@@ -134,6 +139,7 @@ impl<'a> RsmlParser<'a> {
         };
 
         Parsed (self.advance(), Some(Construct::Assignment {
+            pub_modifier: self.pending_pub_modifier.take(),
             left: left_node, middle: Some(middle_node), right: body_nodes, terminator: Some(terminator)
         }))
     }

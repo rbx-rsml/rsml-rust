@@ -66,6 +66,12 @@ pub enum TypeError<'a> {
     DuplicateSchema { name: &'a str },
     DuplicateSchemaField { schema: &'a str, field: &'a str },
     UnknownTypeName { name: &'a str },
+    MacroSchemaConflict { name: &'a str },
+    PubNotAllowed { kind: &'a str },
+    UnknownImport { name: String, file: String },
+    PrivateImport { name: String, file: String },
+    ImportNameCollision { name: String, file: String },
+    ExtendsTokensInStaticFile { schema: String, tokens: Vec<String> },
 }
 
 impl<'a> TypeError<'a> {
@@ -96,7 +102,13 @@ impl<'a> TypeError<'a> {
             Self::UnknownSchema { .. } |
             Self::DuplicateSchema { .. } |
             Self::DuplicateSchemaField { .. } |
-            Self::UnknownTypeName { .. } => Severity::Error
+            Self::UnknownTypeName { .. } |
+            Self::MacroSchemaConflict { .. } |
+            Self::PubNotAllowed { .. } |
+            Self::UnknownImport { .. } |
+            Self::PrivateImport { .. } |
+            Self::ImportNameCollision { .. } |
+            Self::ExtendsTokensInStaticFile { .. } => Severity::Error
         }
     }
 
@@ -283,6 +295,51 @@ impl<'a> TypeError<'a> {
 
             Self::UnknownTypeName { name } =>
                 format!("Type Error (Unknown Type): No type named `{}` exists.", name),
+
+            Self::MacroSchemaConflict { name } =>
+                format!(
+                    "Type Error (Macro/Schema Conflict): `{}` is already declared as either a macro or schema in this file. Macros and schemas share a namespace.",
+                    name
+                ),
+
+            Self::PubNotAllowed { kind } =>
+                format!(
+                    "Type Error (Pub Not Allowed): `@pub` cannot be applied to {}.",
+                    kind
+                ),
+
+            Self::UnknownImport { name, file } =>
+                format!(
+                    "Type Error (Unknown Import): `{}` is not declared in `{}`.",
+                    name, file
+                ),
+
+            Self::PrivateImport { name, file } =>
+                format!(
+                    "Type Error (Private Import): `{}` is declared in `{}` but is not marked `@pub`.",
+                    name, file
+                ),
+
+            Self::ImportNameCollision { name, file } =>
+                format!(
+                    "Type Error (Import Name Collision): `{}` is already declared in this file (clashing with the import from `{}`). Rename the declaration in the source file.",
+                    name, file
+                ),
+
+            Self::ExtendsTokensInStaticFile { schema, tokens } => {
+                let token_list = tokens
+                    .iter()
+                    .map(|t| format!("`${}`", t))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!(
+                    "Type Error (Extends Tokens In Static File): Schema `{}` declares {} which {} not allowed in static-only files: {}.",
+                    schema,
+                    if tokens.len() == 1 { "a token" } else { "tokens" },
+                    if tokens.len() == 1 { "is" } else { "are" },
+                    token_list
+                )
+            }
         }
     }
 
@@ -320,6 +377,12 @@ impl<'a> ToString for TypeError<'a> {
             Self::DuplicateSchema { .. } => "DUPLICATE_SCHEMA",
             Self::DuplicateSchemaField { .. } => "DUPLICATE_SCHEMA_FIELD",
             Self::UnknownTypeName { .. } => "UNKNOWN_TYPE_NAME",
+            Self::MacroSchemaConflict { .. } => "MACRO_SCHEMA_CONFLICT",
+            Self::PubNotAllowed { .. } => "PUB_NOT_ALLOWED",
+            Self::UnknownImport { .. } => "UNKNOWN_IMPORT",
+            Self::PrivateImport { .. } => "PRIVATE_IMPORT",
+            Self::ImportNameCollision { .. } => "IMPORT_NAME_COLLISION",
+            Self::ExtendsTokensInStaticFile { .. } => "EXTENDS_TOKENS_IN_STATIC_FILE",
         })
     }
 }

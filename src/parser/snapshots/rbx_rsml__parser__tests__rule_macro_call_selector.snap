@@ -73,6 +73,7 @@ expression: parsed.ast
                 content: Some(
                     [
                         Assignment {
+                            pub_modifier: None,
                             left: Node {
                                 token: SpannedToken(
                                     13,

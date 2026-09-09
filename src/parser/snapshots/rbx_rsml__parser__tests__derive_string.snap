@@ -26,6 +26,7 @@ expression: parsed.ast
                 },
             },
         ),
+        with_clause: None,
         terminator: Some(
             Node {
                 token: SpannedToken(

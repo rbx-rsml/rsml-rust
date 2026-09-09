@@ -4,6 +4,7 @@ expression: parsed.ast
 ---
 [
     Macro {
+        pub_modifier: None,
         declaration: Node {
             token: SpannedToken(
                 0,
@@ -131,6 +132,7 @@ expression: parsed.ast
                                         content: Some(
                                             [
                                                 Assignment {
+                                                    pub_modifier: None,
                                                     left: Node {
                                                         token: SpannedToken(
                                                             46,
@@ -210,6 +212,7 @@ expression: parsed.ast
         ),
     },
     Macro {
+        pub_modifier: None,
         declaration: Node {
             token: SpannedToken(
                 67,

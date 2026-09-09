@@ -100,8 +100,6 @@ pub enum Token<'a> {
     #[regex(r"\-\-", priority = 1, callback = |_| None::<&str>)]
     CommentSingle(Option<&'a str>),
 
-    // When adding a new declaration make sure to
-    // update the `DECLARATIONS` array located above.
     #[token("@derive")]
     DeriveDeclaration,
 
@@ -119,6 +117,12 @@ pub enum Token<'a> {
 
     #[token("@extends")]
     ExtendsDeclaration,
+
+    #[token("@pub")]
+    PubDeclaration,
+
+    #[token("@with")]
+    WithDeclaration,
 
     #[regex(r"@(?&ident)", callback = |lex| str_to_option(&lex.slice()[1..]))]
     QuerySelector(&'a str),
@@ -346,7 +350,8 @@ pub const TOKEN_KIND_CONSTRUCT_DELIMITERS: LazyLock<HashSet<TokenKind>> = lazy_c
     TokenKind::PriorityDeclaration,
     TokenKind::TweenDeclaration,
     TokenKind::SchemaDeclaration,
-    TokenKind::ExtendsDeclaration
+    TokenKind::ExtendsDeclaration,
+    TokenKind::PubDeclaration
 };
 
 pub const TOKEN_KIND_MACRO_CALL_DELIMITERS: LazyLock<HashSet<TokenKind>> = lazy_collection! {
@@ -360,11 +365,31 @@ pub const TOKEN_KIND_MACRO_CALL_DELIMITERS: LazyLock<HashSet<TokenKind>> = lazy_
     TokenKind::PriorityDeclaration,
     TokenKind::TweenDeclaration,
     TokenKind::SchemaDeclaration,
-    TokenKind::ExtendsDeclaration
+    TokenKind::ExtendsDeclaration,
+    TokenKind::PubDeclaration
 };
 
 pub const TOKEN_KIND_INSIDE_PARENS_CONSTRUCT_DELIMITERS: LazyLock<HashSet<TokenKind>> = lazy_collection! {
     TokenKind::ParensClose,
+};
+
+/// Delimiters used while parsing inside a `@derive ... @with { ... }` clause.
+/// Same as `TOKEN_KIND_CONSTRUCT_DELIMITERS` plus `ScopeOpen` — a stray `{`
+/// inside the import list almost always means malformed input, so we want to
+/// bail fast instead of silently consuming it.
+pub const TOKEN_KIND_WITH_LIST_DELIMITERS: LazyLock<HashSet<TokenKind>> = lazy_collection! {
+    TokenKind::ParensClose,
+    TokenKind::ScopeClose,
+    TokenKind::ScopeOpen,
+    TokenKind::SemiColon,
+
+    TokenKind::DeriveDeclaration,
+    TokenKind::MacroDeclaration,
+    TokenKind::PriorityDeclaration,
+    TokenKind::TweenDeclaration,
+    TokenKind::SchemaDeclaration,
+    TokenKind::ExtendsDeclaration,
+    TokenKind::PubDeclaration
 };
 
 pub const TOKEN_KIND_ADD_SUB_PRECEDENCE: usize = 0;
@@ -389,6 +414,8 @@ const TOKEN_KIND_STRING_MAP: LazyLock<HashMap<TokenKind, &'static str>> = lazy_c
     TokenKind::TweenDeclaration => "\"@tween\"",
     TokenKind::SchemaDeclaration => "\"@schema\"",
     TokenKind::ExtendsDeclaration => "\"@extends\"",
+    TokenKind::PubDeclaration => "\"@pub\"",
+    TokenKind::WithDeclaration => "\"@with\"",
     TokenKind::QuerySelector => "`query selector`",
     TokenKind::Identifier => "`identifer`",
     TokenKind::MacroArgIdentifier => "`macro argument`",

@@ -39,6 +39,7 @@ pub static BUILTINS: LazyLock<BuiltinData> = LazyLock::new(|| {
                         arg_names,
                         body: body.as_ref().map(|b| &b.content),
                         return_context: macro_return_context(return_type),
+                        is_public: false,
                     },
                 );
             }

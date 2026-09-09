@@ -133,8 +133,17 @@ impl<'a> Typechecker<'a> {
             .keys()
             .filter(|k| k.name == *macro_name)
             .map(|k| k.arity);
+        let imported_arities = self
+            .imported
+            .macros
+            .keys()
+            .filter(|(n, _)| n == *macro_name)
+            .map(|(_, a)| *a);
 
-        let mut expected_counts: Vec<usize> = local_arities.chain(builtin_arities).collect();
+        let mut expected_counts: Vec<usize> = local_arities
+            .chain(builtin_arities)
+            .chain(imported_arities)
+            .collect();
 
         if expected_counts.is_empty() {
             ast_errors.report(
@@ -158,6 +167,12 @@ impl<'a> Typechecker<'a> {
                 crate::builtins::BUILTINS
                     .registry
                     .get(&key)
+                    .map(|def| def.return_context)
+            })
+            .or_else(|| {
+                self.imported
+                    .macros
+                    .get(&(macro_name.to_string(), call_arg_count))
                     .map(|def| def.return_context)
             });
 

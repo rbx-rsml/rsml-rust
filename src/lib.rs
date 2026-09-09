@@ -15,6 +15,9 @@ pub mod parser;
 pub mod range_from_span;
 pub mod schema_registry;
 
+#[cfg(any(feature = "compiler", feature = "typechecker"))]
+pub mod cross_file_imports;
+
 #[cfg(feature = "compiler")]
 pub mod compiler;
 

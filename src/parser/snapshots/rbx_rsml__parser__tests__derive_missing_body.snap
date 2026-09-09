@@ -13,6 +13,7 @@ expression: parsed.ast
             leading_trivia: None,
         },
         body: None,
+        with_clause: None,
         terminator: None,
     },
 ]

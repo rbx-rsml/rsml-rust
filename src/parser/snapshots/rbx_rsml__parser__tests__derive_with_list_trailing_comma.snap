@@ -1,0 +1,102 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Derive {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                DeriveDeclaration,
+                7,
+            ),
+            leading_trivia: None,
+        },
+        body: Some(
+            Node {
+                node: Node {
+                    token: SpannedToken(
+                        8,
+                        StringSingle(
+                            "./tokens",
+                        ),
+                        18,
+                    ),
+                    leading_trivia: None,
+                },
+            },
+        ),
+        with_clause: Some(
+            DeriveWithClause {
+                keyword: Node {
+                    token: SpannedToken(
+                        19,
+                        WithDeclaration,
+                        24,
+                    ),
+                    leading_trivia: None,
+                },
+                items: Some(
+                    List(
+                        Delimited {
+                            left: Node {
+                                token: SpannedToken(
+                                    25,
+                                    ScopeOpen,
+                                    26,
+                                ),
+                                leading_trivia: None,
+                            },
+                            content: Some(
+                                [
+                                    DeriveWithItem {
+                                        name: Node {
+                                            token: SpannedToken(
+                                                27,
+                                                Identifier(
+                                                    "A",
+                                                ),
+                                                28,
+                                            ),
+                                            leading_trivia: None,
+                                        },
+                                        trailing_comma: Some(
+                                            Node {
+                                                token: SpannedToken(
+                                                    28,
+                                                    Comma,
+                                                    29,
+                                                ),
+                                                leading_trivia: None,
+                                            },
+                                        ),
+                                    },
+                                ],
+                            ),
+                            right: Some(
+                                Node {
+                                    token: SpannedToken(
+                                        30,
+                                        ScopeClose,
+                                        31,
+                                    ),
+                                    leading_trivia: None,
+                                },
+                            ),
+                        },
+                    ),
+                ),
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    31,
+                    SemiColon,
+                    32,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]

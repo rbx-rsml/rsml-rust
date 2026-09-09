@@ -1,0 +1,27 @@
+---
+source: src/parser/mod.rs
+expression: compiled
+---
+CompiledRsml {
+    root: Some(
+        RootTreeNode {
+            attributes: Attributes {
+                data: {},
+            },
+            static_attributes: {
+                "Brand": Variant(
+                    Color3(
+                        Color3 {
+                            r: 1.0,
+                            g: 0.53333336,
+                            b: 0.0,
+                        },
+                    ),
+                ),
+            },
+            child_rules: [],
+        },
+    ),
+    nodes: [],
+    is_static: false,
+}

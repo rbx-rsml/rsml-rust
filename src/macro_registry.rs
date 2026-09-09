@@ -25,6 +25,7 @@ pub struct MacroDefinition<'a> {
     pub arg_names: Vec<&'a str>,
     pub body: Option<&'a MacroBodyContent<'a>>,
     pub return_context: MacroReturnContext,
+    pub is_public: bool,
 }
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]

@@ -102,7 +102,7 @@ fn is_boolean(construct: &Construct) -> bool {
 
 impl<'a> Typechecker<'a> {
     fn is_number(&self, construct: &Construct) -> bool {
-        let lookup = TypecheckerLookup { scopes: &self.static_scopes };
+        let lookup = TypecheckerLookup { scopes: &self.static_scopes, dynamic_scopes: &self.dynamic_scopes };
         matches!(
             evaluate_construct(construct, None, &lookup),
             Some(Datatype::Variant(Variant::Float64(_)))

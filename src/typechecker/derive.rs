@@ -2,12 +2,11 @@ use std::{
     collections::{HashMap, HashSet},
     ops::RangeInclusive,
     path::{Path, PathBuf},
-    pin::Pin,
 };
 
 use crate::{
     lexer::{MultilineString, SpannedToken, Token},
-    parser::{AstErrors, Construct, Delimited, Node},
+    parser::{AstErrors, Construct, Node},
 };
 
 use crate::typechecker::luaurc::Luaurc;
@@ -16,92 +15,51 @@ use crate::typechecker::normalize_path::NormalizePath;
 use crate::typechecker::{ReportTypeError, Typechecker, type_error::*};
 
 impl<'a> Typechecker<'a> {
-    pub(super) fn typecheck_derive<'b>(
+    pub(super) async fn typecheck_derive<'b>(
         &'b self,
         body: &'b Construct<'a>,
         ast_errors: &'b mut AstErrors,
         current_path: &'b Path,
-        mut luaurc: Option<&'b mut Luaurc>,
+        luaurc: Option<&'b mut Luaurc>,
         dependencies: &'b mut HashSet<PathBuf>,
         derives: &'b mut HashMap<PathBuf, RangeInclusive<usize>>,
-    ) -> Pin<Box<dyn Future<Output = ()> + 'b + Send>> {
-        Box::pin(async move {
-            match body {
-                Construct::Node {
-                    node:
-                        Node {
-                            token:
-                                SpannedToken(
-                                    span_start,
-                                    Token::StringSingle(content)
-                                    | Token::StringMulti(MultilineString { content, .. }),
-                                    span_end,
-                                ),
-                            ..
-                        },
-                } => {
-                    self.resolve_derive(
-                        content,
-                        (*span_start, *span_end),
-                        ast_errors,
-                        current_path,
-                        luaurc.as_deref_mut(),
-                        dependencies,
-                        derives,
-                    )
-                    .await;
-                }
+    ) -> Option<PathBuf> {
+        match body {
+            Construct::Node {
+                node:
+                    Node {
+                        token:
+                            SpannedToken(
+                                span_start,
+                                Token::StringSingle(content)
+                                | Token::StringMulti(MultilineString { content, .. }),
+                                span_end,
+                            ),
+                        ..
+                    },
+            } => {
+                self.resolve_derive(
+                    content,
+                    (*span_start, *span_end),
+                    ast_errors,
+                    current_path,
+                    luaurc,
+                    dependencies,
+                    derives,
+                )
+                .await
+            }
 
-                Construct::Table {
-                    body: Delimited { content, .. },
-                } => 'table: {
-                    let Some(content) = content.as_ref() else {
-                        break 'table;
-                    };
-
-                    for item in content {
-                        let datatype = if let Construct::Node {
-                            node:
-                                Node {
-                                    token: SpannedToken(_, Token::SemiColon, _),
-                                    ..
-                                },
-                            ..
-                        } = item
-                        {
-                            continue;
-                        } else {
-                            item
-                        };
-
-                        self.typecheck_derive(
-                            &datatype,
-                            ast_errors,
-                            current_path,
-                            luaurc.as_deref_mut(),
-                            dependencies,
-                            derives,
-                        )
-                        .await;
-                    }
-                }
-
-                Construct::Node {
-                    node:
-                        Node {
-                            token: SpannedToken(_, Token::Comma, _),
-                            ..
-                        },
-                } => (),
-
-                _ => ast_errors.report(
+            _ => {
+                ast_errors.report(
                     TypeError::InvalidType {
                         expected: Some(ExpectedDatatype::String),
                     },
                     self.parsed.range_from_span(body.span()),
-                ),
+                );
+                None
             }
-        })
+        }
     }
 
     fn resolve_derive_alias(
@@ -156,7 +114,7 @@ impl<'a> Typechecker<'a> {
         luaurc: Option<&mut Luaurc>,
         dependencies: &mut HashSet<PathBuf>,
         derives: &mut HashMap<PathBuf, RangeInclusive<usize>>,
-    ) {
+    ) -> Option<PathBuf> {
         let trimmed = content.trim();
         let mut path = self.resolve_derive_alias(trimmed, current_path, luaurc);
 
@@ -173,7 +131,7 @@ impl<'a> Typechecker<'a> {
                     },
                     self.parsed.range_from_span(span),
                 );
-                return;
+                return None;
             }
         }
 
@@ -187,7 +145,7 @@ impl<'a> Typechecker<'a> {
                         },
                         self.parsed.range_from_span(span),
                     );
-                    return;
+                    return None;
                 }
 
                 if &canonicalized == current_path {
@@ -197,6 +155,7 @@ impl<'a> Typechecker<'a> {
                         },
                         self.parsed.range_from_span(span),
                     );
+                    None
                 } else {
                     if self.parsed.directives.static_file
                         && !derived_file_is_static(&canonicalized).await
@@ -210,7 +169,8 @@ impl<'a> Typechecker<'a> {
                     }
 
                     dependencies.insert(canonicalized.clone());
-                    derives.insert(canonicalized, span.0..=span.1);
+                    derives.insert(canonicalized.clone(), span.0..=span.1);
+                    Some(canonicalized)
                 }
             }
 
@@ -223,6 +183,7 @@ impl<'a> Typechecker<'a> {
                     },
                     self.parsed.range_from_span(span),
                 );
+                None
             }
         }
     }

@@ -500,7 +500,7 @@ impl<'a> Typechecker<'a> {
             if !declared {
                 return true;
             }
-            let lookup = TypecheckerLookup { scopes: &self.static_scopes };
+            let lookup = TypecheckerLookup { scopes: &self.static_scopes, dynamic_scopes: &self.dynamic_scopes };
             let resolved = lookup.resolve_static(name);
             return datatype_matches_arg_type(&resolved, arg_type);
         }

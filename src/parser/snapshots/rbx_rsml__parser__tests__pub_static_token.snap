@@ -1,0 +1,62 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Assignment {
+        pub_modifier: Some(
+            Node {
+                token: SpannedToken(
+                    0,
+                    PubDeclaration,
+                    4,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        left: Node {
+            token: SpannedToken(
+                5,
+                StaticTokenIdentifier(
+                    "Brand",
+                ),
+                12,
+            ),
+            leading_trivia: None,
+        },
+        middle: Some(
+            Node {
+                token: SpannedToken(
+                    13,
+                    Equals,
+                    14,
+                ),
+                leading_trivia: None,
+            },
+        ),
+        right: Some(
+            Node {
+                node: Node {
+                    token: SpannedToken(
+                        15,
+                        ColorHex(
+                            "#ff8800",
+                        ),
+                        22,
+                    ),
+                    leading_trivia: None,
+                },
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    22,
+                    SemiColon,
+                    23,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]

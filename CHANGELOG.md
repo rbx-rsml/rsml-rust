@@ -2,8 +2,16 @@
 ## Changes
 - Added `@schema Name { $Field: Type; ... }` and `@extends Name;` syntax.
 - Added a `--!static` directive — files marked static-only do not compile into a Roblox `StyleSheet` and may only contain macro definitions, static token assignments, and derives to other static files.
+- Added the `@pub` declaration — prefix a `@macro`, `@schema`, or `$!` static-token declaration with `@pub` to expose it to files that derive yours. Items without `@pub` are private.
+- Added selective imports on `@derive`: `@derive "path" @with *;` imports every `@pub` item, and `@derive "path" @with { Name, $!Name };` imports only the listed names. Bare `@derive "path";` retains the legacy behavior of importing all macros.
+- Macros and schemas now share a namespace, so defining both with the same name in one file is an error.
+- `@extends` on a schema with token fields is now rejected inside `--!static` files.
+
+## Breaking changes
+- `@derive` no longer accepts a parenthesized table of paths. The previous `@derive ("a", "b");` form is removed — each derive target needs its own statement.
 
 ## Fixes
+- Added compiler support for caller-resolved macro sources, restoring macro expansion across `@derive` dependencies in the CLI.
 - Fixed nested tag (`.`), name (`#`), and query (`@`) selectors resolving to `Instance` instead of inheriting the parent's class. The parent's class is now inherited unless a `>` or `>>` combinator is used.
 - Fixed a class identifier following a tag or name selector (e.g. `.Tag Frame {}`) being silently dropped,å it now correctly resolves to that class.
 - Derive targets must now resolve to an existing `.rsml` file. Non-`.rsml` extensions and paths that point at a directory now produce an `INVALID_DERIVE_TARGET` diagnostic.

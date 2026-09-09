@@ -4,6 +4,7 @@ expression: parsed.ast
 ---
 [
     Assignment {
+        pub_modifier: None,
         left: Node {
             token: SpannedToken(
                 14,

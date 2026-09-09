@@ -1,6 +1,6 @@
 use crate::lexer::{
     TOKEN_KIND_CONSTRUCT_DELIMITERS, TOKEN_KIND_INSIDE_PARENS_CONSTRUCT_DELIMITERS,
-    TOKEN_KIND_MACRO_CALL_DELIMITERS, Token, TokenKind,
+    TOKEN_KIND_MACRO_CALL_DELIMITERS, TOKEN_KIND_WITH_LIST_DELIMITERS, Token, TokenKind,
 };
 use crate::list::{Stringified, TokenKindList};
 use crate::parser::RsmlParser;
@@ -95,15 +95,325 @@ impl<'a> RsmlParser<'a> {
     }
 
     pub(crate) fn parse_derive(&mut self, node: Node<'a>) -> Parsed<'a> {
-        self.parse_declaration_with_datatype(
-            node,
-            TokenKind::DeriveDeclaration,
-            |declaration, body, terminator| Construct::Derive {
-                declaration,
+        if !node_token_matches!(node, DeriveDeclaration) {
+            return Parsed(Some(node), None);
+        }
+        let declaration_node = node;
+
+        let body_node_opt = self.advance_until(
+            token_kind_list!("derive path string", [StringSingle, StringMulti]),
+            &TOKEN_KIND_CONSTRUCT_DELIMITERS,
+        );
+
+        let body = match body_node_opt {
+            Some(Ok(string_node)) => Some(Box::new(Construct::Node { node: string_node })),
+            Some(Err(node)) => {
+                return Parsed(
+                    Some(node),
+                    Some(Construct::Derive {
+                        declaration: declaration_node,
+                        body: None,
+                        with_clause: None,
+                        terminator: None,
+                    }),
+                );
+            }
+            None => {
+                return Parsed(
+                    None,
+                    Some(Construct::Derive {
+                        declaration: declaration_node,
+                        body: None,
+                        with_clause: None,
+                        terminator: None,
+                    }),
+                );
+            }
+        };
+
+        let mut next = self.advance_until(
+            token_kind_list!("\";\" or \"@with\"", [SemiColon, WithDeclaration]),
+            &TOKEN_KIND_CONSTRUCT_DELIMITERS,
+        );
+
+        let with_clause = if let Some(Ok(node)) = &next
+            && node_token_matches!(node, WithDeclaration)
+        {
+            let with_keyword = match next.take() {
+                Some(Ok(node)) => node,
+                _ => unreachable!(),
+            };
+            let (clause, after) = self.parse_with_clause(with_keyword);
+            next = after;
+            Some(clause)
+        } else {
+            None
+        };
+
+        let terminator = match next {
+            // Accept the `;` whether `advance_until` returned it via the
+            // happy path (`Ok`) or via a delimiter bail (`Err`). When the
+            // with-list ended early at `;` we don't want a redundant
+            // "Expected `;`" error — the `;` is right there.
+            Some(Ok(node)) | Some(Err(node)) if node_token_matches!(node, SemiColon) => Some(node),
+            Some(Ok(node)) => {
+                let construct = Construct::Derive {
+                    declaration: declaration_node,
+                    body,
+                    with_clause,
+                    terminator: None,
+                };
+                self.ast_errors.push(
+                    ParseError::MissingToken {
+                        msg: Some(ParseErrorMessage::Expected(TokenKind::SemiColon.name())),
+                    },
+                    self.range_from_span(clamp_span_to_end(construct.end())),
+                );
+                return Parsed(Some(node), Some(construct));
+            }
+            Some(Err(node)) => {
+                // The inner `advance_until` already reported the missing
+                // semicolon at the bail position; just pass the construct
+                // back without piling on a duplicate diagnostic.
+                let construct = Construct::Derive {
+                    declaration: declaration_node,
+                    body,
+                    with_clause,
+                    terminator: None,
+                };
+                return Parsed(Some(node), Some(construct));
+            }
+            None => {
+                let construct = Construct::Derive {
+                    declaration: declaration_node,
+                    body,
+                    with_clause,
+                    terminator: None,
+                };
+                self.ast_errors.push(
+                    ParseError::MissingToken {
+                        msg: Some(ParseErrorMessage::Expected(TokenKind::SemiColon.name())),
+                    },
+                    self.range_from_span(clamp_span_to_end(construct.end())),
+                );
+                return Parsed(None, Some(construct));
+            }
+        };
+
+        Parsed(
+            self.advance(),
+            Some(Construct::Derive {
+                declaration: declaration_node,
                 body,
+                with_clause,
                 terminator,
-            },
+            }),
         )
+    }
+
+    /// Parses the body of a `@with` clause attached to `@derive`. Caller has
+    /// already consumed the `@with` keyword. Returns the clause and the next
+    /// token's `advance_until` result (a `;` or block delimiter).
+    fn parse_with_clause(
+        &mut self,
+        with_keyword: Node<'a>,
+    ) -> (
+        DeriveWithClause<'a>,
+        Option<Result<Node<'a>, Node<'a>>>,
+    ) {
+        let star_or_open = self.advance_until(
+            token_kind_list!("\"*\" or \"{\"", [OpMult, ScopeOpen]),
+            &TOKEN_KIND_WITH_LIST_DELIMITERS,
+        );
+
+        match star_or_open {
+            Some(Ok(node)) if node_token_matches!(node, OpMult) => {
+                let clause = DeriveWithClause {
+                    keyword: with_keyword,
+                    items: Some(DeriveWithItems::All(node)),
+                };
+                let after = self.advance_until(
+                    token_kind_list![SemiColon],
+                    &TOKEN_KIND_WITH_LIST_DELIMITERS,
+                );
+                (clause, after)
+            }
+
+            Some(Ok(node)) => {
+                let (list, after) = self.parse_with_list(node);
+                (
+                    DeriveWithClause {
+                        keyword: with_keyword,
+                        items: Some(DeriveWithItems::List(list)),
+                    },
+                    after,
+                )
+            }
+
+            Some(Err(err_node)) => (
+                DeriveWithClause {
+                    keyword: with_keyword,
+                    items: None,
+                },
+                Some(Err(err_node)),
+            ),
+
+            None => (
+                DeriveWithClause {
+                    keyword: with_keyword,
+                    items: None,
+                },
+                None,
+            ),
+        }
+    }
+
+    fn parse_with_list(
+        &mut self,
+        open_node: Node<'a>,
+    ) -> (
+        Delimited<'a, DeriveWithItem<'a>>,
+        Option<Result<Node<'a>, Node<'a>>>,
+    ) {
+        let mut items: Vec<DeriveWithItem<'a>> = Vec::new();
+
+        loop {
+            let next = self.advance_until(
+                token_kind_list!(
+                    "import name or \"}\"",
+                    [Identifier, StaticTokenIdentifier, ScopeClose]
+                ),
+                &TOKEN_KIND_WITH_LIST_DELIMITERS,
+            );
+
+            let name_node = match next {
+                Some(Ok(node)) if node_token_matches!(node, ScopeClose) => {
+                    let close = node;
+                    let delim = Delimited::new(
+                        open_node,
+                        if items.is_empty() { None } else { Some(items) },
+                        Some(close),
+                    );
+                    let after = self.advance_until(
+                        token_kind_list![SemiColon],
+                        &TOKEN_KIND_WITH_LIST_DELIMITERS,
+                    );
+                    return (delim, after);
+                }
+                Some(Ok(node)) => node,
+                Some(Err(err_node)) => {
+                    let delim = Delimited::new(
+                        open_node,
+                        if items.is_empty() { None } else { Some(items) },
+                        None,
+                    );
+                    // `advance_until` already reported a "Expected import
+                    // name or `}`" diagnostic at the bail token; don't pile
+                    // on a second "Expected `}`" at the same position.
+                    return (delim, Some(Err(err_node)));
+                }
+                None => {
+                    let delim = Delimited::new(
+                        open_node,
+                        if items.is_empty() { None } else { Some(items) },
+                        None,
+                    );
+                    self.ast_errors.push(
+                        ParseError::MissingToken {
+                            msg: Some(ParseErrorMessage::Expected(TokenKind::ScopeClose.name())),
+                        },
+                        self.range_from_span(clamp_span_to_end(delim.end())),
+                    );
+                    return (delim, None);
+                }
+            };
+
+            let after_name = self.advance_until(
+                token_kind_list!("\",\" or \"}\"", [Comma, ScopeClose]),
+                &TOKEN_KIND_WITH_LIST_DELIMITERS,
+            );
+
+            match after_name {
+                Some(Ok(sep)) if node_token_matches!(sep, Comma) => {
+                    items.push(DeriveWithItem {
+                        name: name_node,
+                        trailing_comma: Some(sep),
+                    });
+                    continue;
+                }
+                Some(Ok(close)) => {
+                    items.push(DeriveWithItem {
+                        name: name_node,
+                        trailing_comma: None,
+                    });
+                    let delim = Delimited::new(open_node, Some(items), Some(close));
+                    let after = self.advance_until(
+                        token_kind_list![SemiColon],
+                        &TOKEN_KIND_WITH_LIST_DELIMITERS,
+                    );
+                    return (delim, after);
+                }
+                Some(Err(err_node)) => {
+                    items.push(DeriveWithItem {
+                        name: name_node,
+                        trailing_comma: None,
+                    });
+                    let delim = Delimited::new(open_node, Some(items), None);
+                    // `advance_until` already reported "Expected `,` or `}`"
+                    // at the bail token; don't pile on a second
+                    // "Expected `}`" at the same position.
+                    return (delim, Some(Err(err_node)));
+                }
+                None => {
+                    items.push(DeriveWithItem {
+                        name: name_node,
+                        trailing_comma: None,
+                    });
+                    let delim = Delimited::new(open_node, Some(items), None);
+                    self.ast_errors.push(
+                        ParseError::MissingToken {
+                            msg: Some(ParseErrorMessage::Expected(TokenKind::ScopeClose.name())),
+                        },
+                        self.range_from_span(clamp_span_to_end(delim.end())),
+                    );
+                    return (delim, None);
+                }
+            }
+        }
+    }
+
+    pub(crate) fn parse_pub(&mut self, node: Node<'a>) -> Parsed<'a> {
+        if !node_token_matches!(node, PubDeclaration) {
+            return Parsed(Some(node), None);
+        }
+        let pub_node = node;
+
+        let next = match self.advance_until(
+            token_kind_list!(
+                "\"@macro\", \"@schema\", or static token assignment",
+                [MacroDeclaration, SchemaDeclaration, StaticTokenIdentifier]
+            ),
+            &TOKEN_KIND_CONSTRUCT_DELIMITERS,
+        ) {
+            Some(Ok(node)) => node,
+            Some(Err(node)) => {
+                self.ast_errors.push(
+                    ParseError::UnexpectedTokens { msg: None },
+                    self.range_from_span(pub_node.token.span()),
+                );
+                return Parsed(Some(node), None);
+            }
+            None => {
+                self.ast_errors.push(
+                    ParseError::UnexpectedTokens { msg: None },
+                    self.range_from_span(pub_node.token.span()),
+                );
+                return Parsed(None, None);
+            }
+        };
+
+        self.pending_pub_modifier = Some(pub_node);
+        Parsed(Some(next), None)
     }
 
     pub(crate) fn parse_priority(&mut self, node: Node<'a>) -> Parsed<'a> {
@@ -593,6 +903,7 @@ impl<'a> RsmlParser<'a> {
                 return Parsed(
                     Some(node),
                     Some(Construct::Schema {
+                        pub_modifier: self.pending_pub_modifier.take(),
                         declaration: declaration_node,
                         name: None,
                         body: None,
@@ -603,6 +914,7 @@ impl<'a> RsmlParser<'a> {
                 return Parsed(
                     None,
                     Some(Construct::Schema {
+                        pub_modifier: self.pending_pub_modifier.take(),
                         declaration: declaration_node,
                         name: None,
                         body: None,
@@ -620,6 +932,7 @@ impl<'a> RsmlParser<'a> {
                 return Parsed(
                     Some(node),
                     Some(Construct::Schema {
+                        pub_modifier: self.pending_pub_modifier.take(),
                         declaration: declaration_node,
                         name: name_node,
                         body: None,
@@ -630,6 +943,7 @@ impl<'a> RsmlParser<'a> {
                 return Parsed(
                     None,
                     Some(Construct::Schema {
+                        pub_modifier: self.pending_pub_modifier.take(),
                         declaration: declaration_node,
                         name: name_node,
                         body: None,
@@ -660,6 +974,7 @@ impl<'a> RsmlParser<'a> {
                 Some(Ok(node)) => node,
                 Some(Err(node)) => {
                     let construct = Construct::Schema {
+                        pub_modifier: self.pending_pub_modifier.take(),
                         declaration: declaration_node,
                         name: name_node,
                         body: Some(Delimited::new(
@@ -680,6 +995,7 @@ impl<'a> RsmlParser<'a> {
                 }
                 None => {
                     let construct = Construct::Schema {
+                        pub_modifier: self.pending_pub_modifier.take(),
                         declaration: declaration_node,
                         name: name_node,
                         body: Some(Delimited::new(
@@ -704,6 +1020,7 @@ impl<'a> RsmlParser<'a> {
                 return Parsed(
                     self.advance(),
                     Some(Construct::Schema {
+                        pub_modifier: self.pending_pub_modifier.take(),
                         declaration: declaration_node,
                         name: name_node,
                         body: Some(Delimited::new(
@@ -776,6 +1093,7 @@ impl<'a> RsmlParser<'a> {
             Some(Ok(node)) => Some(node),
             Some(Err(node)) => {
                 let construct = Construct::Macro {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     declaration: declaration_node,
                     name: None,
                     args: None,
@@ -786,6 +1104,7 @@ impl<'a> RsmlParser<'a> {
             }
             None => {
                 let construct = Construct::Macro {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     declaration: declaration_node,
                     name: None,
                     args: None,
@@ -808,6 +1127,7 @@ impl<'a> RsmlParser<'a> {
                 return Parsed(
                     Some(node),
                     Some(Construct::Macro {
+                        pub_modifier: self.pending_pub_modifier.take(),
                         declaration: declaration_node,
                         name: name_node,
                         args: None,
@@ -820,6 +1140,7 @@ impl<'a> RsmlParser<'a> {
                 return Parsed(
                     None,
                     Some(Construct::Macro {
+                        pub_modifier: self.pending_pub_modifier.take(),
                         declaration: declaration_node,
                         name: name_node,
                         args: None,
@@ -844,6 +1165,7 @@ impl<'a> RsmlParser<'a> {
                     return Parsed(
                         Some(node),
                         Some(Construct::Macro {
+                            pub_modifier: self.pending_pub_modifier.take(),
                             declaration: declaration_node,
                             name: name_node,
                             args: None,
@@ -856,6 +1178,7 @@ impl<'a> RsmlParser<'a> {
                     return Parsed(
                         None,
                         Some(Construct::Macro {
+                            pub_modifier: self.pending_pub_modifier.take(),
                             declaration: declaration_node,
                             name: name_node,
                             args: None,
@@ -938,6 +1261,7 @@ impl<'a> RsmlParser<'a> {
                 return Parsed(
                     Some(node),
                     Some(Construct::Macro {
+                        pub_modifier: self.pending_pub_modifier.take(),
                         declaration: declaration_node,
                         name: name_node,
                         args: Some(Delimited {
@@ -954,6 +1278,7 @@ impl<'a> RsmlParser<'a> {
                 return Parsed(
                     None,
                     Some(Construct::Macro {
+                        pub_modifier: self.pending_pub_modifier.take(),
                         declaration: declaration_node,
                         name: name_node,
                         args: Some(Delimited {
@@ -1002,6 +1327,7 @@ impl<'a> RsmlParser<'a> {
                     return Parsed(
                         Some(node),
                         Some(Construct::Macro {
+                            pub_modifier: self.pending_pub_modifier.take(),
                             declaration: declaration_node,
                             name: name_node,
                             args: Some(Delimited::new(args_open_node, Some(args), None)),
@@ -1014,6 +1340,7 @@ impl<'a> RsmlParser<'a> {
                     return Parsed(
                         None,
                         Some(Construct::Macro {
+                            pub_modifier: self.pending_pub_modifier.take(),
                             declaration: declaration_node,
                             name: name_node,
                             args: Some(Delimited::new(args_open_node, Some(args), None)),
@@ -1073,6 +1400,7 @@ impl<'a> RsmlParser<'a> {
                 return Parsed(
                     Some(node),
                     Some(Construct::Macro {
+                        pub_modifier: self.pending_pub_modifier.take(),
                         declaration: declaration_node,
                         name: name_node,
                         args: Some(Delimited {
@@ -1089,6 +1417,7 @@ impl<'a> RsmlParser<'a> {
                 return Parsed(
                     None,
                     Some(Construct::Macro {
+                        pub_modifier: self.pending_pub_modifier.take(),
                         declaration: declaration_node,
                         name: name_node,
                         args: Some(Delimited {
@@ -1121,6 +1450,7 @@ impl<'a> RsmlParser<'a> {
                     return Parsed(
                         Some(node),
                         Some(Construct::Macro {
+                            pub_modifier: self.pending_pub_modifier.take(),
                             declaration: declaration_node,
                             name: name_node,
                             args,
@@ -1133,6 +1463,7 @@ impl<'a> RsmlParser<'a> {
                     return Parsed(
                         None,
                         Some(Construct::Macro {
+                            pub_modifier: self.pending_pub_modifier.take(),
                             declaration: declaration_node,
                             name: name_node,
                             args,
@@ -1215,6 +1546,7 @@ impl<'a> RsmlParser<'a> {
             return Parsed(
                 None,
                 Some(Construct::Macro {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     declaration: declaration_node,
                     name: name_node,
                     args: args_node,
@@ -1232,6 +1564,7 @@ impl<'a> RsmlParser<'a> {
             return Parsed(
                 self.advance(),
                 Some(Construct::Macro {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     declaration: declaration_node,
                     name: name_node,
                     args: args_node,
@@ -1301,6 +1634,7 @@ impl<'a> RsmlParser<'a> {
             return Parsed(
                 self.advance(),
                 Some(Construct::Macro {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     declaration: declaration_node,
                     name: name_node,
                     args: args_node,
@@ -1314,6 +1648,7 @@ impl<'a> RsmlParser<'a> {
             );
         } else {
             let construct = Construct::Macro {
+                pub_modifier: self.pending_pub_modifier.take(),
                 declaration: declaration_node,
                 name: name_node,
                 args: args_node,
@@ -1354,6 +1689,7 @@ impl<'a> RsmlParser<'a> {
             return Parsed(
                 None,
                 Some(Construct::Macro {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     declaration: declaration_node,
                     name: name_node,
                     args: args_node,
@@ -1371,6 +1707,7 @@ impl<'a> RsmlParser<'a> {
             return Parsed(
                 self.advance(),
                 Some(Construct::Macro {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     declaration: declaration_node,
                     name: name_node,
                     args: args_node,
@@ -1397,6 +1734,7 @@ impl<'a> RsmlParser<'a> {
                     return Parsed(
                         Some(node),
                         Some(Construct::Macro {
+                            pub_modifier: self.pending_pub_modifier.take(),
                             declaration: declaration_node,
                             name: name_node,
                             args: args_node,
@@ -1419,6 +1757,7 @@ impl<'a> RsmlParser<'a> {
                     return Parsed(
                         Some(node),
                         Some(Construct::Macro {
+                            pub_modifier: self.pending_pub_modifier.take(),
                             declaration: declaration_node,
                             name: name_node,
                             args: args_node,
@@ -1438,6 +1777,7 @@ impl<'a> RsmlParser<'a> {
 
         if close_node.is_none() {
             let construct = Construct::Macro {
+                pub_modifier: self.pending_pub_modifier.take(),
                 declaration: declaration_node,
                 name: name_node,
                 args: args_node,
@@ -1462,6 +1802,7 @@ impl<'a> RsmlParser<'a> {
         Parsed(
             self.advance(),
             Some(Construct::Macro {
+                pub_modifier: self.pending_pub_modifier.take(),
                 declaration: declaration_node,
                 name: name_node,
                 args: args_node,
@@ -1493,6 +1834,7 @@ impl<'a> RsmlParser<'a> {
             return Parsed(
                 None,
                 Some(Construct::Macro {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     declaration: declaration_node,
                     name: name_node,
                     args: args_node,
@@ -1510,6 +1852,7 @@ impl<'a> RsmlParser<'a> {
             return Parsed(
                 self.advance(),
                 Some(Construct::Macro {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     declaration: declaration_node,
                     name: name_node,
                     args: args_node,
@@ -1547,6 +1890,7 @@ impl<'a> RsmlParser<'a> {
                 let has_close = node_token_matches!(node, ScopeClose);
                 let close = if has_close { Some(node) } else { None };
                 let construct = Construct::Macro {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     declaration: declaration_node,
                     name: name_node,
                     args: args_node,
@@ -1569,6 +1913,7 @@ impl<'a> RsmlParser<'a> {
             }
             None => {
                 let construct = Construct::Macro {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     declaration: declaration_node,
                     name: name_node,
                     args: args_node,
@@ -1593,6 +1938,7 @@ impl<'a> RsmlParser<'a> {
             return Parsed(
                 self.advance(),
                 Some(Construct::Macro {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     declaration: declaration_node,
                     name: name_node,
                     args: args_node,
@@ -1644,6 +1990,7 @@ impl<'a> RsmlParser<'a> {
                 return Parsed(
                     self.advance(),
                     Some(Construct::Macro {
+                        pub_modifier: self.pending_pub_modifier.take(),
                         declaration: declaration_node,
                         name: name_node,
                         args: args_node,
@@ -1659,6 +2006,7 @@ impl<'a> RsmlParser<'a> {
         }
 
         let construct = Construct::Macro {
+            pub_modifier: self.pending_pub_modifier.take(),
             declaration: declaration_node,
             name: name_node,
             args: args_node,

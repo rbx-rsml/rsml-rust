@@ -191,8 +191,54 @@ impl<'a> SpanEnd for SchemaField<'a> {
 }
 
 #[derive(Debug)]
+pub struct DeriveWithItem<'a> {
+    pub name: Node<'a>,
+    pub trailing_comma: Option<Node<'a>>,
+}
+
+impl<'a> SpanEnd for DeriveWithItem<'a> {
+    fn end(&self) -> usize {
+        if let Some(trailing) = &self.trailing_comma {
+            return trailing.token.end();
+        }
+        self.name.token.end()
+    }
+}
+
+#[derive(Debug)]
+pub enum DeriveWithItems<'a> {
+    All(Node<'a>),
+    List(Delimited<'a, DeriveWithItem<'a>>),
+}
+
+impl<'a> DeriveWithItems<'a> {
+    pub fn end(&self) -> usize {
+        match self {
+            Self::All(node) => node.token.end(),
+            Self::List(list) => list.end(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct DeriveWithClause<'a> {
+    pub keyword: Node<'a>,
+    pub items: Option<DeriveWithItems<'a>>,
+}
+
+impl<'a> DeriveWithClause<'a> {
+    pub fn end(&self) -> usize {
+        if let Some(items) = &self.items {
+            return items.end();
+        }
+        self.keyword.token.end()
+    }
+}
+
+#[derive(Debug)]
 pub enum Construct<'a> {
     Macro {
+        pub_modifier: Option<Node<'a>>,
         declaration: Node<'a>,
         name: Option<Node<'a>>,
         args: Option<Delimited<'a>>,
@@ -209,6 +255,7 @@ pub enum Construct<'a> {
     Derive {
         declaration: Node<'a>,
         body: Option<Box<Construct<'a>>>,
+        with_clause: Option<DeriveWithClause<'a>>,
         terminator: Option<Node<'a>>,
     },
 
@@ -226,6 +273,7 @@ pub enum Construct<'a> {
     },
 
     Schema {
+        pub_modifier: Option<Node<'a>>,
         declaration: Node<'a>,
         name: Option<Node<'a>>,
         body: Option<Delimited<'a, SchemaField<'a>>>,
@@ -243,6 +291,7 @@ pub enum Construct<'a> {
     },
 
     Assignment {
+        pub_modifier: Option<Node<'a>>,
         left: Node<'a>,
         middle: Option<Node<'a>>,
         right: Option<Box<Construct<'a>>>,
@@ -317,14 +366,21 @@ impl<'a> Construct<'a> {
 
     pub fn start(&self) -> usize {
         match self {
-            Self::Macro { declaration, .. } => declaration.token.start(),
+            Self::Macro { pub_modifier, declaration, .. } => pub_modifier
+                .as_ref()
+                .map(|n| n.token.start())
+                .unwrap_or_else(|| declaration.token.start()),
             Self::MacroCall { name, .. } => name.token.start(),
 
             Self::Derive { declaration, .. }
             | Self::Priority { declaration, .. }
             | Self::Tween { declaration, .. }
-            | Self::Schema { declaration, .. }
             | Self::Extends { declaration, .. } => declaration.token.start(),
+
+            Self::Schema { pub_modifier, declaration, .. } => pub_modifier
+                .as_ref()
+                .map(|n| n.token.start())
+                .unwrap_or_else(|| declaration.token.start()),
 
             Self::Rule { selectors, body } => {
                 if let Some(first) = selectors.as_ref().and_then(|s| s.first()) {
@@ -338,7 +394,10 @@ impl<'a> Construct<'a> {
                 0
             }
 
-            Self::Assignment { left, .. } => left.token.start(),
+            Self::Assignment { pub_modifier, left, .. } => pub_modifier
+                .as_ref()
+                .map(|n| n.token.start())
+                .unwrap_or_else(|| left.token.start()),
             Self::MathOperation { left, .. } => left.start(),
             Self::UnaryMinus { operator, .. } => operator.token.start(),
             Self::AnnotatedTable { annotation, .. } => annotation.token.start(),
@@ -377,6 +436,7 @@ impl<'a> SpanEnd for Construct<'a> {
                 args,
                 return_type,
                 body,
+                ..
             } => {
                 if let Some(body) = body {
                     return body.end();
@@ -420,14 +480,29 @@ impl<'a> SpanEnd for Construct<'a> {
             Self::Derive {
                 declaration,
                 body,
+                with_clause,
                 terminator,
+            } => {
+                if let Some(terminator) = terminator {
+                    return terminator.token.end();
+                }
+
+                if let Some(with_clause) = with_clause {
+                    return with_clause.end();
+                }
+
+                if let Some(body) = body {
+                    return body.end();
+                }
+
+                declaration.token.end()
             }
-            | Self::Priority {
+
+            Self::Priority {
                 declaration,
                 body,
                 terminator,
-            }
-            => {
+            } => {
                 if let Some(terminator) = terminator {
                     return terminator.token.end();
                 }
@@ -464,6 +539,7 @@ impl<'a> SpanEnd for Construct<'a> {
                 declaration,
                 name,
                 body,
+                ..
             } => {
                 if let Some(body) = body {
                     return body.end();
@@ -505,6 +581,7 @@ impl<'a> SpanEnd for Construct<'a> {
                 middle,
                 right,
                 terminator,
+                ..
             } => {
                 if let Some(terminator) = terminator {
                     return terminator.token.end();

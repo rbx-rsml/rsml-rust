@@ -178,12 +178,20 @@ pub struct Typechecker<'a> {
     macro_registry: MacroRegistry<'a>,
     pub(crate) schema_registry: SchemaRegistry<'a>,
     pub(crate) static_scopes: Vec<HashMap<String, Datatype>>,
+    /// Mirrors `static_scopes` for dynamic tokens (`$Name`). Lets
+    /// `TypecheckerLookup::resolve_dynamic` answer with the token's
+    /// resolved type instead of `Datatype::None`, so hover on a
+    /// property assigned a token reference shows the real type rather
+    /// than `unknown`.
+    pub(crate) dynamic_scopes: Vec<HashMap<String, Datatype>>,
     pub(crate) declared_tokens: Vec<HashSet<ResolvedTypeKey>>,
     pub(crate) language_mode: LanguageMode,
+    pub(crate) imported: crate::cross_file_imports::ImportedSymbols,
 }
 
 pub(crate) struct TypecheckerLookup<'a> {
     pub scopes: &'a [HashMap<String, Datatype>],
+    pub dynamic_scopes: &'a [HashMap<String, Datatype>],
 }
 
 impl<'a> StaticLookup for TypecheckerLookup<'a> {
@@ -196,7 +204,12 @@ impl<'a> StaticLookup for TypecheckerLookup<'a> {
         Datatype::None
     }
 
-    fn resolve_dynamic(&self, _name: &str) -> Datatype {
+    fn resolve_dynamic(&self, name: &str) -> Datatype {
+        for scope in self.dynamic_scopes.iter().rev() {
+            if let Some(dt) = scope.get(name) {
+                return dt.clone();
+            }
+        }
         Datatype::None
     }
 }
@@ -219,8 +232,10 @@ impl<'a> Typechecker<'a> {
             macro_registry: MacroRegistry::new(),
             schema_registry: SchemaRegistry::new(),
             static_scopes: vec![HashMap::new()],
+            dynamic_scopes: vec![HashMap::new()],
             declared_tokens: vec![HashSet::new()],
             language_mode,
+            imported: crate::cross_file_imports::ImportedSymbols::default(),
         };
 
         // A separate `AstErrors` is needed because the shared one would conflict
@@ -231,6 +246,7 @@ impl<'a> Typechecker<'a> {
         let mut definitions = Definitions::new();
         let mut resolved_types: ResolvedTypes = HashMap::new();
         let mut dependencies = HashSet::new();
+        let mut pending_imports: Vec<crate::cross_file_imports::PendingImport> = Vec::new();
 
         let is_static_file = typechecker.parsed.directives.static_file;
 
@@ -242,9 +258,10 @@ impl<'a> Typechecker<'a> {
             match construct {
                 Construct::Derive {
                     body: Some(derive_body),
+                    with_clause,
                     ..
                 } => {
-                    typechecker
+                    let resolved = typechecker
                         .typecheck_derive(
                             derive_body,
                             &mut ast_errors,
@@ -254,6 +271,51 @@ impl<'a> Typechecker<'a> {
                             &mut derives,
                         )
                         .await;
+
+                    // Dynamic tokens are auto-imported from every successful
+                    // `@derive`, regardless of `@with`. They aren't gated by
+                    // `@pub` either — the convention is that any `$Name` a
+                    // derived file declares is in scope here.
+                    if let Some(path) = resolved.as_ref() {
+                        if let Some(symbols) = crate::cross_file_imports::load_public_symbols(path)
+                        {
+                            for (token_name, token_def) in &symbols.tokens {
+                                let key = ResolvedTypeKey::Token {
+                                    name: token_name.clone(),
+                                    is_static: false,
+                                };
+                                resolved_types.insert(key.clone(), token_def.value.clone());
+                                if let Some(frame) = typechecker.declared_tokens.last_mut() {
+                                    frame.insert(key);
+                                }
+                                if let Some(frame) = typechecker.dynamic_scopes.last_mut() {
+                                    frame.insert(token_name.clone(), token_def.value.clone());
+                                }
+                            }
+                        }
+                    }
+
+                    if let (Some(path), Some(clause)) = (resolved, with_clause) {
+                        let display = path.to_string_lossy().into_owned();
+                        if let Some(selector) = crate::cross_file_imports::build_import_selector(
+                            clause,
+                            typechecker.parsed,
+                            &mut ast_errors,
+                        ) {
+                            let pending = crate::cross_file_imports::PendingImport {
+                                source_path: path,
+                                source_display: display,
+                                span: derive_body.span(),
+                                selector,
+                            };
+                            typechecker.merge_pending_imports(
+                                std::slice::from_ref(&pending),
+                                &mut ast_errors,
+                                &mut resolved_types,
+                            );
+                            pending_imports.push(pending);
+                        }
+                    }
                 }
 
                 Construct::Tween {
@@ -280,6 +342,7 @@ impl<'a> Typechecker<'a> {
                 }
 
                 Construct::Macro {
+                    pub_modifier,
                     name,
                     args,
                     return_type,
@@ -304,6 +367,7 @@ impl<'a> Typechecker<'a> {
                             && crate::builtins::BUILTINS.registry.contains_key(&key);
 
                         let local_collision = typechecker.macro_registry.contains_key(&key);
+                        let schema_collision = typechecker.schema_registry.contains_key(name_str);
 
                         if builtin_collision || local_collision {
                             ast_errors.report(
@@ -313,6 +377,11 @@ impl<'a> Typechecker<'a> {
                                 },
                                 Range::from_span(&typechecker.parsed.rope, construct.span()),
                             );
+                        } else if schema_collision {
+                            ast_errors.report(
+                                TypeError::MacroSchemaConflict { name: name_str },
+                                Range::from_span(&typechecker.parsed.rope, name_node.token.span()),
+                            );
                         } else {
                             typechecker.macro_registry.insert(
                                 key,
@@ -320,6 +389,7 @@ impl<'a> Typechecker<'a> {
                                     arg_names,
                                     body: body.as_ref().map(|b| &b.content),
                                     return_context: context,
+                                    is_public: pub_modifier.is_some(),
                                 },
                             );
                         }
@@ -337,8 +407,18 @@ impl<'a> Typechecker<'a> {
                     );
                 }
 
-                Construct::Schema { name, body, .. } => {
-                    typechecker.register_schema(name, body, &mut ast_errors);
+                Construct::Schema {
+                    pub_modifier,
+                    name,
+                    body,
+                    ..
+                } => {
+                    typechecker.register_schema(
+                        pub_modifier.is_some(),
+                        name,
+                        body,
+                        &mut ast_errors,
+                    );
                 }
 
                 Construct::Extends { name, .. } => {
@@ -392,6 +472,8 @@ impl<'a> Typechecker<'a> {
             }
         }
 
+        let _ = pending_imports;
+
         typechecker.detect_recursive_macro_calls(&mut ast_errors);
 
         TypecheckedRsml {
@@ -428,7 +510,7 @@ impl<'a> Typechecker<'a> {
         let resolved_type = if !enum_valid {
             Datatype::None
         } else {
-            let lookup = TypecheckerLookup { scopes: &self.static_scopes };
+            let lookup = TypecheckerLookup { scopes: &self.static_scopes, dynamic_scopes: &self.dynamic_scopes };
 
             let evaluated = match lhs_kind {
                 LhsKind::Token { .. } => {
@@ -475,6 +557,8 @@ impl<'a> Typechecker<'a> {
                     if let Some(frame) = self.static_scopes.last_mut() {
                         frame.insert(name.to_string(), resolved_type.clone());
                     }
+                } else if let Some(frame) = self.dynamic_scopes.last_mut() {
+                    frame.insert(name.to_string(), resolved_type.clone());
                 }
 
                 let key = ResolvedTypeKey::Token { name: name.to_string(), is_static };
@@ -812,6 +896,7 @@ impl<'a> Typechecker<'a> {
 
     pub(crate) fn register_schema(
         &mut self,
+        is_public: bool,
         name: &Option<Node<'a>>,
         body: &Option<Delimited<'a, AstSchemaField<'a>>>,
         ast_errors: &mut AstErrors,
@@ -824,6 +909,18 @@ impl<'a> Typechecker<'a> {
         if self.schema_registry.contains_key(schema_name) {
             ast_errors.report(
                 TypeError::DuplicateSchema { name: schema_name },
+                self.parsed.range_from_span(name_node.token.span()),
+            );
+            return;
+        }
+
+        let macro_collision = self
+            .macro_registry
+            .keys()
+            .any(|key| key.name == *schema_name);
+        if macro_collision {
+            ast_errors.report(
+                TypeError::MacroSchemaConflict { name: schema_name },
                 self.parsed.range_from_span(name_node.token.span()),
             );
             return;
@@ -880,7 +977,7 @@ impl<'a> Typechecker<'a> {
         }
 
         self.schema_registry
-            .insert(*schema_name, SchemaDefinition { fields });
+            .insert(*schema_name, SchemaDefinition { fields, is_public });
     }
 
     pub(crate) fn expand_extends(
@@ -895,20 +992,45 @@ impl<'a> Typechecker<'a> {
             return;
         };
 
-        let Some(definition) = self.schema_registry.get(schema_name) else {
+        let fields: Vec<(String, String)> =
+            if let Some(definition) = self.schema_registry.get(schema_name) {
+                definition
+                    .fields
+                    .iter()
+                    .map(|f| (f.name.to_string(), f.type_name.to_string()))
+                    .collect()
+            } else if let Some(definition) = self.imported.schemas.get(*schema_name) {
+                definition.fields.clone()
+            } else {
+                ast_errors.report(
+                    TypeError::UnknownSchema { name: schema_name },
+                    self.parsed.range_from_span(name_node.token.span()),
+                );
+                return;
+            };
+
+        // Schema fields are dynamic-token declarations (`$Foo: Type`).
+        // Static-only files (`--!static`) forbid dynamic tokens entirely,
+        // so extending any non-empty schema there is invalid. Surface
+        // the offending token names on the schema identifier.
+        if self.parsed.directives.static_file && !fields.is_empty() {
+            let token_names: Vec<String> =
+                fields.iter().map(|(name, _)| name.clone()).collect();
             ast_errors.report(
-                TypeError::UnknownSchema { name: schema_name },
+                TypeError::ExtendsTokensInStaticFile {
+                    schema: schema_name.to_string(),
+                    tokens: token_names,
+                },
                 self.parsed.range_from_span(name_node.token.span()),
             );
             return;
-        };
+        }
 
-        let fields: Vec<RegistrySchemaField<'a>> = definition.fields.clone();
         let (start, end) = name_node.token.span();
 
-        for field in fields {
+        for (field_name, _field_type) in fields {
             let key = ResolvedTypeKey::Token {
-                name: field.name.to_string(),
+                name: field_name.clone(),
                 is_static: false,
             };
 
@@ -921,10 +1043,263 @@ impl<'a> Typechecker<'a> {
             definitions.insert(
                 start..=end,
                 DefinitionKind::Token {
-                    name: field.name.to_string(),
+                    name: field_name,
                     is_static: false,
                 },
             );
+        }
+    }
+
+    /// Loads each derive's public surface, applies its `@with` filter, and
+    /// merges the requested items into `self.imported`. Reports collisions
+    /// with local declarations or earlier imports as
+    /// `ImportNameCollision`; missing or non-`@pub` items as
+    /// `UnknownImport` / `PrivateImport`.
+    pub(crate) fn merge_pending_imports(
+        &mut self,
+        pending: &[crate::cross_file_imports::PendingImport],
+        ast_errors: &mut AstErrors,
+        resolved_types: &mut ResolvedTypes,
+    ) {
+        for import in pending {
+            let Some(symbols) = crate::cross_file_imports::load_public_symbols(&import.source_path) else {
+                continue;
+            };
+
+            match &import.selector {
+                crate::cross_file_imports::ImportSelector::All => {
+                    for ((name, arity), def) in &symbols.macros {
+                        self.merge_imported_macro(
+                            name,
+                            *arity,
+                            def,
+                            &import.source_display,
+                            import.span,
+                            ast_errors,
+                        );
+                    }
+                    for (name, def) in &symbols.schemas {
+                        self.merge_imported_schema(
+                            name,
+                            def,
+                            &import.source_display,
+                            import.span,
+                            ast_errors,
+                        );
+                    }
+                    for (name, def) in &symbols.statics {
+                        self.merge_imported_static(
+                            name,
+                            def,
+                            &import.source_display,
+                            import.span,
+                            ast_errors,
+                            resolved_types,
+                        );
+                    }
+                }
+
+                crate::cross_file_imports::ImportSelector::Named(items) => {
+                    for item in items {
+                        if item.is_static_token {
+                            let Some(def) = symbols.statics.get(&item.name) else {
+                                let kind_check = symbols
+                                    .statics
+                                    .get(&item.name)
+                                    .is_none()
+                                    && self.derived_file_has_private_static(symbols, &item.name);
+                                if kind_check {
+                                    ast_errors.report(
+                                        TypeError::PrivateImport {
+                                            name: format!("$!{}", item.name),
+                                            file: import.source_display.clone(),
+                                        },
+                                        self.parsed.range_from_span(item.span),
+                                    );
+                                } else {
+                                    ast_errors.report(
+                                        TypeError::UnknownImport {
+                                            name: format!("$!{}", item.name),
+                                            file: import.source_display.clone(),
+                                        },
+                                        self.parsed.range_from_span(item.span),
+                                    );
+                                }
+                                continue;
+                            };
+                            self.merge_imported_static(
+                                &item.name,
+                                def,
+                                &import.source_display,
+                                item.span,
+                                ast_errors,
+                                resolved_types,
+                            );
+                        } else {
+                            // Macro or schema (shared namespace).
+                            let mut handled = false;
+                            if let Some(def) = symbols.schemas.get(&item.name) {
+                                self.merge_imported_schema(
+                                    &item.name,
+                                    def,
+                                    &import.source_display,
+                                    item.span,
+                                    ast_errors,
+                                );
+                                handled = true;
+                            } else {
+                                for ((mname, arity), mdef) in &symbols.macros {
+                                    if mname == &item.name {
+                                        self.merge_imported_macro(
+                                            mname,
+                                            *arity,
+                                            mdef,
+                                            &import.source_display,
+                                            item.span,
+                                            ast_errors,
+                                        );
+                                        handled = true;
+                                    }
+                                }
+                            }
+
+                            if !handled {
+                                ast_errors.report(
+                                    TypeError::UnknownImport {
+                                        name: item.name.clone(),
+                                        file: import.source_display.clone(),
+                                    },
+                                    self.parsed.range_from_span(item.span),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn derived_file_has_private_static(
+        &self,
+        _symbols: &crate::cross_file_imports::PublicSymbols,
+        _name: &str,
+    ) -> bool {
+        // The PublicSymbols struct only exposes `@pub` items, so we can't
+        // distinguish "private" from "doesn't exist" from this side. Future
+        // work could extract a full symbol table to disambiguate; for now,
+        // treat all misses as `UnknownImport`.
+        false
+    }
+
+    fn merge_imported_macro(
+        &mut self,
+        name: &str,
+        arity: usize,
+        def: &crate::cross_file_imports::ImportedMacroDef,
+        source_display: &str,
+        span: (usize, usize),
+        ast_errors: &mut AstErrors,
+    ) {
+        let key = (name.to_string(), arity);
+        let local_macro_collision = self
+            .macro_registry
+            .keys()
+            .any(|k| k.name == name && k.arity == arity);
+        let local_schema_collision = self.schema_registry.contains_key(name);
+        let imported_collision = self.imported.macros.contains_key(&key)
+            || self.imported.schemas.contains_key(name);
+
+        if local_macro_collision || local_schema_collision || imported_collision {
+            ast_errors.report(
+                TypeError::ImportNameCollision {
+                    name: name.to_string(),
+                    file: source_display.to_string(),
+                },
+                self.parsed.range_from_span(span),
+            );
+            return;
+        }
+
+        self.imported.macros.insert(key, def.clone());
+        self.imported
+            .provenance
+            .insert(name.to_string(), source_display.to_string());
+    }
+
+    fn merge_imported_schema(
+        &mut self,
+        name: &str,
+        def: &crate::cross_file_imports::ImportedSchemaDef,
+        source_display: &str,
+        span: (usize, usize),
+        ast_errors: &mut AstErrors,
+    ) {
+        let local_schema_collision = self.schema_registry.contains_key(name);
+        let local_macro_collision = self.macro_registry.keys().any(|k| k.name == name);
+        let imported_collision = self.imported.schemas.contains_key(name)
+            || self.imported.any_macro_with_name(name);
+
+        if local_schema_collision || local_macro_collision || imported_collision {
+            ast_errors.report(
+                TypeError::ImportNameCollision {
+                    name: name.to_string(),
+                    file: source_display.to_string(),
+                },
+                self.parsed.range_from_span(span),
+            );
+            return;
+        }
+
+        self.imported.schemas.insert(name.to_string(), def.clone());
+        self.imported
+            .provenance
+            .insert(name.to_string(), source_display.to_string());
+    }
+
+    fn merge_imported_static(
+        &mut self,
+        name: &str,
+        def: &crate::cross_file_imports::ImportedStaticDef,
+        source_display: &str,
+        span: (usize, usize),
+        ast_errors: &mut AstErrors,
+        resolved_types: &mut ResolvedTypes,
+    ) {
+        let already_local = self
+            .static_scopes
+            .last()
+            .map(|s| s.contains_key(name))
+            .unwrap_or(false);
+        let already_imported = self.imported.statics.contains_key(name);
+
+        if already_local || already_imported {
+            ast_errors.report(
+                TypeError::ImportNameCollision {
+                    name: format!("$!{}", name),
+                    file: source_display.to_string(),
+                },
+                self.parsed.range_from_span(span),
+            );
+            return;
+        }
+
+        if let Some(frame) = self.static_scopes.last_mut() {
+            frame.insert(name.to_string(), def.value.clone());
+        }
+        self.imported
+            .statics
+            .insert(name.to_string(), def.clone());
+        self.imported
+            .provenance
+            .insert(format!("$!{}", name), source_display.to_string());
+
+        let key = ResolvedTypeKey::Token {
+            name: name.to_string(),
+            is_static: true,
+        };
+        resolved_types.insert(key.clone(), def.value.clone());
+        if let Some(frame) = self.declared_tokens.last_mut() {
+            frame.insert(key);
         }
     }
 }
@@ -3462,6 +3837,93 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn extends_token_bearing_schema_in_static_file_errors() {
+        let result = typecheck(
+            "--!static\n@schema Theme { $Bg: Color3; }\n@extends Theme;",
+        )
+        .await;
+
+        let extends_errs: Vec<&String> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Extends Tokens In Static File"))
+            .collect();
+
+        assert_eq!(
+            extends_errs.len(),
+            1,
+            "expected exactly one Extends-Tokens-In-Static-File error, got: {:?}",
+            result.errors
+        );
+        assert!(
+            extends_errs[0].contains("`$Bg`"),
+            "expected token list to mention `$Bg`, got: {}",
+            extends_errs[0]
+        );
+        assert!(
+            extends_errs[0].contains("`Theme`"),
+            "expected schema name `Theme` in error, got: {}",
+            extends_errs[0]
+        );
+    }
+
+    #[tokio::test]
+    async fn extends_multi_token_schema_in_static_file_lists_all_tokens() {
+        let result = typecheck(
+            "--!static\n@schema Theme { $Bg: Color3; $Fg: Color3; }\n@extends Theme;",
+        )
+        .await;
+
+        let extends_err = result
+            .errors
+            .iter()
+            .find(|err| err.contains("Extends Tokens In Static File"))
+            .expect("expected Extends-Tokens-In-Static-File error");
+
+        assert!(
+            extends_err.contains("`$Bg`") && extends_err.contains("`$Fg`"),
+            "expected both `$Bg` and `$Fg` in error, got: {}",
+            extends_err
+        );
+    }
+
+    #[tokio::test]
+    async fn extends_empty_schema_in_static_file_is_fine() {
+        let result =
+            typecheck("--!static\n@schema Theme { }\n@extends Theme;").await;
+
+        let extends_errs: Vec<&String> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Extends Tokens In Static File"))
+            .collect();
+
+        assert!(
+            extends_errs.is_empty(),
+            "expected no Extends-Tokens-In-Static-File error for empty schema, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn extends_token_bearing_schema_in_non_static_file_is_fine() {
+        let result =
+            typecheck("@schema Theme { $Bg: Color3; }\n@extends Theme;").await;
+
+        let extends_errs: Vec<&String> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Extends Tokens In Static File"))
+            .collect();
+
+        assert!(
+            extends_errs.is_empty(),
+            "expected no Extends-Tokens-In-Static-File error for non-static file, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
     async fn extends_inside_rule_scopes_to_rule() {
         let result = typecheck(
             "@schema Theme { $Bg: Color3; }\nFrame { @extends Theme; BackgroundColor3 = $Bg; }\nTextLabel { TextColor3 = $Bg; }",
@@ -3479,6 +3941,125 @@ mod tests {
             1,
             "expected exactly one Undefined Token error from the outer scope, got: {:?}",
             result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn macro_and_schema_collide_on_same_name() {
+        let result = typecheck("@macro Foo() -> Construct { Size = 1; }\n@schema Foo { $X: Color3; }").await;
+        let collisions: Vec<&String> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Macro/Schema Conflict"))
+            .collect();
+        assert_eq!(collisions.len(), 1, "expected one conflict error, got: {:?}", result.errors);
+    }
+
+    #[tokio::test]
+    async fn pub_keyword_does_not_break_macro_registration() {
+        let result = typecheck("@pub @macro Foo() -> Datatype { 1 }\nSize = Foo!();").await;
+        let undefined: Vec<&String> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Undefined Macro"))
+            .collect();
+        assert!(undefined.is_empty(), "expected no Undefined Macro errors: {:?}", result.errors);
+    }
+
+    #[tokio::test]
+    async fn pub_static_token_typechecks() {
+        let result = typecheck("@pub $!Brand = #ff0000;\nFrame { BackgroundColor3 = $!Brand; }").await;
+        let undefined: Vec<&String> = result
+            .errors
+            .iter()
+            .filter(|err| err.contains("Undefined Token"))
+            .collect();
+        assert!(undefined.is_empty(), "expected no Undefined Token errors: {:?}", result.errors);
+    }
+
+    /// End-to-end import: write two .rsml files in a temp dir, derive one
+    /// from the other with `@with { $!Brand }`, and assert the imported
+    /// static token resolves cleanly.
+    #[tokio::test]
+    async fn import_static_token_resolves() {
+        let tmp = tempfile::tempdir().unwrap();
+        let tokens_path = tmp.path().join("tokens.rsml");
+        std::fs::write(&tokens_path, "@pub $!Brand = #ff8800;\n").unwrap();
+
+        let app_path = tmp.path().join("app.rsml");
+        let app_source = format!(
+            "@derive {:?} @with {{ $!Brand }};\nFrame {{ BackgroundColor3 = $!Brand; }}\n",
+            tokens_path.to_string_lossy()
+        );
+        std::fs::write(&app_path, &app_source).unwrap();
+
+        let parsed = RsmlParser::from_source(&app_source);
+        let TypecheckedRsml {
+            errors: ast_errors,
+            ..
+        } = Typechecker::new(&parsed, &app_path, None).await;
+
+        let undefined: Vec<&Diagnostic> = ast_errors
+            .0
+            .iter()
+            .filter(|d| d.code.contains("UNDEFINED_TOKEN"))
+            .collect();
+        assert!(
+            undefined.is_empty(),
+            "expected no Undefined Token errors after import: {:?}",
+            ast_errors.0
+        );
+    }
+
+    #[tokio::test]
+    async fn import_unknown_name_errors() {
+        let tmp = tempfile::tempdir().unwrap();
+        let tokens_path = tmp.path().join("tokens.rsml");
+        std::fs::write(&tokens_path, "@pub $!Brand = #ff8800;\n").unwrap();
+
+        let app_path = tmp.path().join("app.rsml");
+        let app_source = format!(
+            "@derive {:?} @with {{ $!DoesNotExist }};\n",
+            tokens_path.to_string_lossy()
+        );
+        std::fs::write(&app_path, &app_source).unwrap();
+
+        let parsed = RsmlParser::from_source(&app_source);
+        let TypecheckedRsml {
+            errors: ast_errors,
+            ..
+        } = Typechecker::new(&parsed, &app_path, None).await;
+
+        assert!(
+            ast_errors.0.iter().any(|d| d.code.contains("UNKNOWN_IMPORT")),
+            "expected UNKNOWN_IMPORT error: {:?}",
+            ast_errors.0
+        );
+    }
+
+    #[tokio::test]
+    async fn import_collision_errors() {
+        let tmp = tempfile::tempdir().unwrap();
+        let tokens_path = tmp.path().join("tokens.rsml");
+        std::fs::write(&tokens_path, "@pub $!Brand = #ff8800;\n").unwrap();
+
+        let app_path = tmp.path().join("app.rsml");
+        let app_source = format!(
+            "$!Brand = #000000;\n@derive {:?} @with {{ $!Brand }};\n",
+            tokens_path.to_string_lossy()
+        );
+        std::fs::write(&app_path, &app_source).unwrap();
+
+        let parsed = RsmlParser::from_source(&app_source);
+        let TypecheckedRsml {
+            errors: ast_errors,
+            ..
+        } = Typechecker::new(&parsed, &app_path, None).await;
+
+        assert!(
+            ast_errors.0.iter().any(|d| d.code.contains("IMPORT_NAME_COLLISION")),
+            "expected IMPORT_NAME_COLLISION error: {:?}",
+            ast_errors.0
         );
     }
 }

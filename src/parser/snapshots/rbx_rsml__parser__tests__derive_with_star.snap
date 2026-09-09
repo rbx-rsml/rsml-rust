@@ -1,0 +1,64 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Derive {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                DeriveDeclaration,
+                7,
+            ),
+            leading_trivia: None,
+        },
+        body: Some(
+            Node {
+                node: Node {
+                    token: SpannedToken(
+                        8,
+                        StringSingle(
+                            "./tokens",
+                        ),
+                        18,
+                    ),
+                    leading_trivia: None,
+                },
+            },
+        ),
+        with_clause: Some(
+            DeriveWithClause {
+                keyword: Node {
+                    token: SpannedToken(
+                        19,
+                        WithDeclaration,
+                        24,
+                    ),
+                    leading_trivia: None,
+                },
+                items: Some(
+                    All(
+                        Node {
+                            token: SpannedToken(
+                                25,
+                                OpMult,
+                                26,
+                            ),
+                            leading_trivia: None,
+                        },
+                    ),
+                ),
+            },
+        ),
+        terminator: Some(
+            Node {
+                token: SpannedToken(
+                    26,
+                    SemiColon,
+                    27,
+                ),
+                leading_trivia: None,
+            },
+        ),
+    },
+]

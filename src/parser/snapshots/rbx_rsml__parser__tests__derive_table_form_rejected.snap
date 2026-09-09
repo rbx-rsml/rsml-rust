@@ -1,0 +1,32 @@
+---
+source: src/parser/mod.rs
+expression: parsed.ast
+---
+[
+    Derive {
+        declaration: Node {
+            token: SpannedToken(
+                0,
+                DeriveDeclaration,
+                7,
+            ),
+            leading_trivia: None,
+        },
+        body: Some(
+            Node {
+                node: Node {
+                    token: SpannedToken(
+                        9,
+                        StringSingle(
+                            "./a",
+                        ),
+                        14,
+                    ),
+                    leading_trivia: None,
+                },
+            },
+        ),
+        with_clause: None,
+        terminator: None,
+    },
+]

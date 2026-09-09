@@ -45,6 +45,12 @@ pub struct RsmlParser<'a> {
 
     pub directives: Directives,
     pub(crate) pending_node: Option<Node<'a>>,
+    /// Set by `parse_pub` so that the next `parse_macro` / `parse_schema` /
+    /// `parse_static_token_assignment` can attach the `@pub` node to the
+    /// construct it produces. Threading this through every recursive macro
+    /// helper would touch too many call sites; the side channel is read once
+    /// at the construct's first construction site (`take()`).
+    pub(crate) pending_pub_modifier: Option<Node<'a>>,
     pub(crate) directives_phase_done: bool,
 }
 
@@ -61,12 +67,15 @@ impl<'a> RsmlParser<'a> {
 
             directives: Directives::default(),
             pending_node: None,
+            pending_pub_modifier: None,
             directives_phase_done: false,
         };
 
         parser.parse_directives();
 
         parser.parse_loop(|parser, mut node| {
+            node = parser.parse_pub(node).handle_construct(&mut parser.ast)?;
+
             node = parser.parse_macro(node).handle_construct(&mut parser.ast)?;
             node = parser
                 .parse_macro_call(node)
@@ -152,6 +161,7 @@ impl<'a> RsmlParser<'a> {
                     return Parsed(
                         Some(node),
                         Some(Construct::Assignment {
+                            pub_modifier: self.pending_pub_modifier.take(),
                             left: left_node,
                             middle: Some(middle_node),
                             right: body_nodes,
@@ -163,6 +173,7 @@ impl<'a> RsmlParser<'a> {
                     return Parsed(
                         None,
                         Some(Construct::Assignment {
+                            pub_modifier: self.pending_pub_modifier.take(),
                             left: left_node,
                             middle: Some(middle_node),
                             right: body_nodes,
@@ -177,6 +188,7 @@ impl<'a> RsmlParser<'a> {
                     node
                 } else {
                     let construct = Construct::Assignment {
+                        pub_modifier: self.pending_pub_modifier.take(),
                         left: left_node,
                         middle: Some(middle_node),
                         right: body_nodes,
@@ -196,6 +208,7 @@ impl<'a> RsmlParser<'a> {
 
             NodeStatus::None => {
                 let construct = Construct::Assignment {
+                    pub_modifier: self.pending_pub_modifier.take(),
                     left: left_node,
                     middle: Some(middle_node),
                     right: body_nodes,
@@ -216,6 +229,7 @@ impl<'a> RsmlParser<'a> {
         Parsed(
             self.advance(),
             Some(Construct::Assignment {
+                pub_modifier: self.pending_pub_modifier.take(),
                 left: left_node,
                 middle: Some(middle_node),
                 right: body_nodes,
@@ -720,4 +734,16 @@ Frame {
         macro_indirect_recursion_typechecker_error,
         "@macro A() -> Construct { B!(); }\n@macro B() -> Construct { A!(); }\nFrame { A!(); }"
     );
+
+    parser_test!(pub_macro, r#"@pub @macro Padding(&v) -> Construct { padding = &v; }"#);
+    parser_test!(pub_schema, r#"@pub @schema Theme { $Bg: Color3; }"#);
+    parser_test!(pub_static_token, r#"@pub $!Brand = #ff8800;"#);
+    parser_test!(pub_followed_by_invalid, r#"@pub Frame { }"#);
+
+    parser_test!(derive_with_star, r#"@derive "./tokens" @with *;"#);
+    parser_test!(derive_with_list, r#"@derive "./tokens" @with { Padding, Theme, $!Brand };"#);
+    parser_test!(derive_with_list_trailing_comma, r#"@derive "./tokens" @with { A, };"#);
+    parser_test!(derive_with_missing_close, r#"@derive "./tokens" @with { A, B"#);
+    parser_test!(derive_with_missing_items, r#"@derive "./tokens" @with;"#);
+    parser_test!(derive_table_form_rejected, r#"@derive ("./a", "./b");"#);
 }

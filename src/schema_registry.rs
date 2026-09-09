@@ -12,6 +12,7 @@ pub struct SchemaField<'a> {
 #[derive(Debug, Clone)]
 pub struct SchemaDefinition<'a> {
     pub fields: Vec<SchemaField<'a>>,
+    pub is_public: bool,
 }
 
 pub type SchemaRegistry<'a> = HashMap<&'a str, SchemaDefinition<'a>>;
